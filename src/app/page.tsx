@@ -28,7 +28,7 @@ export default function HomePage() {
     setTimeout(() => {
       setActiveIndex((prev) => (prev + 1) % PRACTICUMS.length);
       setIsTransitioning(false);
-    }, 300);
+    }, 250);
   };
 
   const handlePrev = () => {
@@ -37,7 +37,7 @@ export default function HomePage() {
     setTimeout(() => {
       setActiveIndex((prev) => (prev - 1 + PRACTICUMS.length) % PRACTICUMS.length);
       setIsTransitioning(false);
-    }, 300);
+    }, 250);
   };
 
   // Keyboard navigation
@@ -149,21 +149,27 @@ export default function HomePage() {
         style={{
           flex: 1,
           display: "grid",
-          gridTemplateColumns: "1fr 1.5fr 1fr",
+          gridTemplateColumns: "1fr 1.4fr 1fr",
           alignItems: "center",
-          padding: "0 60px",
+          padding: "80px 60px 0 60px",
           gap: "40px",
-          opacity: isTransitioning ? 0 : 1,
-          transform: isTransitioning ? "scale(0.98)" : "scale(1)",
-          transition: "opacity 300ms ease, transform 300ms ease",
         }}
       >
-        {/* LEFT COLUMN: Title & Description */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          {/* Arrow Controls */}
+        {/* LEFT COLUMN: Controls stay completely stationary */}
+        <div
+          style={{
+            height: "480px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            position: "relative",
+          }}
+        >
+          {/* Arrow Controls (Fixed in place, comfortably below header) */}
           <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
             <button
               onClick={handlePrev}
+              aria-label="Previous slide"
               style={{
                 width: "48px",
                 height: "48px",
@@ -185,6 +191,7 @@ export default function HomePage() {
             </button>
             <button
               onClick={handleNext}
+              aria-label="Next slide"
               style={{
                 width: "48px",
                 height: "48px",
@@ -206,70 +213,90 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div>
-            <h1
-              style={{
-                fontSize: "clamp(2rem, 3.5vw, 3.5rem)",
-                fontWeight: 800,
-                lineHeight: 1.1,
-                letterSpacing: "-0.02em",
-                color: "white",
-                marginBottom: "16px",
-                textWrap: "balance",
-                textShadow: "0 4px 24px rgba(0,0,0,0.5)"
-              }}
-            >
-              {activeData.title.split(" ").map((word, i, arr) => (
-                <React.Fragment key={i}>
-                  {i === arr.length - 1 ? <span style={{ color: activeData.accent }}>{word}</span> : word}
-                  {i < arr.length - 1 && " "}
-                </React.Fragment>
-              ))}
-            </h1>
-            <p
-              style={{
-                fontSize: "1.125rem",
-                color: "rgba(255,255,255,0.7)",
-                lineHeight: 1.6,
-                maxWidth: "400px",
-                fontWeight: 400,
-              }}
-            >
-              {activeData.description}
-            </p>
-          </div>
-
-          <Link
-            href={`/praktikum/${activeData.id}`}
+          {/* Animated Slide Content (Title, Description, CTA) */}
+          <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "16px",
-              background: "white",
-              color: "black",
-              padding: "16px 24px",
-              borderRadius: "100px",
-              fontWeight: 700,
-              fontSize: "1rem",
-              textDecoration: "none",
-              width: "fit-content",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-              transition: "transform 0.2s",
-              marginTop: "auto", // Push to the bottom if there's extra space
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              opacity: isTransitioning ? 0 : 1,
+              transform: isTransitioning ? "translateY(6px)" : "translateY(0px)",
+              transition: "opacity 200ms ease, transform 200ms ease",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
           >
-            Mulai Praktikum
-            <div style={{ background: "black", color: "white", borderRadius: "50%", padding: "6px" }}>
-              <ChevronRight className="w-4 h-4" />
+            <div>
+              <h1
+                style={{
+                  fontSize: "clamp(1.75rem, 2.75vw, 3rem)",
+                  fontWeight: 800,
+                  lineHeight: 1.15,
+                  letterSpacing: "-0.02em",
+                  color: "white",
+                  marginBottom: "14px",
+                  textWrap: "balance",
+                  textShadow: "0 4px 24px rgba(0,0,0,0.5)"
+                }}
+              >
+                {activeData.title.split(" ").map((word, i, arr) => (
+                  <React.Fragment key={i}>
+                    {i === arr.length - 1 ? <span style={{ color: activeData.accent }}>{word}</span> : word}
+                    {i < arr.length - 1 && " "}
+                  </React.Fragment>
+                ))}
+              </h1>
+              <p
+                style={{
+                  fontSize: "1rem",
+                  color: "rgba(255,255,255,0.7)",
+                  lineHeight: 1.5,
+                  maxWidth: "400px",
+                  fontWeight: 400,
+                }}
+              >
+                {activeData.description}
+              </p>
             </div>
-          </Link>
+
+            <Link
+              href={`/praktikum/${activeData.id}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                background: "white",
+                color: "black",
+                padding: "14px 22px",
+                borderRadius: "100px",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                textDecoration: "none",
+                width: "fit-content",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+                transition: "transform 0.2s",
+                marginTop: "auto",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              Mulai Praktikum
+              <div style={{ background: "black", color: "white", borderRadius: "50%", padding: "6px" }}>
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </Link>
+          </div>
         </div>
 
         {/* CENTER COLUMN: The "Product" (Physics Visual) */}
-        <div style={{ height: "600px", position: "relative" }}>
+        <div
+          style={{
+            height: "480px",
+            position: "relative",
+            opacity: isTransitioning ? 0 : 1,
+            transform: isTransitioning ? "scale(0.96)" : "scale(1)",
+            transition: "opacity 200ms ease, transform 200ms ease",
+          }}
+        >
           <ModuleVisualizer 
             id={activeData.id} 
             accent={activeData.accent} 
@@ -278,34 +305,56 @@ export default function HomePage() {
         </div>
 
         {/* RIGHT COLUMN: Info / Specs */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "40px", alignItems: "flex-end", textAlign: "right" }}>
-          {/* Big Tagline */}
-          <div style={{ marginBottom: "20px" }}>
-            <span style={{ fontSize: "1.5rem", fontWeight: 700, color: "white", letterSpacing: "-0.02em" }}>
-              {activeData.tagline}
-            </span>
+        <div
+          style={{
+            height: "480px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            textAlign: "right",
+          }}
+        >
+          {/* Animated Info blocks */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "28px",
+              alignItems: "flex-end",
+              opacity: isTransitioning ? 0 : 1,
+              transform: isTransitioning ? "translateY(6px)" : "translateY(0px)",
+              transition: "opacity 200ms ease, transform 200ms ease",
+            }}
+          >
+            {/* Big Tagline */}
+            <div>
+              <span style={{ fontSize: "1.35rem", fontWeight: 700, color: "white", letterSpacing: "-0.02em" }}>
+                {activeData.tagline}
+              </span>
+            </div>
+
+            {/* Info blocks */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {activeData.info.map((item, idx) => (
+                <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>
+                    {item.label}
+                  </span>
+                  <span style={{ fontSize: "1.15rem", color: "white", fontWeight: 500 }}>
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Info blocks */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
-            {activeData.info.map((item, idx) => (
-              <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>
-                  {item.label}
-                </span>
-                <span style={{ fontSize: "1.25rem", color: "white", fontWeight: 500 }}>
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Other options */}
-          <div style={{ marginTop: "20px" }}>
-            <span style={{ fontSize: "0.875rem", color: "rgba(255,255,255,0.5)", marginBottom: "12px", display: "block" }}>
+          {/* Stationary Pagination numbers */}
+          <div>
+            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", marginBottom: "10px", display: "block" }}>
               Pilih Modul (Halaman {activeIndex + 1}/{PRACTICUMS.length}):
             </span>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
               {/* Pagination window of 3 */}
               {[
                 activeIndex === 0 ? 0 : activeIndex === PRACTICUMS.length - 1 ? PRACTICUMS.length - 3 : activeIndex - 1,
@@ -320,17 +369,17 @@ export default function HomePage() {
                     setTimeout(() => {
                       setActiveIndex(idx);
                       setIsTransitioning(false);
-                    }, 300);
+                    }, 200);
                   }}
                   style={{
-                    width: "48px",
-                    height: "48px",
+                    width: "44px",
+                    height: "44px",
                     borderRadius: "50%",
                     background: activeIndex === idx ? "white" : "rgba(255,255,255,0.1)",
                     color: activeIndex === idx ? "black" : "white",
                     border: "none",
                     fontWeight: 700,
-                    fontSize: "0.875rem",
+                    fontSize: "0.85rem",
                     cursor: "pointer",
                     transition: "all 0.2s",
                   }}

@@ -85,7 +85,7 @@ export const PRACTICUMS: PracticumDef[] = [
     bgGradient: "radial-gradient(circle at center, #7C2D12 0%, #06080D 80%)",
   },
   {
-    id: "mi1",
+    id: "momen-inersia-1",
     title: "Momen Inersia 1",
     tagline: "MI1",
     description: "Pahami konsep kelembaman benda tegar terhadap gerak rotasi pada berbagai bentuk geometri dasar.",

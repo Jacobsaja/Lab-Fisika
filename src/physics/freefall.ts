@@ -1,3 +1,5 @@
+import { calculateLinearRegression, RegressionPoint } from "./regression";
+
 export interface FallTimeResult {
   t: number;
   t_squared: number;
@@ -62,6 +64,7 @@ export function calculateAverageTSquared(tSquaredArray: number[]): number {
   return sum / tSquaredArray.length;
 }
 
+
 /**
  * Melakukan regresi linier berdasarkan rumus praktikum:
  * y = bx (dengan y = h, x = rata-rata t^2 dari 5 trial)
@@ -70,47 +73,15 @@ export function calculateAverageTSquared(tSquaredArray: number[]): number {
  * g = 2b
  */
 export function calculateFreefallRegression(data: FreefallRegressionData[]): RegressionResult {
-  const N = data.length;
-  if (N < 3) {
-    throw new Error("Dibutuhkan minimal 3 titik data untuk regresi (rekomendasi 5)");
-  }
-
-  let sumX = 0, sumY = 0, sumX2 = 0, sumY2 = 0, sumXY = 0;
-  
-  for (const d of data) {
-    sumX += d.x;
-    sumY += d.y;
-    sumX2 += d.x * d.x;
-    sumY2 += d.y * d.y;
-    sumXY += d.x * d.y;
-  }
-
-  const denominator = (N * sumX2 - sumX * sumX);
-  
-  if (Math.abs(denominator) < 1e-10) {
-    throw new Error("Denominator nol: Variasi x (t^2) tidak mencukupi. Pastikan ketinggian bervariasi.");
-  }
-
-  const b = (N * sumXY - sumX * sumY) / denominator;
-
-  // Rumus ketidakpastian persis sesuai modul:
-  // Δy² = (1/(N−2)) · [Σyᵢ² − (Σxᵢ²·(Σyᵢ)² − 2·Σxᵢ·Σyᵢ·Σ(xᵢyᵢ) + N·Σ(xᵢyᵢ)²) / (N·Σxᵢ² − (Σxᵢ)²)]
-  const term2_num = sumX2 * sumY * sumY - 2 * sumX * sumY * sumXY + N * sumXY * sumXY;
-  const term2 = term2_num / denominator;
-  const deltaY2 = (1 / (N - 2)) * (sumY2 - term2);
-  
-  // Mencegah NaN karena floating point precision error saat deltaY2 sangat dekat dengan 0 negatif
-  const deltaY = Math.sqrt(Math.max(0, deltaY2)); 
-  
-  const deltaB = deltaY * Math.sqrt(N / denominator);
-
-  const g = 2 * b;
-  const deltaG = 2 * deltaB;
+  const base = calculateLinearRegression(data);
+  const g = 2 * base.b;
+  const deltaG = 2 * base.deltaB;
   const tk = (1 - deltaG / g) * 100;
 
   return {
-    sumX, sumY, sumX2, sumY2, sumXY,
-    b, deltaY2, deltaY, deltaB,
-    g, deltaG, tk
+    ...base,
+    g,
+    deltaG,
+    tk,
   };
 }
