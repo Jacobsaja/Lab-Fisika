@@ -75,8 +75,8 @@ export default function GJBPage() {
     return 9.75 + Math.random() * 0.1;
   }, []);
 
-  // Validation: To proceed from DATA to QUESTIONS, user needs at least 25 rows
-  const isDataStep = state.currentStep === "DATA";
+  // Validation: To proceed from SIMULATION to QUESTIONS, user needs at least 25 rows
+  const isDataStep = state.currentStep === "SIMULATION";
   const rowCount = state.recordedData.length;
   // Let's require exactly 25 rows, or at least 25 rows. The requirement said "5 ketinggian berbeda x 5 trial (25 titik data mentah)".
   // For simplicity, we just check rowCount >= 25. 

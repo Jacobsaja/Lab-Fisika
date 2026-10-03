@@ -10,11 +10,12 @@ interface CaliperProps {
   nstMm?: number;
   measurementMode?: "outer" | "inner" | "depth";
   className?: string;
+  vertical?: boolean;
 }
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 const PPM = 8;               // increased pixels per mm for better detail
-const MAX_MM = 90;           // max opening of the caliper (in mm)
+const MAX_MM = 150;          // max opening of the caliper (in mm)
 const BEAM_Y = 180;          // y-coordinate of the scale baseline
 const BEAM_X0 = 100;         // x where mm=0 sits (left of fixed jaw tip)
 const CANVAS_H = 480;        // total SVG canvas height
@@ -28,6 +29,7 @@ export function Caliper({
   nstMm = 0.05,
   measurementMode = "outer",
   className = "",
+  vertical = false,
 }: CaliperProps) {
   const maxMm = MAX_MM;
   const initialOpenMm = measurementMode === "outer" ? maxMm : 0;
@@ -112,8 +114,8 @@ export function Caliper({
           }}
         >
           <svg
-            viewBox={`0 0 ${viewboxW} ${CANVAS_H}`}
-            className="w-full h-auto transition-all duration-300 ease-in-out"
+            viewBox={vertical ? `0 0 ${CANVAS_H} ${viewboxW}` : `0 0 ${viewboxW} ${CANVAS_H}`}
+            className={`transition-all duration-300 ease-in-out ${vertical ? "h-[550px] w-auto mx-auto" : "w-full h-auto"}`}
             style={{ display: "block" }}
           >
             <defs>
@@ -148,6 +150,7 @@ export function Caliper({
               </marker>
             </defs>
 
+            <g transform={vertical ? `translate(${CANVAS_H}, 0) rotate(90)` : undefined}>
             {/* ══════════════════════════════════════════ */}
             {/* FIXED BODY + JAW                           */}
             {/* ══════════════════════════════════════════ */}
@@ -456,6 +459,7 @@ export function Caliper({
                 stroke={measurementMode === "depth" && isClamped ? "#34d399" : "#64748b"} 
                 strokeWidth={measurementMode === "depth" && isClamped ? 1.5 : 0.5}
               />
+            </g>
             </g>
 
           </svg>

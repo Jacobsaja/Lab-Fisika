@@ -16,3 +16,6 @@ Setiap penambahan instrumen/modul baru wajib memenuhi checklist berikut sebelum 
 - [ ] UI instrumen telah disimulasikan sesuai dengan aslinya (berikut limitasi jangkauan alatnya).
 - [ ] Responsive at 1024/1280/1440 (desktop-only scope; mobile not required for simulation/instrument components).
 - [ ] Tidak ada atribut HTML/DOM (seperti `data-value`, `title`) yang membocorkan kunci jawaban/ground truth ke user.
+
+## Backlog & Known Issues
+- **DataTable Validation**: Saat ini komponen `DataTable` menggunakan `<input type="text">` murni secara internal tanpa validasi inline yang reaktif. Praktikan baru mengetahui ada kesalahan input (misal tipe non-angka atau penggunaan koma) ketika tombol `Selanjutnya` tidak aktif (karena di-filter via logika `hasEnoughData` pada level *page*). **Action Item (Masa Depan)**: Idealnya perbaikan ini dilakukan SECARA TERPUSAT di komponen `DataTable.tsx` itu sendiri (misalnya *highlight* sel berwarna merah + notifikasi *tooltip* saat proses *parsing* ke angka gagal di *onBlur*), alih-alih ditambal di setiap *page* praktikum, sehingga modul baru apa pun yang menggunakan `DataTable` akan mendapatkan validasi secara seragam.

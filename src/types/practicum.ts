@@ -22,10 +22,9 @@ export interface PracticumConfig {
 export type PracticumStep = 
   | "INTRO" // 1 Baca tujuan
   | "SETUP" // 2 Atur percobaan
-  | "SIMULATION" // 3 Jalankan simulasi
-  | "DATA" // 4 Catat data
-  | "QUESTIONS" // 5 Jawab pertanyaan
-  | "REVIEW"; // 6 Tinjau hasil
+  | "SIMULATION" // 3 Jalankan simulasi & Catat data
+  | "QUESTIONS" // 4 Jawab pertanyaan
+  | "REVIEW"; // 5 Tinjau hasil
 
 export interface PracticumState {
   currentStep: PracticumStep;

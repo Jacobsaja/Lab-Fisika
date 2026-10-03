@@ -26,6 +26,9 @@ interface FreeFallApparatusProps {
 export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApparatusProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const reqRef = useRef<number>(null);
+  const ballRef = useRef<SVGCircleElement>(null);
+  const isAutoScrollingRef = useRef(false);
+  const idealYRef = useRef<number | null>(null);
 
   // ── State ──
   const [magnetY, setMagnetY] = useState(250);       // koordinat SVG Y
@@ -94,6 +97,10 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
     // │  h dihitung dari magnetY — IDENTIK dengan posisi arrow.     │
     // │  Tidak ada offset. Tidak ada bias.                          │
     // └──────────────────────────────────────────────────────────────┘
+    isAutoScrollingRef.current = true;
+    if (ballRef.current) {
+      idealYRef.current = ballRef.current.getBoundingClientRect().top;
+    }
     const h = pixelsToMeters(magnetY);
     const { t: actualTime } = calculateFallTime(h, gLocal, true);
 
@@ -114,8 +121,21 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
         // Interpolasi kuadratik (progress²) meniru percepatan konstan
         const currentY =
           ballStartY + (ballEndY - ballStartY) * progress * progress;
-        setBallY(currentY);
+        
+        // Mutasi DOM langsung agar sinkron dengan kalkulasi kamera
+        if (ballRef.current) ballRef.current.setAttribute("cy", String(currentY));
+        
         setDisplayedTime(actualTime * progress);
+
+        // Auto-focus kamera (Absolute Tracking Shot)
+        if (isAutoScrollingRef.current && ballRef.current && idealYRef.current !== null) {
+          const currentRect = ballRef.current.getBoundingClientRect();
+          const diff = currentRect.top - idealYRef.current;
+          if (diff > 1) { 
+            window.scrollBy({ top: diff, behavior: 'instant' });
+          }
+        }
+        
         reqRef.current = requestAnimationFrame(animate);
       }
     };
@@ -124,7 +144,25 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
   }, [isMorsePressed, magnetY, gLocal]);
 
   useEffect(() => {
+    const cancelAutoScroll = () => {
+      isAutoScrollingRef.current = false;
+    };
+    
+    window.addEventListener("wheel", cancelAutoScroll, { passive: true });
+    window.addEventListener("touchmove", cancelAutoScroll, { passive: true });
+    window.addEventListener("mousedown", cancelAutoScroll, { passive: true });
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", " ", "Spacebar"].includes(e.key)) {
+        cancelAutoScroll();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, { passive: true });
+
     return () => {
+      window.removeEventListener("wheel", cancelAutoScroll);
+      window.removeEventListener("touchmove", cancelAutoScroll);
+      window.removeEventListener("mousedown", cancelAutoScroll);
+      window.removeEventListener("keydown", handleKeyDown);
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
     };
   }, []);
@@ -343,6 +381,7 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
 
             {/* Bola Logam */}
             <circle
+              ref={ballRef}
               cx="200"
               cy={ballY}
               r="10"
@@ -372,8 +411,12 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
           </svg>
 
           {/* Scaler Counter */}
-          <div className="bg-[#1e293b] rounded-xl p-4 shadow-lg flex flex-col gap-2 relative border border-[#0f172a]">
-            <div className="flex justify-between items-center text-white/50 text-[10px] font-bold tracking-wider">
+          <div 
+            className="md:absolute left-6 right-6 md:-translate-y-1/2 transition-all duration-200 ease-out z-20"
+            style={{ top: `calc(16px + (100% - 32px) * ${GROUND_Y / 1350})` }}
+          >
+            <div className="bg-[#1e293b] rounded-xl p-4 shadow-lg flex flex-col gap-2 border border-[#0f172a]">
+              <div className="flex justify-between items-center text-white/50 text-[10px] font-bold tracking-wider">
               <span>SCALER COUNTER</span>
               <Activity className="w-3 h-3 text-emerald-400" />
             </div>
@@ -390,9 +433,10 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
               SECONDS (s)
             </div>
           </div>
+          </div>
 
           {/* Morse Key */}
-          <div className="mt-4 flex flex-col items-center gap-3">
+          <div className="mt-8 md:mt-0 flex flex-col items-center gap-3">
             <p className="text-sm font-semibold text-[#334155] text-center mb-2">
               MORSE KEY
             </p>

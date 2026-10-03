@@ -18,8 +18,7 @@ interface PracticumShellProps {
 const STEPS: { id: PracticumStep; label: string }[] = [
   { id: "INTRO", label: "Baca Tujuan" },
   { id: "SETUP", label: "Atur Percobaan" },
-  { id: "SIMULATION", label: "Jalankan Simulasi" },
-  { id: "DATA", label: "Catat Data" },
+  { id: "SIMULATION", label: "Jalankan & Catat Data" },
   { id: "QUESTIONS", label: "Jawab Pertanyaan" },
   { id: "REVIEW", label: "Tinjau Hasil" },
 ];
@@ -126,7 +125,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
               </div>
             )}
 
-            {(state.currentStep === "SETUP" || state.currentStep === "SIMULATION" || state.currentStep === "DATA") && (
+            {(state.currentStep === "SETUP" || state.currentStep === "SIMULATION") && (
               <div className="animate-fade-in flex flex-col gap-6">
                 <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-5">
                   <h3 className="font-semibold text-blue-400 mb-4 flex items-center gap-2">
@@ -142,10 +141,10 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
                   </ol>
                 </div>
                 
-                {state.currentStep === "DATA" && (
+                {state.currentStep === "SIMULATION" && (
                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5">
                      <p className="text-sm text-amber-200/80">
-                       Jalankan simulasi dan catat data yang diperlukan. Tabel data ada di panel kanan bawah.
+                       Lakukan simulasi pada alat di samping dan catat hasilnya langsung ke tabel pengamatan di kanan bawah.
                      </p>
                    </div>
                 )}
@@ -223,12 +222,12 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
             
           </div>
 
-          {/* DATA TABLE AREA (Only visible in DATA step or REVIEW step) */}
-          {(state.currentStep === "DATA" || state.currentStep === "REVIEW") && (
+          {/* DATA TABLE AREA (Only visible in SIMULATION step or REVIEW step) */}
+          {(state.currentStep === "SIMULATION" || state.currentStep === "REVIEW") && (
              <div className="h-[300px] border-t border-white/10 bg-[#11182A] p-4 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-20 animate-slide-up">
                <div className="flex justify-between items-center mb-4">
                  <h3 className="font-bold text-white/90">Tabel Pengamatan</h3>
-                 {state.currentStep === "DATA" && (
+                 {state.currentStep === "SIMULATION" && (
                    <button 
                      onClick={() => {
                         const emptyRow: Record<string, string> = {};
