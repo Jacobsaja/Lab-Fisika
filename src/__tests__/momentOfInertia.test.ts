@@ -15,6 +15,7 @@ import {
   calculatePeriodT0,
   calculateSelfMomentOfInertia,
   simulateOscillationTime,
+  getTorsionalState,
   saveMomentOfInertiaResult,
   loadMomentOfInertiaResult,
   clearMomentOfInertiaResult,
@@ -329,6 +330,44 @@ describe("Momen Inersia I Physics Module", () => {
 
       clearMomentOfInertiaResult();
       expect(loadMomentOfInertiaResult()).toBeNull();
+    });
+  });
+
+  describe("getTorsionalState (Explore Mode Physics)", () => {
+    it("hand-checked case: I = 0.01, kappa = 0.04 -> T = pi", () => {
+      // T = 2 * pi * sqrt(0.01 / 0.04) = 2 * pi * sqrt(0.25) = 2 * pi * 0.5 = pi ~ 3.14159
+      const state = getTorsionalState(0, 90, 0.01, 0.04);
+      expect(state.period).toBeCloseTo(Math.PI, 5);
+      expect(state.thetaDeg).toBeCloseTo(90, 5);
+      expect(state.omegaRad).toBeCloseTo(0, 5); // at t=0, cos is 1, sin is 0 -> omega is 0
+    });
+
+    it("evaluates periodicity correctly at t = T/4, T/2, 3T/4, T", () => {
+      const I = 0.01;
+      const kappa = 0.04;
+      const T = Math.PI;
+      
+      const s1 = getTorsionalState(T / 4, 90, I, kappa);
+      expect(s1.thetaDeg).toBeCloseTo(0, 5); // cos(pi/2) = 0
+      
+      const s2 = getTorsionalState(T / 2, 90, I, kappa);
+      expect(s2.thetaDeg).toBeCloseTo(-90, 5); // cos(pi) = -1
+      
+      const s3 = getTorsionalState(3 * T / 4, 90, I, kappa);
+      expect(s3.thetaDeg).toBeCloseTo(0, 5); // cos(3pi/2) = 0
+      
+      const s4 = getTorsionalState(T, 90, I, kappa);
+      expect(s4.thetaDeg).toBeCloseTo(90, 5); // cos(2pi) = 1
+    });
+
+    it("handles I -> 0 or kappa -> 0 without NaN", () => {
+      const s1 = getTorsionalState(1, 90, 0, 0.04);
+      expect(s1.thetaDeg).toBe(0);
+      expect(s1.omegaRad).toBe(0);
+      
+      const s2 = getTorsionalState(1, 90, 0.01, 0);
+      expect(s2.thetaDeg).toBe(0);
+      expect(s2.omegaRad).toBe(0);
     });
   });
 });

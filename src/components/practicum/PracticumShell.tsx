@@ -1,21 +1,38 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PracticumConfig, PracticumStep } from "@/types/practicum";
+import { PracticumConfig, PracticumState, PracticumStep } from "@/types/practicum";
 import { usePracticumSession } from "@/hooks/usePracticumSession";
 import { ArrowLeft, ChevronRight, CheckCircle2, RotateCcw, Play, Pause, ListTodo } from "lucide-react";
 import Link from "next/link";
 import { ExperimentTimer } from "./ExperimentTimer";
 import { DataTable } from "./DataTable";
 import { QuestionCard } from "./QuestionCard";
+import { calculateLinearRegression, LinearRegressionResult } from "@/physics/regression";
+import { LineGraph } from "@/components/simulation/LineGraph";
+import { HintBox } from "./HintBox";
+
+/**
+ * Context passed to render-prop simulation components so they can read and
+ * write the SAME session instance the shell uses (separate hook instances do
+ * not stay in sync).
+ */
+export interface PracticumShellContext {
+  state: PracticumState;
+  addDataRow: (row: Record<string, string | number>) => void;
+  /** Increments every time the user presses the shell's Reset button. */
+  resetCount: number;
+}
 
 interface PracticumShellProps {
   config: PracticumConfig;
-  simulationComponent: React.ReactNode;
-  isNextDisabled?: boolean;
+  /** A node, or a render function receiving the live session context. */
+  simulationComponent: React.ReactNode | ((ctx: PracticumShellContext) => React.ReactNode);
+  /** A static flag, or a predicate evaluated against the live session state. */
+  isNextDisabled?: boolean | ((state: PracticumState) => boolean);
 }
 
-const STEPS: { id: PracticumStep; label: string }[] = [
+const BASE_STEPS: { id: PracticumStep; label: string }[] = [
   { id: "INTRO", label: "Baca Tujuan" },
   { id: "SETUP", label: "Atur Percobaan" },
   { id: "SIMULATION", label: "Jalankan & Catat Data" },
@@ -27,6 +44,51 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
   const { state, setStep, updateElapsedMs, addDataRow, setRecordedData, setAnswer, completePracticum, resetSession } = usePracticumSession(config.id);
   const [mounted, setMounted] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [resetCount, setResetCount] = useState(0);
+
+  // Determine active steps based on config
+  const STEPS = React.useMemo(() => {
+    if (!config.analysis) return BASE_STEPS;
+    const steps = [...BASE_STEPS];
+    steps.splice(3, 0, { id: "ANALYSIS", label: "Analisis Data" });
+    return steps;
+  }, [config.analysis]);
+
+  // Analysis state
+  const [xCol, setXCol] = useState(config.analysis?.xColumn || "");
+  const [yCol, setYCol] = useState(config.analysis?.yColumn || "");
+
+  // Update cols if config changes
+  useEffect(() => {
+    if (config.analysis) {
+      setXCol(config.analysis.xColumn);
+      setYCol(config.analysis.yColumn);
+    }
+  }, [config.analysis]);
+
+  const analysisData = React.useMemo(() => {
+    if (!config.analysis || !xCol || !yCol) return null;
+    const points = state.recordedData
+      .map(row => ({
+        x: Number(row[xCol]),
+        y: Number(row[yCol])
+      }))
+      .filter(p => !isNaN(p.x) && !isNaN(p.y))
+      // LineGraph derives its x-range from the first/last point, so sort by x.
+      // Regression results are order-independent.
+      .sort((p, q) => p.x - q.x);
+    
+    let regression: LinearRegressionResult | null = null;
+    let error = "";
+    if (points.length >= 3) {
+      try {
+        regression = calculateLinearRegression(points);
+      } catch (err: any) {
+        error = err.message;
+      }
+    }
+    return { points, regression, error };
+  }, [state.recordedData, config.analysis, xCol, yCol]);
   
   useEffect(() => {
     setMounted(true);
@@ -39,6 +101,15 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
   if (!mounted) return null; // Avoid hydration mismatch
 
   const stepIndex = STEPS.findIndex(s => s.id === state.currentStep);
+  const nextDisabled = typeof isNextDisabled === "function" ? isNextDisabled(state) : isNextDisabled;
+  const showHints =
+    !!config.hints && config.hints.length > 0 &&
+    (state.currentStep === "SIMULATION" || state.currentStep === "ANALYSIS" || state.currentStep === "QUESTIONS");
+
+  const handleReset = () => {
+    resetSession();
+    setResetCount(c => c + 1);
+  };
 
   const handleNextStep = () => {
     if (stepIndex < STEPS.length - 1) {
@@ -96,7 +167,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
         </div>
 
         <div className="flex items-center gap-4">
-          <button onClick={resetSession} className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors p-2">
+          <button onClick={handleReset} className="flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors p-2">
             <RotateCcw className="w-4 h-4" /> Reset
           </button>
         </div>
@@ -158,9 +229,103 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
               </div>
             )}
 
+            {state.currentStep === "ANALYSIS" && config.analysis && (
+              <div className="animate-fade-in flex flex-col gap-6">
+                <h2 className="text-xl font-bold">Analisis Data</h2>
+                
+                {config.analysis.allowSwitching && (
+                  <div className="flex gap-4 mb-2">
+                    <label className="flex flex-col gap-1 text-sm text-white/70">
+                      Sumbu X:
+                      <select 
+                        value={xCol} 
+                        onChange={(e) => setXCol(e.target.value)}
+                        className="bg-white/10 border border-white/20 rounded p-1 text-white"
+                      >
+                        {config.columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm text-white/70">
+                      Sumbu Y:
+                      <select 
+                        value={yCol} 
+                        onChange={(e) => setYCol(e.target.value)}
+                        className="bg-white/10 border border-white/20 rounded p-1 text-white"
+                      >
+                        {config.columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                )}
+
+                <div className="bg-[#11182A] border border-white/10 rounded-xl p-4 min-h-[300px]">
+                  {analysisData && analysisData.points.length > 0 ? (
+                    <LineGraph 
+                      data={analysisData.points.map(p => ({ t: p.x, val: p.y }))}
+                      width={350}
+                      height={250}
+                      xLabel={config.columns.find(c => c.key === xCol)?.label || config.analysis.xLabel}
+                      yLabel={config.columns.find(c => c.key === yCol)?.label || config.analysis.yLabel}
+                      drawPoints={true}
+                      drawLine={false}
+                      regressionLine={
+                        config.analysis.showRegression && analysisData.regression 
+                          ? { slope: analysisData.regression.b, intercept: analysisData.regression.a } 
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-white/50 text-sm text-center">
+                      Belum ada data untuk dianalisis.<br/>Kembali ke langkah sebelumnya untuk mencatat data.
+                    </div>
+                  )}
+                </div>
+
+                {config.analysis.showRegression && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-2">
+                    <h3 className="font-semibold text-blue-400 text-sm">Hasil Regresi Linear (y = a + bx)</h3>
+                    {analysisData && analysisData.points.length < 3 ? (
+                      <p className="text-sm text-white/60">Dibutuhkan minimal 3 titik data untuk menampilkan regresi.</p>
+                    ) : analysisData?.error ? (
+                      <p className="text-sm text-red-400">{analysisData.error}</p>
+                    ) : analysisData?.regression ? (
+                      <div className="grid grid-cols-2 gap-4 font-mono text-sm text-white/90">
+                        <div>
+                          <span className="text-white/50">Slope (b):</span><br/>
+                          {analysisData.regression.b.toPrecision(4)} ± {analysisData.regression.deltaB.toPrecision(2)}
+                        </div>
+                        <div>
+                          <span className="text-white/50">Intercept (a):</span><br/>
+                          {analysisData.regression.a.toPrecision(4)} ± {analysisData.regression.deltaA.toPrecision(2)}
+                        </div>
+                        <div>
+                          <span className="text-white/50">R²:</span><br/>
+                          {analysisData.regression.r2.toFixed(4)}
+                        </div>
+                        <div>
+                          <span className="text-white/50">Ketelitian (TK):</span><br/>
+                          {analysisData.regression.tk.toFixed(2)}%
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+
             {state.currentStep === "QUESTIONS" && (
               <div className="animate-fade-in space-y-8">
                 <h2 className="text-xl font-bold">Evaluasi</h2>
+                
+                {/* Referensi Hasil Analisis untuk menjawab soal */}
+                {config.analysis && config.analysis.showRegression && analysisData?.regression && (
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-4 font-mono text-xs text-white/70 mb-4 shadow-inner">
+                    <div className="font-bold text-white/90 mb-2 font-sans">Referensi Analisis Anda:</div>
+                    Slope (b): {analysisData.regression.b.toPrecision(4)}<br/>
+                    Intercept (a): {analysisData.regression.a.toPrecision(4)}
+                  </div>
+                )}
+
                 {config.questions.map((q, i) => (
                   <QuestionCard 
                     key={q.id}
@@ -190,6 +355,9 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
                 </div>
               </div>
             )}
+
+            {/* Progressive hints (fixed slot so revealed hints persist across steps) */}
+            {showHints && <HintBox key={resetCount} hints={config.hints!} />}
           </div>
 
           {/* Nav Buttons */}
@@ -203,7 +371,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
             </button>
             <button 
               onClick={handleNextStep}
-              disabled={stepIndex === STEPS.length - 1 || isNextDisabled}
+              disabled={stepIndex === STEPS.length - 1 || nextDisabled}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(37,99,235,0.3)]"
             >
               Selanjutnya <ChevronRight className="w-4 h-4" />
@@ -217,7 +385,9 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
           <div className="flex-1 overflow-y-auto">
             {/* The simulation component is rendered in normal flow so vertical scroll works */}
             <div className="min-h-full w-full pointer-events-auto">
-              {simulationComponent}
+              {typeof simulationComponent === "function"
+                ? simulationComponent({ state, addDataRow, resetCount })
+                : simulationComponent}
             </div>
             
           </div>

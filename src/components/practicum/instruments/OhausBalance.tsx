@@ -7,6 +7,7 @@ import { CheckCircle2 } from "lucide-react";
 interface OhausBalanceProps {
   valueGrams: number; // ground truth
   className?: string;
+  onReadingChange?: (reading: number) => void;
 }
 
 const X0 = 50;
@@ -19,10 +20,17 @@ const ARM_Y = {
   bottom: 260,
 };
 
-export function OhausBalance({ valueGrams, className = "" }: OhausBalanceProps) {
+export function OhausBalance({ valueGrams, className = "", onReadingChange }: OhausBalanceProps) {
   const [sliders, setSliders] = useState<OhausSliders>({ topGrams: 0, middleGrams: 0, bottomGrams: 0 });
   const [dragging, setDragging] = useState<"top" | "middle" | "bottom" | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  const totalReading = sliders.topGrams + sliders.middleGrams + sliders.bottomGrams;
+  useEffect(() => {
+    if (onReadingChange) {
+      onReadingChange(totalReading);
+    }
+  }, [totalReading, onReadingChange]);
 
   // Reset when object changes
   useEffect(() => {

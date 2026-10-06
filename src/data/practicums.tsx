@@ -85,7 +85,7 @@ export const PRACTICUMS: PracticumDef[] = [
     bgGradient: "radial-gradient(circle at center, #78350F 0%, #06080D 80%)",
   },
   {
-    id: "gm",
+    id: "menggelinding",
     title: "Gerak Menggelinding",
     tagline: "GM",
     description: "Gabungan antara gerak translasi dan rotasi. Analisis momen inersia dan energi kinetik total pada silinder atau bola yang menggelinding.",

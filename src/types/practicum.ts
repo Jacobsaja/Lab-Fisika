@@ -16,15 +16,26 @@ export interface PracticumConfig {
   instructions: string[];
   columns: ColumnDef[];
   questions: Question[];
+  /** Optional progressive hints (revealed one at a time via HintBox). */
+  hints?: string[];
   simulationType: string;
+  analysis?: {
+    xColumn: string;
+    yColumn: string;
+    xLabel: string;
+    yLabel: string;
+    showRegression: boolean;
+    allowSwitching?: boolean;
+  };
 }
 
 export type PracticumStep = 
   | "INTRO" // 1 Baca tujuan
   | "SETUP" // 2 Atur percobaan
   | "SIMULATION" // 3 Jalankan simulasi & Catat data
-  | "QUESTIONS" // 4 Jawab pertanyaan
-  | "REVIEW"; // 5 Tinjau hasil
+  | "ANALYSIS" // 4 Analisis Data (Optional)
+  | "QUESTIONS" // 5 Jawab pertanyaan
+  | "REVIEW"; // 6 Tinjau hasil
 
 export interface PracticumState {
   currentStep: PracticumStep;

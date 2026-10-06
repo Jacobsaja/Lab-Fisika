@@ -19,6 +19,12 @@ interface LineGraphProps {
   /** Y axis limits */
   yMin?: number;
   yMax?: number;
+  /** Whether to draw the line connecting the data points */
+  drawLine?: boolean;
+  /** Whether to draw scatter points for data points */
+  drawPoints?: boolean;
+  /** A regression line to draw, given by slope (b) and intercept (a) */
+  regressionLine?: { slope: number; intercept: number };
 }
 
 export function LineGraph({
@@ -30,15 +36,18 @@ export function LineGraph({
   yLabel = "Nilai",
   timeWindow,
   yMin,
-  yMax
+  yMax,
+  drawLine = true,
+  drawPoints = false,
+  regressionLine
 }: LineGraphProps) {
   const padding = { top: 20, right: 20, bottom: 40, left: 50 };
   const graphW = width - padding.left - padding.right;
   const graphH = height - padding.top - padding.bottom;
 
-  const { pathData, currentYMin, currentYMax, currentTMin, currentTMax } = useMemo(() => {
+  const { pathData, currentYMin, currentYMax, currentTMin, currentTMax, plottedPoints, regPath } = useMemo(() => {
     if (data.length === 0 || graphW <= 0 || graphH <= 0) {
-      return { pathData: "", currentYMin: 0, currentYMax: 1, currentTMin: 0, currentTMax: 1 };
+      return { pathData: "", currentYMin: 0, currentYMax: 1, currentTMin: 0, currentTMax: 1, plottedPoints: [], regPath: "" };
     }
 
     const tMax = data[data.length - 1].t;
@@ -66,9 +75,24 @@ export function LineGraph({
     const mapY = (val: number) => graphH - ((val - cYMin) / yRange) * graphH;
 
     const pts = visibleData.map((d, i) => `${i === 0 ? "M" : "L"} ${mapX(d.t).toFixed(2)},${mapY(d.val).toFixed(2)}`);
+    
+    // Pre-compute point coordinates for scatter and regression
+    const plottedPoints = visibleData.map(d => ({ x: mapX(d.t), y: mapY(d.val) }));
+    
+    let regPath = "";
+    if (regressionLine) {
+       const regStartVal = regressionLine.intercept + regressionLine.slope * tMin;
+       const regEndVal = regressionLine.intercept + regressionLine.slope * Math.max(tMax, tMin + 0.1);
+       regPath = `M 0,${mapY(regStartVal).toFixed(2)} L ${graphW},${mapY(regEndVal).toFixed(2)}`;
+    }
 
-    return { pathData: pts.join(" "), currentYMin: cYMin, currentYMax: cYMax, currentTMin: tMin, currentTMax: Math.max(tMax, tMin + 0.1) };
-  }, [data, graphW, graphH, timeWindow, yMin, yMax]);
+    return { 
+      pathData: pts.join(" "), 
+      currentYMin: cYMin, currentYMax: cYMax, currentTMin: tMin, currentTMax: Math.max(tMax, tMin + 0.1),
+      plottedPoints,
+      regPath
+    };
+  }, [data, graphW, graphH, timeWindow, yMin, yMax, regressionLine]);
 
   return (
     <svg width={width} height={height} className="bg-transparent font-sans">
@@ -88,8 +112,16 @@ export function LineGraph({
           />
         )}
 
-        {/* Path */}
-        <path d={pathData} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        {/* Data Path */}
+        {drawLine && <path d={pathData} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+
+        {/* Regression Path */}
+        {regressionLine && <path d={regPath} fill="none" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" />}
+
+        {/* Scatter Points */}
+        {drawPoints && plottedPoints.map((pt, i) => (
+          <circle key={i} cx={pt.x} cy={pt.y} r={4} fill={color} />
+        ))}
 
         {/* Y Axis Labels */}
         <text x={-8} y={5} fill="rgba(255,255,255,0.5)" fontSize={10} textAnchor="end">{currentYMax.toFixed(1)}</text>

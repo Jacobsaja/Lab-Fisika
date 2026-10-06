@@ -45,7 +45,14 @@ const CONFIG: PracticumConfig = {
       feedbackHint: "Berdasarkan Hukum Newton II, a = ΣF / m. Setelah beban tambahan (m3+m4) tersangkut di cincin B, massa di kedua sisi tali menjadi sama (m1 = m2). Oleh karena itu, ΣF (resultan gaya) menjadi nol, yang menyebabkan percepatan a = 0 (kecepatan konstan)."
     }
   ],
-  simulationType: "measurement"
+  simulationType: "measurement",
+  analysis: {
+    xColumn: "t_glb",
+    yColumn: "jarak_bc",
+    xLabel: "Waktu GLB (s)",
+    yLabel: "Jarak BC (m)",
+    showRegression: true,
+  }
 };
 
 function GLBOrchestrator() {

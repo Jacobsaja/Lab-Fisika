@@ -98,6 +98,52 @@ export function calculateAtwoodRegression(data: AtwoodDataRow[]): AtwoodRegressi
   };
 }
 
+export function getAtwoodExploreState(
+  t: number, 
+  m1: number, 
+  m2: number, 
+  mAdd: number, 
+  s_B: number, // Jarak pelepasan massa tambahan
+  g: number
+) {
+  // Percepatan Fase 1 (sebelum B)
+  // m2 bergerak ke bawah jika m2 + mAdd > m1
+  const mTotal1 = m1 + m2 + mAdd;
+  const a1 = mTotal1 > 0 ? ((m2 + mAdd - m1) * g) / mTotal1 : 0;
+  
+  if (a1 <= 0) {
+    // Tidak bergerak atau bergerak ke atas (tidak ditangani alat ini)
+    return { s: 0, v: 0, a: 0, phase: "DIAM" };
+  }
+
+  const t_B = Math.sqrt((2 * s_B) / a1);
+  
+  if (t <= t_B) {
+    return {
+      s: 0.5 * a1 * t * t,
+      v: a1 * t,
+      a: a1,
+      phase: "GLBB",
+      t_transition: t_B
+    };
+  } else {
+    // Fase 2 (setelah B)
+    const v_B = a1 * t_B;
+    const mTotal2 = m1 + m2;
+    // Percepatan Fase 2 (setelah massa tambahan dilepas)
+    const a2 = mTotal2 > 0 ? ((m2 - m1) * g) / mTotal2 : 0;
+    
+    const t2 = t - t_B;
+    return {
+      s: s_B + v_B * t2 + 0.5 * a2 * t2 * t2,
+      v: v_B + a2 * t2,
+      a: a2,
+      phase: a2 === 0 ? "GLB" : "GLBB",
+      t_transition: t_B
+    };
+  }
+}
+
 // -------------------------------------------------------------
 // FASE GLB (MODUL 2.2) - GERAK LURUS BERATURAN (B ke C)
 // -------------------------------------------------------------

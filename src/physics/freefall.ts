@@ -85,3 +85,11 @@ export function calculateFreefallRegression(data: FreefallRegressionData[]): Reg
     tk,
   };
 }
+
+export function getVelocity(t: number, g: number, v0: number = 0): number {
+  return v0 + g * t;
+}
+
+export function getDisplacement(t: number, g: number, v0: number = 0): number {
+  return v0 * t + 0.5 * g * t * t;
+}

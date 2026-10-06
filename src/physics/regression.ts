@@ -21,10 +21,13 @@ export interface LinearRegressionResult {
   sumX2: number;
   sumY2: number;
   sumXY: number;
+  a: number;
   b: number;
+  r2: number;
   deltaY2: number;
   deltaY: number;
   deltaB: number;
+  deltaA: number;
   tk: number;
 }
 
@@ -71,7 +74,17 @@ export function calculateLinearRegression(data: RegressionPoint[]): LinearRegres
   // Mencegah NaN karena floating point precision error saat deltaY2 sangat dekat dengan 0 negatif
   const deltaY = Math.sqrt(Math.max(0, deltaY2));
   const deltaB = deltaY * Math.sqrt(N / denominator);
-  const tk = (1 - deltaB / b) * 100;
+  const tk = (1 - deltaB / Math.abs(b)) * 100;
+
+  const a = (sumY - b * sumX) / N;
+  const deltaA = deltaY * Math.sqrt(sumX2 / denominator);
+
+  const denomY = N * sumY2 - sumY * sumY;
+  let r2 = 0;
+  if (denominator > 0 && denomY > 0) {
+    const r = (N * sumXY - sumX * sumY) / Math.sqrt(denominator * denomY);
+    r2 = r * r;
+  }
 
   return {
     sumX,
@@ -79,10 +92,13 @@ export function calculateLinearRegression(data: RegressionPoint[]): LinearRegres
     sumX2,
     sumY2,
     sumXY,
+    a,
     b,
+    r2,
     deltaY2,
     deltaY,
     deltaB,
+    deltaA,
     tk,
   };
 }

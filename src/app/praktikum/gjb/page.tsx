@@ -63,7 +63,14 @@ const CONFIG: PracticumConfig = {
       feedbackHint: "Hitung kuadrat dari rata-rata waktu: (0.45)²."
     }
   ],
-  simulationType: "measurement" // or "simulation" if preferable
+  simulationType: "measurement",
+  analysis: {
+    xColumn: "t_sq",
+    yColumn: "h",
+    xLabel: "t² (s²)",
+    yLabel: "Ketinggian (m)",
+    showRegression: true,
+  }
 };
 
 export default function GJBPage() {

@@ -1,14 +1,18 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
 import { calculateFallTime, calculateGLBTime } from "@/physics/atwood";
 
 interface AtwoodApparatusProps {
-  mode: "GLBB" | "GLB";
-  additionalMassConfig: "m3" | "m3_m4"; // Prop independen untuk mengontrol massa tambahan
+  mode: "GLBB" | "GLB" | "explore";
+  additionalMassConfig: "m3" | "m3_m4" | "none";
   a_true: number;       // Percepatan teoretis untuk fase A-B
-  v_true?: number;      // Kecepatan teoretis konstan untuk fase B-C (khusus Modul 2.2)
+  v_true?: number;      // Kecepatan teoretis awal untuk fase B-C
+  a_phase2?: number;    // Percepatan teoretis untuk fase B-C (explore)
   className?: string;
+  hideControls?: boolean;
+  onTimeChange?: (t: number, isRunning: boolean, isReset: boolean) => void;
+  onPosChange?: (sB: number, sC: number) => void;
 }
 
 // Konstanta Dimensi Visual & Konversi
@@ -30,7 +34,22 @@ const M3_H = 15; // Tinggi setiap blok massa tambahan
 const Y_A = 350; // Posisi dasar m2 di titik A
 const Y_M1_INITIAL = 1150; // Posisi dasar m1 awal (di bawah)
 
-export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, className = "" }: AtwoodApparatusProps) {
+export interface AtwoodApparatusRef {
+  startDrop: () => void;
+  resetApparatus: () => void;
+}
+
+export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusProps>(({ 
+  mode, 
+  additionalMassConfig, 
+  a_true, 
+  v_true, 
+  a_phase2 = 0,
+  className = "",
+  hideControls = false,
+  onTimeChange,
+  onPosChange
+}, ref) => {
   const svgRef = useRef<SVGSVGElement>(null);
   
   const m1GroupRef = useRef<SVGGElement>(null);
@@ -40,9 +59,14 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
   const ropeRRef = useRef<SVGLineElement>(null);
   
   // Posisi instrumen (dalam pixel)
-  const [posB, setPosB] = useState(mode === "GLB" ? Y_A + 200 : Y_A + 400); // GLB: 20cm. GLBB min 40cm.
-  const [posC, setPosC] = useState(900);
+  const [posB, setPosB] = useState(mode === "GLB" ? Y_A + 200 : Y_A + 400); 
+  const [posC, setPosC] = useState(Y_A + 600);
   const [draggingItem, setDraggingItem] = useState<"B" | "C" | null>(null);
+
+  // Notify parent of initial pos
+  useEffect(() => {
+    if (onPosChange) onPosChange((posB - Y_A)/PX_PER_METER, (posC - Y_A)/PX_PER_METER);
+  }, [posB, posC, onPosChange]);
 
   // State Animasi & Fisika
   const [isAnimating, setIsAnimating] = useState(false);
@@ -102,13 +126,13 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
 
   // --- LOGIKA DRAG CINCIN B DAN LANDASAN C ---
   const handlePointerDownB = (e: React.PointerEvent) => {
-    if (mode !== "GLBB" || isAnimating || clampRetracted) return;
+    if ((mode !== "GLBB" && mode !== "explore") || isAnimating || clampRetracted) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setDraggingItem("B");
   };
 
   const handlePointerDownC = (e: React.PointerEvent) => {
-    if (mode !== "GLB" || isAnimating || clampRetracted) return;
+    if ((mode !== "GLB" && mode !== "explore") || isAnimating || clampRetracted) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setDraggingItem("C");
   };
@@ -120,13 +144,15 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
 
-    if (draggingItem === "B" && mode === "GLBB") {
+    if (draggingItem === "B" && (mode === "GLBB" || mode === "explore")) {
       let newY = svgP.y;
-      newY = Math.max(Y_A + 400, Math.min(newY, Y_M1_INITIAL - 50));
+      const maxY = mode === "explore" ? posC - 50 : Y_M1_INITIAL - 50;
+      newY = Math.max(Y_A + 100, Math.min(newY, maxY));
       setPosB(newY);
-    } else if (draggingItem === "C" && mode === "GLB") {
+    } else if (draggingItem === "C" && (mode === "GLB" || mode === "explore")) {
       let newY = svgP.y;
-      newY = Math.max(posB + 100, Math.min(newY, Y_M1_INITIAL + 50));
+      const minY = mode === "explore" ? posB + 50 : posB + 100;
+      newY = Math.max(minY, Math.min(newY, Y_M1_INITIAL + 50));
       setPosC(newY);
     }
   };
@@ -204,16 +230,17 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
       resetStopwatch();
       setTimeout(startStopwatch, 50); // Delay kecil sinkronisasi visual
     } else if (mode === "GLB") {
-      // Di GLB, stopwatch direset, tapi baru mulai saat melewati cincin B
       resetStopwatch();
     }
+    
+    if (onTimeChange) onTimeChange(0, true, true);
 
     const s_AB = (posB - Y_A) / PX_PER_METER;
-    const t_AB = calculateFallTime(s_AB, a_true, true);
+    const t_AB = a_true > 0 ? calculateFallTime(s_AB, a_true, mode !== "explore") : Infinity;
 
     let t_BC = 0;
     let s_BC = 0;
-    let v_anim = 0;
+    let v_anim = 0; // Kecepatan di B
 
     if (mode === "GLB" && v_true) {
       s_BC = (posC - posB) / PX_PER_METER;
@@ -221,18 +248,30 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
       v_anim = s_BC / t_BC;
     } else if (mode === "GLBB") {
       s_BC = (Y_M1_INITIAL - posB) / PX_PER_METER; // Biarkan m2 jatuh sampai sejajar P
-      const v_at_B = Math.sqrt(2 * a_true * s_AB);
-      t_BC = s_BC / v_at_B;
-      v_anim = v_at_B;
+      v_anim = Math.sqrt(2 * a_true * s_AB);
+      t_BC = s_BC / v_anim;
+    } else if (mode === "explore") {
+      s_BC = (posC - posB) / PX_PER_METER;
+      v_anim = Math.sqrt(2 * a_true * s_AB);
+      if (a_phase2 === 0) {
+        t_BC = v_anim > 0 ? s_BC / v_anim : Infinity;
+      } else {
+        const det = v_anim*v_anim + 2*a_phase2*s_BC;
+        if (det < 0) t_BC = Infinity; // won't reach C
+        else t_BC = (-v_anim + Math.sqrt(det)) / a_phase2;
+      }
     }
 
-    const a_anim = (2 * s_AB) / (t_AB * t_AB);
+    const a_anim = t_AB !== Infinity ? (2 * s_AB) / (t_AB * t_AB) : 0;
+    const a2_anim = a_phase2; // Untuk visual explore fase 2
 
     animStartTimeRef.current = null;
 
     const animate = (time: number) => {
       if (!animStartTimeRef.current) animStartTimeRef.current = time;
       const elapsed = (time - animStartTimeRef.current) / 1000;
+      
+      if (onTimeChange) onTimeChange(elapsed, true, false);
 
       let currentM2Y = m2Y;
       let currentM1Y = m1Y;
@@ -247,6 +286,14 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
         currentMTambahanY = Y_A + yDrop;
         currentM1Y = Y_M1_INITIAL - yDrop;
         
+        if (isAutoScrollingRef.current && m2GroupRef.current && idealYRef.current !== null) {
+          const currentRect = m2GroupRef.current.getBoundingClientRect();
+          const diff = currentRect.top - idealYRef.current;
+          if (Math.abs(diff) > 1) { 
+            window.scrollBy({ top: diff, behavior: 'instant' });
+          }
+        }
+
         animReqRef.current = requestAnimationFrame(animate);
       } else if (elapsed <= t_AB + t_BC) {
         if (!passedBRef.current) {
@@ -259,12 +306,24 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
         }
         // Fase 2: B menuju bawah (m2 jatuh bebas konstan, m3 tertangkap)
         const t2 = elapsed - t_AB;
-        const s2 = v_anim * t2;
+        let s2 = v_anim * t2;
+        if (mode === "explore") {
+           s2 += 0.5 * a2_anim * t2 * t2;
+        }
         const yDrop = (s_AB + s2) * PX_PER_METER;
 
         currentM2Y = Y_A + yDrop;
         currentMTambahanY = posB; // Beban tambahan TERTANGKAP TEPAT di cincin B
         currentM1Y = Y_M1_INITIAL - yDrop;
+        
+        // Auto-scroll tracking m2
+        if (isAutoScrollingRef.current && m2GroupRef.current && idealYRef.current !== null) {
+          const currentRect = m2GroupRef.current.getBoundingClientRect();
+          const diff = currentRect.top - idealYRef.current;
+          if (Math.abs(diff) > 1) { 
+            window.scrollBy({ top: diff, behavior: 'instant' });
+          }
+        }
         
         animReqRef.current = requestAnimationFrame(animate);
       } else {
@@ -272,6 +331,7 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
         if (mode === "GLB") {
           stopStopwatch(); // Gerbang Cahaya C men-stop timer
         }
+        if (onTimeChange) onTimeChange(t_AB + t_BC, false, false);
         
         const finalDrop = (s_AB + s_BC) * PX_PER_METER;
         currentM2Y = Y_A + finalDrop;
@@ -330,6 +390,11 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
     if (animReqRef.current) cancelAnimationFrame(animReqRef.current);
   };
 
+  useImperativeHandle(ref, () => ({
+    startDrop,
+    resetApparatus
+  }));
+
   // --- RENDER SKALA TIANG ---
   const scaleTicks = useMemo(() => {
     const ticks: React.ReactNode[] = [];
@@ -361,11 +426,11 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
     <div className={`relative w-full rounded-xl border border-white/10 bg-[#f5f7fa] overflow-hidden shadow-2xl flex flex-col md:flex-row ${className}`}>
       
       {/* ── BAGIAN KIRI: SVG ALAT ── */}
-      <div className="flex-1 min-h-[700px] flex justify-center p-4 touch-none select-none">
+      <div className="flex-1 w-full h-full flex justify-center p-4 touch-none select-none">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          className="h-full w-auto drop-shadow-xl"
+          className="h-full max-h-full w-auto drop-shadow-xl"
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
@@ -463,12 +528,13 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
       </div>
 
       {/* ── BAGIAN KANAN: PANEL KONTROL & STOPWATCH ── */}
-      <div className="w-full md:w-80 bg-[#e2e8f0] border-l border-white/20 p-6 flex flex-col shrink-0 relative shadow-inner z-10">
-        
-        <div className="mb-8">
-          <h3 className="font-bold text-lg text-slate-800 border-b-2 border-slate-300 pb-2 mb-4">
-            Kontrol Pesawat Atwood
-          </h3>
+      {!hideControls && (
+        <div className="w-full md:w-80 bg-[#e2e8f0] border-l border-white/20 p-6 flex flex-col shrink-0 relative shadow-inner z-10">
+          
+          <div className="mb-8">
+            <h3 className="font-bold text-lg text-slate-800 border-b-2 border-slate-300 pb-2 mb-4">
+              Kontrol Pesawat Atwood
+            </h3>
           <p className="text-xs text-slate-600 mb-6 leading-relaxed">
             {mode === "GLBB" 
               ? "Atur jarak A-B. Tombol Lepas Klem (P) akan melepaskan beban dan secara otomatis men-trigger Stopwatch menggunakan sensor gerbang cahaya."
@@ -539,6 +605,7 @@ export function AtwoodApparatus({ mode, additionalMassConfig, a_true, v_true, cl
         </div>
 
       </div>
+      )}
     </div>
   );
-}
+});

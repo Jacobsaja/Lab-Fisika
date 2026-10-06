@@ -1,55 +1,73 @@
 import { 
-  countSigFigs, 
-  roundToSigFigs, 
+  countSignificantFigures, 
+  roundToSignificantFigures, 
   calculateMean, 
   calculateStdDev, 
   getSingleMeasurementUncertainty, 
   getRelativeUncertainty,
-  readVernierCaliper
+  readVernierCaliper,
+  quantizeToResolution,
+  uncertaintyFromLeastCount,
+  formatMeasurement
 } from "../physics/measurement";
 
 describe("Measurement Physics Engine", () => {
-  describe("countSigFigs", () => {
+  describe("countSignificantFigures", () => {
     it("counts trailing zeros after decimal", () => {
-      expect(countSigFigs("2.00")).toBe(3);
-      expect(countSigFigs("1.500")).toBe(4);
+      expect(countSignificantFigures("2.00").count).toBe(3);
+      expect(countSignificantFigures("1.500").count).toBe(4);
     });
 
     it("ignores leading zeros", () => {
-      expect(countSigFigs("0.050")).toBe(2);
-      expect(countSigFigs("0.0004")).toBe(1);
+      expect(countSignificantFigures("0.050").count).toBe(2);
+      expect(countSignificantFigures("0.0004").count).toBe(1);
     });
 
     it("counts sandwiched zeros", () => {
-      expect(countSigFigs("1.002")).toBe(4);
-      expect(countSigFigs("10.05")).toBe(4);
+      expect(countSignificantFigures("1.002").count).toBe(4);
+      expect(countSignificantFigures("10.05").count).toBe(4);
     });
 
     it("handles integers (no decimal)", () => {
-      expect(countSigFigs("100")).toBe(1);
-      expect(countSigFigs("101")).toBe(3);
+      expect(countSignificantFigures("100").count).toBe(1);
+      expect(countSignificantFigures("101").count).toBe(3);
     });
     
     it("handles scientific notation", () => {
-      expect(countSigFigs("1.20e3")).toBe(3);
-      expect(countSigFigs("4.5e-4")).toBe(2);
+      expect(countSignificantFigures("1.20e3").count).toBe(3);
+      expect(countSignificantFigures("4.5e-4").count).toBe(2);
     });
   });
 
-  describe("roundToSigFigs", () => {
+  describe("roundToSignificantFigures", () => {
     it("rounds decimals correctly", () => {
-      expect(roundToSigFigs(0.04567, 2)).toBe("0.046");
-      expect(roundToSigFigs(1.002, 2)).toBe("1.0");
+      expect(roundToSignificantFigures(0.04567, 2)).toBe("0.046");
+      expect(roundToSignificantFigures(1.002, 2)).toBe("1.0");
     });
 
     it("adds trailing zeros to meet sig figs", () => {
-      expect(roundToSigFigs(2, 3)).toBe("2.00");
-      expect(roundToSigFigs(1.5, 4)).toBe("1.500");
+      expect(roundToSignificantFigures(2, 3)).toBe("2.00");
+      expect(roundToSignificantFigures(1.5, 4)).toBe("1.500");
     });
 
     it("uses scientific notation for large numbers if needed", () => {
       // 1500 to 2 sig figs -> 1.5e3 -> 1.5 × 10³
-      expect(roundToSigFigs(1500, 2)).toBe("1.5 × 10³");
+      expect(roundToSignificantFigures(1500, 2)).toBe("1.5 × 10³");
+    });
+  });
+
+  describe("new explore functions", () => {
+    it("quantizeToResolution", () => {
+      expect(quantizeToResolution(12.34, 0.05)).toBe(12.35);
+      expect(quantizeToResolution(12.32, 0.05)).toBe(12.30);
+    });
+    it("uncertaintyFromLeastCount", () => {
+      expect(uncertaintyFromLeastCount(0.05)).toBe(0.025);
+    });
+    it("formatMeasurement", () => {
+      expect(formatMeasurement(2.35, 0.05)).toBe("2,35 ± 0,05");
+      expect(formatMeasurement(2.35, 0.025)).toBe("2,350 ± 0,025");
+      expect(formatMeasurement(15, 0.1)).toBe("15,0 ± 0,1");
     });
   });
 

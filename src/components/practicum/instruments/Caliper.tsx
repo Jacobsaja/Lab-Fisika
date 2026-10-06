@@ -11,6 +11,8 @@ interface CaliperProps {
   measurementMode?: "outer" | "inner" | "depth";
   className?: string;
   vertical?: boolean;
+  mode?: "practicum" | "explore";
+  onReadingChange?: (reading: number) => void;
 }
 
 // ── Configuration ─────────────────────────────────────────────────────────────
@@ -30,6 +32,8 @@ export function Caliper({
   measurementMode = "outer",
   className = "",
   vertical = false,
+  mode = "practicum",
+  onReadingChange,
 }: CaliperProps) {
   const maxMm = MAX_MM;
   const initialOpenMm = measurementMode === "outer" ? maxMm : 0;
@@ -62,6 +66,12 @@ export function Caliper({
   const clampedOpen = Math.min(Math.max(openMm, minOpen), maxOpen);
 
   const { mainScaleReading, vernierReading, totalReading } = readVernierCaliper(clampedOpen, nstMm);
+
+  React.useEffect(() => {
+    if (onReadingChange) {
+      onReadingChange(totalReading);
+    }
+  }, [totalReading, onReadingChange]);
 
   const sliderX = BEAM_X0 + clampedOpen * PPM;
 
@@ -496,9 +506,9 @@ export function Caliper({
       <div className="grid grid-cols-4 gap-3">
         {[
           { label: "Resolusi", val: `${nstMm} mm`, color: "white/60" },
-          { label: "Hasil Pengukuran", val: "? mm", color: "white" },
-          { label: "Skala Utama", val: "? mm", color: "blue-300" },
-          { label: "Skala Nonius", val: "? mm", color: "amber-300" },
+          { label: "Hasil Pengukuran", val: mode === "explore" ? `${totalReading} mm` : "? mm", color: "white" },
+          { label: "Skala Utama", val: mode === "explore" ? `${mainScaleReading} mm` : "? mm", color: "blue-300" },
+          { label: "Skala Nonius", val: mode === "explore" ? `${vernierReading} mm` : "? mm", color: "amber-300" },
         ].map(({ label, val, color }) => (
           <div key={label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
             <p className="text-[10px] text-white/40 mb-1">{label}</p>

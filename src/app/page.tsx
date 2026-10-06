@@ -126,8 +126,8 @@ export default function HomePage() {
             padding: "4px",
           }}
         >
-          <Link href="/jelajah" style={{ padding: "8px 24px", fontSize: "0.875rem", fontWeight: 600, color: "white", textDecoration: "none", borderRadius: "100px", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-            JELAJAH BEBAS
+          <Link href="/explore" style={{ padding: "8px 24px", fontSize: "0.875rem", fontWeight: 600, color: "white", textDecoration: "none", borderRadius: "100px", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+            EKSPLORASI
           </Link>
           <Link href="/praktikum" style={{ padding: "8px 24px", fontSize: "0.875rem", fontWeight: 600, color: "var(--color-bg)", background: "white", textDecoration: "none", borderRadius: "100px" }}>
             PRAKTIKUM

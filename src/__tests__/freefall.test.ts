@@ -1,4 +1,4 @@
-import { calculateFallTime, calculateAverageTSquared, calculateFreefallRegression, FreefallRegressionData } from "../physics/freefall";
+import { calculateFallTime, calculateAverageTSquared, calculateFreefallRegression, FreefallRegressionData, getVelocity, getDisplacement } from "../physics/freefall";
 
 describe("Gerak Jatuh Bebas (GJB) Physics Module", () => {
   describe("calculateFallTime", () => {
@@ -90,6 +90,21 @@ describe("Gerak Jatuh Bebas (GJB) Physics Module", () => {
       ];
 
       expect(() => calculateFreefallRegression(data)).toThrow(/Denominator nol/);
+    });
+  });
+
+  describe("getVelocity and getDisplacement", () => {
+    it("menghitung kecepatan v = gt", () => {
+      expect(getVelocity(1.42857, 9.8)).toBeCloseTo(14.0, 1);
+    });
+    
+    it("menghitung perpindahan h = 1/2 gt^2", () => {
+      expect(getDisplacement(1.42857, 9.8)).toBeCloseTo(10.0, 1);
+    });
+    
+    it("mendukung kecepatan awal (v0)", () => {
+      expect(getVelocity(2, 9.8, 5)).toBe(24.6);
+      expect(getDisplacement(2, 9.8, 5)).toBe(29.6);
     });
   });
 });

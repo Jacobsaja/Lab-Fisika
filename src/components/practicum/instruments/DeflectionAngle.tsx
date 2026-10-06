@@ -3,15 +3,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { simulateDeflectionAngle, DEFAULT_DRUM_RADIUS } from "@/physics/momentOfInertia";
 
-interface SudutSimpanganProps {
+interface DeflectionAngleProps {
   massKg: number;
   kappaTrue: number;
   className?: string;
 }
 
-export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpanganProps) {
+export function DeflectionAngle({ massKg, kappaTrue, className = "" }: DeflectionAngleProps) {
   const [angleDeg, setAngleDeg] = useState(0);
-
+  
   // Ref untuk simulasi spring animation (damped oscillation)
   const reqRef = useRef<number>(null);
 
@@ -19,7 +19,7 @@ export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpa
     // Setiap kali massa diganti, kita hitung ground truth angle dengan sedikit noise
     // seperti membaca dari mata manusia + paralaks.
     const { angleDeg: finalAngle } = simulateDeflectionAngle(massKg, kappaTrue, DEFAULT_DRUM_RADIUS, 9.81, true);
-
+    
     let startAnim: number | null = null;
     const DURATION = 2000; // 2 detik untuk stabil
     const startAngle = angleDeg; // Angle saat ini
@@ -56,7 +56,7 @@ export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpa
     for (let deg = 0; deg <= 180; deg++) {
       const isTen = deg % 10 === 0;
       const isFive = deg % 5 === 0 && !isTen;
-
+      
       const length = isTen ? 15 : isFive ? 10 : 5;
       const strokeWidth = isTen ? 2 : 1;
       const color = isTen ? "#1e293b" : "#64748b";
@@ -71,7 +71,7 @@ export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpa
       // So visual angle = deg - 90.
       const visualAngle = deg - 90;
       const rad = (visualAngle * Math.PI) / 180;
-
+      
       const outerRadius = 150;
       const innerRadius = outerRadius - length;
 
@@ -117,7 +117,7 @@ export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpa
   // Visual string properties
   // The string wraps around the drum (radius R) and hangs down.
   // We'll simulate R visually as e.g. 50px radius.
-  const DRUM_VISUAL_RADIUS = 50;
+  const DRUM_VISUAL_RADIUS = 50; 
   // Needle rotation is angleDeg (0 = UP, positive = clockwise)
 
   return (
@@ -152,7 +152,7 @@ export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpa
           <g style={{ transform: `rotate(${angleDeg}deg)`, transformOrigin: "200px 200px" }}>
             {/* Drum details rotating */}
             <circle cx="200" cy="200" r={DRUM_VISUAL_RADIUS - 5} fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="5 5" />
-
+            
             {/* Needle pointing UP initially (0 deg) */}
             <polygon points="196,200 204,200 200,60" fill="#ef4444" />
             <circle cx="200" cy="60" r="3" fill="#ef4444" />
@@ -163,7 +163,7 @@ export function SudutSimpangan({ massKg, kappaTrue, className = "" }: SudutSimpa
               Right edge of drum is x = 200 + DRUM_VISUAL_RADIUS = 250.
               The string will drop down from (250, 200). */}
           <line x1="250" y1="200" x2="250" y2={massKg > 0 ? 380 : 300} stroke="#94a3b8" strokeWidth="2" />
-
+          
           {/* Mass Object */}
           {massKg > 0 ? (
             <g transform={`translate(250, 380)`}>

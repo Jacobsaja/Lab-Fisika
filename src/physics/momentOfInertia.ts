@@ -299,6 +299,29 @@ export function simulateOscillationTime(
   return totalTime;
 }
 
+/**
+ * Menghitung state osilator torsional tak teredam (undamped) pada waktu t.
+ * @param t Waktu (s)
+ * @param initialAngleDeg Sudut simpangan awal (derajat)
+ * @param i0 Momen inersia (kg.m^2)
+ * @param kappa Konstanta pegas (Nm/rad)
+ */
+export function getTorsionalState(t: number, initialAngleDeg: number, i0: number, kappa: number) {
+  if (i0 <= 0 || kappa <= 0) return { thetaDeg: 0, omegaRad: 0, period: 0 };
+  const T = 2 * Math.PI * Math.sqrt(i0 / kappa);
+  const omega = (2 * Math.PI) / T; // = sqrt(kappa / i0)
+  
+  // theta(t) = theta0 * cos(omega * t)
+  const thetaDeg = initialAngleDeg * Math.cos(omega * t);
+  // d(theta)/dt = -theta0 * omega * sin(omega * t)
+  // Konversi theta0 ke radian untuk omegaRad
+  const theta0Rad = (initialAngleDeg * Math.PI) / 180;
+  const omegaRad = -theta0Rad * omega * Math.sin(omega * t);
+
+  return { thetaDeg, omegaRad, period: T };
+}
+
+
 // ── Persistence: LocalStorage Helpers ────────────────────────────────
 
 /**

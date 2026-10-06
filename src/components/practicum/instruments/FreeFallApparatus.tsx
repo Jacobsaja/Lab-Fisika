@@ -4,9 +4,6 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { calculateFallTime } from "@/physics/freefall";
 import { Activity } from "lucide-react";
 
-// Animasi slow-mo pedagogis 1.5 detik
-const ANIMATION_DURATION_MS = 1500;
-
 // ── Skala & Koordinat ──────────────────────────────────────────────
 // 1 mm = 1 px.  1 m = 1000 px.
 const PX_PER_METER = 1000;
@@ -21,14 +18,29 @@ const BALL_VISUAL_OFFSET = 20;
 interface FreeFallApparatusProps {
   className?: string;
   gLocal?: number; // Ground truth g, di-generate 1× di level PracticumShell
+  mode?: "practicum" | "explore";
+  onHeightChange?: (h: number) => void;
+  onTimeChange?: (t: number, isFalling: boolean, reset: boolean) => void;
+  scaleMaxMeters?: number;
+  controlledHeight?: number; // In meters
 }
 
-export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApparatusProps) {
+export function FreeFallApparatus({ 
+  className = "", 
+  gLocal = 9.79, 
+  mode = "practicum", 
+  onHeightChange, 
+  onTimeChange,
+  scaleMaxMeters = 1.2,
+  controlledHeight
+}: FreeFallApparatusProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const reqRef = useRef<number>(null);
   const ballRef = useRef<SVGCircleElement>(null);
   const isAutoScrollingRef = useRef(false);
   const idealYRef = useRef<number | null>(null);
+
+  const PX_PER_METER = 1200 / scaleMaxMeters;
 
   // ── State ──
   const [magnetY, setMagnetY] = useState(250);       // koordinat SVG Y
@@ -39,9 +51,18 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
   const [displayedTime, setDisplayedTime] = useState<number>(0);
   const [finalTime, setFinalTime] = useState<number | null>(null);
 
+  // Sync controlledHeight -> magnetY
+  useEffect(() => {
+    if (controlledHeight !== undefined && !isDragging && !isFalling && !isMorsePressed) {
+      const newY = GROUND_Y - (controlledHeight * PX_PER_METER);
+      if (Math.abs(magnetY - newY) > 0.01) {
+        setMagnetY(newY);
+        setBallY(newY + BALL_VISUAL_OFFSET);
+      }
+    }
+  }, [controlledHeight, PX_PER_METER, isDragging, isFalling, isMorsePressed, magnetY]);
+
   // ── Konversi koordinat ──
-  // Arrow pembaca di y=0 dalam grup magnet = magnetY dalam SVG.
-  // Physics calc menggunakan magnetY. KEDUA TITIK INI IDENTIK.
   const pixelsToMeters = (svgY: number) =>
     Math.max(0, (GROUND_Y - svgY) / PX_PER_METER);
 
@@ -65,6 +86,8 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
     if (newY > 1050) newY = 1050;
 
     setMagnetY(newY);
+    if (onHeightChange) onHeightChange(pixelsToMeters(newY));
+    
     if (!isFalling && !isMorsePressed) {
       setBallY(newY + BALL_VISUAL_OFFSET);
     }
@@ -85,6 +108,7 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
     setBallY(magnetY + BALL_VISUAL_OFFSET); // bola menempel magnet
     setDisplayedTime(0);
     setFinalTime(null);
+    if (onTimeChange) onTimeChange(0, false, true);
     if (reqRef.current) cancelAnimationFrame(reqRef.current);
   };
 
@@ -102,30 +126,38 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
       idealYRef.current = ballRef.current.getBoundingClientRect().top;
     }
     const h = pixelsToMeters(magnetY);
-    const { t: actualTime } = calculateFallTime(h, gLocal, true);
+    // Di mode eksplorasi, jangan beri noise (pure theoretical)
+    const { t: actualTime } = calculateFallTime(h, gLocal, mode === "practicum");
 
     const ballStartY = magnetY + BALL_VISUAL_OFFSET;
     const ballEndY = GROUND_Y - 12; // sedikit di atas pelat kontak
     let startAnim: number | null = null;
+    
+    // Faktor slow-mo: di mode praktikum (h kecil) kita perlamat 2.5x agar bola terlihat jatuh.
+    // Di mode explore, kita gunakan 1.5x agar perbedaan antar planet lebih terasa namun tidak terlalu lambat/cepat.
+    const slowMoFactor = mode === "practicum" ? 2.5 : 1.5;
+    const durationMs = actualTime * 1000 * slowMoFactor;
 
     const animate = (timestamp: number) => {
       if (!startAnim) startAnim = timestamp;
-      const progress = (timestamp - startAnim) / ANIMATION_DURATION_MS;
+      const progress = (timestamp - startAnim) / durationMs;
 
       if (progress >= 1) {
         setBallY(ballEndY);
         setDisplayedTime(actualTime);
         setFinalTime(actualTime);
         setIsFalling(false);
+        if (onTimeChange) onTimeChange(actualTime, false, false);
       } else {
         // Interpolasi kuadratik (progress²) meniru percepatan konstan
         const currentY =
           ballStartY + (ballEndY - ballStartY) * progress * progress;
         
-        // Mutasi DOM langsung agar sinkron dengan kalkulasi kamera
-        if (ballRef.current) ballRef.current.setAttribute("cy", String(currentY));
+        setBallY(currentY);
         
-        setDisplayedTime(actualTime * progress);
+        const currTime = actualTime * progress;
+        setDisplayedTime(currTime);
+        if (onTimeChange) onTimeChange(currTime, true, false);
 
         // Auto-focus kamera (Absolute Tracking Shot)
         if (isAutoScrollingRef.current && ballRef.current && idealYRef.current !== null) {
@@ -141,7 +173,7 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
     };
 
     reqRef.current = requestAnimationFrame(animate);
-  }, [isMorsePressed, magnetY, gLocal]);
+  }, [isMorsePressed, magnetY, gLocal, mode, onTimeChange]);
 
   useEffect(() => {
     const cancelAutoScroll = () => {
@@ -167,11 +199,16 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
     };
   }, []);
 
-  // ── Skala tiang (di-memo karena 1201 elemen) ──
+  // ── Skala tiang (di-memo karena elemen bisa banyak) ──
   const scaleTicks = React.useMemo(() => {
     const ticks: React.ReactNode[] = [];
-    for (let mm = 0; mm <= 1200; mm++) {
-      const y = GROUND_Y - mm; // 1 mm = 1 px
+    const maxMm = scaleMaxMeters * 1000;
+    
+    // Jika tinggi lebih dari 2 meter, kita tidak gambar setiap mm untuk performa
+    const step = scaleMaxMeters > 2 ? 10 : 1; 
+    
+    for (let mm = 0; mm <= maxMm; mm += step) {
+      const y = GROUND_Y - (mm / 1000) * PX_PER_METER;
 
       const isTenCm = mm % 100 === 0;
       const isCm = mm % 10 === 0;
@@ -229,7 +266,7 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
       }
     }
     return ticks;
-  }, []);
+  }, [scaleMaxMeters, PX_PER_METER]);
 
   return (
     <div
@@ -247,9 +284,9 @@ export function FreeFallApparatus({ className = "", gLocal = 9.79 }: FreeFallApp
         </div>
       </div>
 
-      <div className="flex-1 flex w-full relative">
+      <div className="flex-1 flex w-full relative min-h-0">
         {/* ── SVG Area ── */}
-        <div className="flex-1 h-full min-h-[700px] flex justify-center items-center p-4">
+        <div className="flex-1 h-full min-h-0 flex justify-center items-center p-4">
           <svg
             ref={svgRef}
             viewBox="0 0 400 1350"

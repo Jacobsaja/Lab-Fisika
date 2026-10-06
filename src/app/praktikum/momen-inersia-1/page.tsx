@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { PracticumShell } from "@/components/practicum/PracticumShell";
 import { OhausBalance } from "@/components/practicum/instruments/OhausBalance";
-import { SudutSimpangan } from "@/components/practicum/instruments/SudutSimpangan";
+import { DeflectionAngle } from "@/components/practicum/instruments/DeflectionAngle";
 import { TorsionalOscillator } from "@/components/practicum/instruments/TorsionalOscillator";
 import { generateMomentOfInertiaGroundTruth, saveMomentOfInertiaResult } from "@/physics/momentOfInertia";
 import { PracticumConfig } from "@/types/practicum";
@@ -27,6 +27,13 @@ const practicumConfig: PracticumConfig = {
     "Amati waktu untuk 5 getaran yang dicatat oleh photogate.",
   ],
   simulationType: "Momen Inersia",
+  analysis: {
+    xColumn: "massa",
+    yColumn: "sudut",
+    xLabel: "Massa (kg)",
+    yLabel: "Simpangan Sudut (°)",
+    showRegression: true,
+  },
   recommendedDurationSec: 1800,
   columns: [
     { key: "massa", label: "Massa (M)", unit: "kg" },
@@ -149,7 +156,7 @@ export default function MomenInersiaPart1Page() {
 
               <div className="flex flex-col gap-4">
                 <h4 className="font-bold text-white/90 pl-1">2. Amati Simpangan Sudut</h4>
-                <SudutSimpangan 
+                <DeflectionAngle 
                   massKg={activeMassKg} 
                   kappaTrue={groundTruth.kappaTrue} 
                 />
