@@ -20,6 +20,8 @@ import { HintBox } from "./HintBox";
 export interface PracticumShellContext {
   state: PracticumState;
   addDataRow: (row: Record<string, string | number>) => void;
+  /** Replace all recorded rows (e.g. to update student entries in an existing row). */
+  setRecordedData: (rows: Record<string, string | number>[]) => void;
   /** Increments every time the user presses the shell's Reset button. */
   resetCount: number;
 }
@@ -386,7 +388,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
             {/* The simulation component is rendered in normal flow so vertical scroll works */}
             <div className="min-h-full w-full pointer-events-auto">
               {typeof simulationComponent === "function"
-                ? simulationComponent({ state, addDataRow, resetCount })
+                ? simulationComponent({ state, addDataRow, setRecordedData, resetCount })
                 : simulationComponent}
             </div>
             

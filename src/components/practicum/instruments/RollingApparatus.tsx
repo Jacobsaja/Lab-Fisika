@@ -1,5 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
-import { CylinderShape, calculateRollingAcceleration, getRollingState, applySensorNoise } from "@/physics/rollingMotion";
+import {
+  CylinderShape,
+  calculateRollingAcceleration,
+  getRollingState,
+  generateSensorSample,
+  SENSOR_SAMPLE_INTERVAL_S,
+} from "@/physics/rollingMotion";
 
 export interface RollingApparatusProps {
   mode: "explore" | "practicum";
@@ -52,6 +58,8 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
     const simTimeRef = useRef(0);
     const lastTimestampRef = useRef<number | null>(null);
     const isAnimatingRef = useRef(false);
+    /** Next fixed-grid sensor sample to emit (practicum mode). Index 0 (t = 0) is skipped. */
+    const nextSampleIndexRef = useRef(1);
 
     // Track 1 & 2 physics params
     const a1 = calculateRollingAcceleration(shape, thetaDeg, r, rInner, gLocal);
@@ -82,6 +90,7 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
         setIsAnimating(false);
         if (reqRef.current) cancelAnimationFrame(reqRef.current);
         simTimeRef.current = 0;
+        nextSampleIndexRef.current = 1;
         setSimTime(0);
         setS1(0);
         setTheta1(0);
@@ -136,14 +145,16 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
 
       if (onStateUpdate) {
         if (mode === "practicum") {
-          // Add deterministic seeded noise to measurements in practicum mode
-          const noisyState1 = {
-             s: applySensorNoise(state1.s, currentT * 123.45, 0.005),
-             v: applySensorNoise(state1.v, currentT * 678.90), // Uses default SENSOR_NOISE_AMPLITUDE
-             omega: applySensorNoise(state1.omega, currentT * 234.56, 0.05),
-             theta: state1.theta
-          };
-          onStateUpdate(noisyState1, state2);
+          // Emit deterministic noisy samples on a fixed time grid (t_i = i · interval).
+          // Noise depends only on shape + angle + sample index, so it is frame-rate independent.
+          while (true) {
+            const i = nextSampleIndexRef.current;
+            const tSample = i * SENSOR_SAMPLE_INTERVAL_S;
+            if (tSample > currentT) break;
+            if (getRollingState(tSample, a1, r, shape === "block").s > INCLINE_LENGTH_M) break;
+            onStateUpdate(generateSensorSample(shape, thetaDeg, i, a1, r), state2);
+            nextSampleIndexRef.current = i + 1;
+          }
         } else {
           onStateUpdate(state1, state2);
         }

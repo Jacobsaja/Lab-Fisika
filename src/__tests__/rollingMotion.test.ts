@@ -1,4 +1,11 @@
-import { calculateRollingAcceleration } from "../physics/rollingMotion";
+import {
+  calculateRollingAcceleration,
+  CylinderShape,
+  generateSensorSample,
+  sensorNoiseSeed,
+  SENSOR_NOISE_STD,
+  SENSOR_SAMPLE_INTERVAL_S,
+} from "../physics/rollingMotion";
 
 describe("rollingMotion", () => {
   const g = 9.8;
@@ -64,5 +71,75 @@ describe("rollingMotion", () => {
     // True I for solid is 0.5 * m * R^2
     const trueI = 0.5 * m * Math.pow(R, 2);
     expect(computedI).toBeCloseTo(trueI, 5);
+  });
+});
+
+describe("rollingMotion — deterministic sensor noise", () => {
+  const g = 9.8;
+  const r = 0.05;
+  const rInner = 0.04;
+  const indices = Array.from({ length: 30 }, (_, i) => i + 1);
+  const series = (shape: CylinderShape, theta: number, a: number) =>
+    indices.map((i) => generateSensorSample(shape, theta, i, a, r));
+
+  it("seed formula depends only on shape, angle, sample index and channel", () => {
+    // seed = shapeCode·1e7 + round(θ·10)·1e4 + index·10 + channelOffset
+    expect(sensorNoiseSeed("solid", 14, 5, "v")).toBe(1 * 1e7 + 140 * 1e4 + 50 + 1);
+    expect(sensorNoiseSeed("hollow", 22, 0, "s")).toBe(2 * 1e7 + 220 * 1e4 + 0 + 0);
+    expect(sensorNoiseSeed("solid", 14, 5, "omega")).toBe(1 * 1e7 + 140 * 1e4 + 50 + 2);
+  });
+
+  it("same inputs give identical samples (and never call Math.random / clocks)", () => {
+    const randomSpy = jest.spyOn(Math, "random");
+    const dateSpy = jest.spyOn(Date, "now");
+    const a = calculateRollingAcceleration("solid", 14, r, 0, g);
+    const first = series("solid", 14, a);
+    const second = series("solid", 14, a);
+    expect(second).toEqual(first);
+    expect(randomSpy).not.toHaveBeenCalled();
+    expect(dateSpy).not.toHaveBeenCalled();
+    randomSpy.mockRestore();
+    dateSpy.mockRestore();
+  });
+
+  it("samples sit on the fixed time grid t = index · interval", () => {
+    const a = calculateRollingAcceleration("solid", 14, r, 0, g);
+    series("solid", 14, a).forEach((s, k) => {
+      expect(s.t).toBeCloseTo(indices[k] * SENSOR_SAMPLE_INTERVAL_S, 12);
+    });
+  });
+
+  it("different angle gives different samples", () => {
+    const a = calculateRollingAcceleration("solid", 14, r, 0, g);
+    // Same a on purpose: only the seed (angle) differs.
+    const noise14 = series("solid", 14, a).map((s) => s.v - a * s.t);
+    const noise22 = series("solid", 22, a).map((s) => s.v - a * s.t);
+    expect(noise22).not.toEqual(noise14);
+  });
+
+  it("different shape gives different samples", () => {
+    const a = calculateRollingAcceleration("solid", 14, r, 0, g);
+    const solidNoise = series("solid", 14, a).map((s) => s.v - a * s.t);
+    const hollowNoise = series("hollow", 14, a).map((s) => s.v - a * s.t);
+    expect(hollowNoise).not.toEqual(solidNoise);
+  });
+
+  it("a_theory is unchanged by noise; noise offset is independent of a", () => {
+    const before = calculateRollingAcceleration("hollow", 22, r, rInner, g);
+    const samples = series("hollow", 22, before);
+    const after = calculateRollingAcceleration("hollow", 22, r, rInner, g);
+    expect(after).toBe(before);
+
+    const offsetsA = samples.map((s) => s.v - before * s.t);
+    const offsetsB = series("hollow", 22, before * 2).map((s) => s.v - before * 2 * s.t);
+    offsetsA.forEach((o, k) => expect(offsetsB[k]).toBeCloseTo(o, 10));
+  });
+
+  it("noise is bounded and roughly zero-mean (amplitude sanity)", () => {
+    const a = calculateRollingAcceleration("solid", 14, r, 0, g);
+    const offsets = series("solid", 14, a).map((s) => s.v - a * s.t);
+    offsets.forEach((o) => expect(Math.abs(o)).toBeLessThan(6 * SENSOR_NOISE_STD.v));
+    const mean = offsets.reduce((p, q) => p + q, 0) / offsets.length;
+    expect(Math.abs(mean)).toBeLessThan(2 * SENSOR_NOISE_STD.v);
   });
 });
