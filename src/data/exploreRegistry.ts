@@ -55,5 +55,13 @@ export const EXPLORE_REGISTRY: Record<string, ExploreModule> = {
     available: true,
     desc: "Eksplorasi gerak osilasi harmonik rotasional. Amati hubungan konstanta pegas dan momen inersia terhadap periode.",
     category: "mekanika"
+  },
+  "momen-inersia-2": {
+    id: "momen-inersia-2",
+    title: "Momen Inersia II",
+    route: "/explore/mekanika/momen-inersia-2",
+    available: true,
+    desc: "Eksplorasi momen inersia benda tegar (silinder, bola). Bandingkan periode osilasi saat alat ditambah beban.",
+    category: "mekanika"
   }
 };

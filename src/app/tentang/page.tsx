@@ -167,7 +167,7 @@ export default function TentangPage() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">Tim Pengembang</h3>
+                  <h3 className="text-xl font-bold text-white">Jacob Simorangkir</h3>
                   <span className="text-white/50 text-sm">Lab Fisika Virtual</span>
                 </div>
               </div>

@@ -8,6 +8,9 @@ export interface TorsionalOscillatorProps {
   mode?: "practicum" | "explore";
   i0True: number;
   kappaTrue: number;
+  attachedBodyInertia?: number;
+  attachedBodyShape?: "solid-sphere" | "solid-cylinder" | null;
+  attachedBodyRadius?: number; // in meters
   initialAngle?: number; // for explore
   className?: string;
   onTimeChange?: (t: number, isRunning: boolean, reset: boolean) => void;
@@ -22,7 +25,8 @@ export interface TorsionalOscillatorRef {
 }
 
 export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalOscillatorProps>(
-  ({ mode = "practicum", i0True, kappaTrue, initialAngle = 90, className = "", onTimeChange, onStateUpdate, onCycleComplete }, ref) => {
+  ({ mode = "practicum", i0True, kappaTrue, attachedBodyInertia = 0, attachedBodyShape = null, attachedBodyRadius = 0.05, initialAngle = 90, className = "", onTimeChange, onStateUpdate, onCycleComplete }, ref) => {
+    const totalInertia = i0True + attachedBodyInertia;
     const [angleDeg, setAngleDeg] = useState(0);
     const [isPulled, setIsPulled] = useState(false);
     const [isOscillating, setIsOscillating] = useState(false);
@@ -60,7 +64,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
         setDisplayedTime(0);
       }
       
-      const totalTimeSimulated = simulateOscillationTime(i0True, kappaTrue, cyclesTarget, true);
+      const totalTimeSimulated = simulateOscillationTime(totalInertia, kappaTrue, cyclesTarget, true);
       const T0 = totalTimeSimulated / cyclesTarget;
       const omega = (2 * Math.PI) / T0; 
       const startAngle = initialAngle;
@@ -95,7 +99,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
           }
         } else {
           // Explore Mode uses pure getTorsionalState continuously
-          const state = getTorsionalState(currentT, startAngle, i0True, kappaTrue);
+          const state = getTorsionalState(currentT, startAngle, totalInertia, kappaTrue);
           setAngleDeg(state.thetaDeg);
           setDisplayedTime(currentT);
           
@@ -115,7 +119,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
       };
 
       reqRef.current = requestAnimationFrame(animate);
-    }, [isPulled, isOscillating, i0True, kappaTrue, mode, initialAngle, onTimeChange, onStateUpdate, onCycleComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [isPulled, isOscillating, totalInertia, kappaTrue, mode, initialAngle, onTimeChange, onStateUpdate, onCycleComplete]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handlePause = () => {
       setIsOscillating(false);
@@ -163,12 +167,40 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
         <div className="bg-[#111827] text-white p-4 flex justify-between items-center z-10 border-b border-white/20">
           <div>
             <h3 className="font-bold text-lg tracking-wide">ALAT MOMEN INERSIA (BAGIAN B)</h3>
-            <p className="text-emerald-400 text-sm font-mono mt-1 font-bold">PIRINGAN KOSONG (TANPA BEBAN)</p>
+            <p className="text-emerald-400 text-sm font-mono mt-1 font-bold">
+              {attachedBodyShape === "solid-sphere" ? "DENGAN BOLA PEJAL" : attachedBodyShape === "solid-cylinder" ? "DENGAN SILINDER PEJAL" : "PIRINGAN KOSONG (TANPA BEBAN)"}
+            </p>
           </div>
         </div>
 
         <div className="flex-1 min-h-[400px] flex justify-center items-center relative overflow-hidden">
           <svg viewBox="0 0 400 400" className="w-full h-full max-h-[500px] drop-shadow-xl select-none">
+            <defs>
+              <filter id="blur-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" />
+              </filter>
+              
+              <radialGradient id="sphere-grad" cx="35%" cy="30%" r="65%">
+                <stop offset="0%" stopColor="#bfdbfe" />      {/* highlight */}
+                <stop offset="15%" stopColor="#3b82f6" />     {/* base blue */}
+                <stop offset="65%" stopColor="#1e3a8a" />     {/* shadow core */}
+                <stop offset="100%" stopColor="#0f172a" />    {/* rim shadow */}
+              </radialGradient>
+              
+              <linearGradient id="cylinder-face" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f59e0b" />
+                <stop offset="25%" stopColor="#fef3c7" />
+                <stop offset="50%" stopColor="#d97706" />
+                <stop offset="75%" stopColor="#fef3c7" />
+                <stop offset="100%" stopColor="#92400e" />
+              </linearGradient>
+
+              <linearGradient id="cylinder-rim" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#fef3c7" />
+                <stop offset="100%" stopColor="#78350f" />
+              </linearGradient>
+            </defs>
+
             {/* Tiang & Base */}
             <rect x="185" y="50" width="30" height="300" fill="#94a3b8" />
             <rect x="130" y="350" width="140" height="20" fill="#1e293b" rx="4" />
@@ -176,28 +208,61 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
             {/* Gerbang Cahaya (Photogate) U-Shape di posisi sudut 0 (bawah) */}
             <g transform="translate(200, 310)">
               <path d="M -20 0 L -20 -30 L -10 -30 L -10 -10 L 10 -10 L 10 -30 L 20 -30 L 20 0 Z" fill="#0f172a" />
-              {/* Sinar infra merah menyala jika sedang mengukur */}
               <line x1="-10" y1="-20" x2="10" y2="-20" stroke={isOscillating ? "#ef4444" : "#ef444455"} strokeWidth="2" strokeDasharray="2 2" />
               <text x="30" y="-15" fontSize="10" fill="#64748b" fontWeight="bold">PHOTOGATE</text>
             </g>
 
-            {/* Susunan Piringan / Oscillator */}
+            {/* Susunan Piringan / Oscillator (Berputar) */}
             <g style={{ transform: `rotate(${angleDeg}deg)`, transformOrigin: "200px 200px" }}>
-              {/* Piringan Utama */}
               <circle cx="200" cy="200" r="100" fill="#cbd5e1" stroke="#64748b" strokeWidth="4" />
-              
-              {/* Garis-garis pola di piringan agar terlihat berputar */}
               <line x1="200" y1="100" x2="200" y2="300" stroke="#94a3b8" strokeWidth="2" />
               <line x1="100" y1="200" x2="300" y2="200" stroke="#94a3b8" strokeWidth="2" />
               <circle cx="200" cy="200" r="80" fill="none" stroke="#94a3b8" strokeWidth="1" strokeDasharray="10 5" />
-              
-              {/* Batang penunjuk (Flag) yang akan memotong cahaya photogate */}
               <rect x="198" y="280" width="4" height="20" fill="#1e293b" />
-
-              {/* Poros tengah */}
-              <circle cx="200" cy="200" r="15" fill="#334155" />
-              <circle cx="200" cy="200" r="5" fill="#0f172a" />
             </g>
+
+            {/* Bayangan Benda (Tetap di bawah benda) */}
+            {attachedBodyShape && (
+              <circle cx="205" cy="207" r={attachedBodyRadius * 1000} fill="rgba(0,0,0,0.4)" filter="url(#blur-shadow)" />
+            )}
+
+            {/* Poros murni (Hanya terlihat jika kosong) */}
+            {!attachedBodyShape && (
+              <g>
+                <circle cx="200" cy="200" r="15" fill="#334155" />
+                <circle cx="200" cy="200" r="5" fill="#0f172a" />
+              </g>
+            )}
+
+            {/* Benda: Silinder (Ikut berputar agar teksturnya berputar) */}
+            {attachedBodyShape === "solid-cylinder" && (
+              <g style={{ transform: `rotate(${angleDeg}deg)`, transformOrigin: "200px 200px" }}>
+                {/* 3D Bevel / Rim */}
+                <circle cx="200" cy="200" r={attachedBodyRadius * 1000} fill="url(#cylinder-rim)" />
+                {/* Flat metal face */}
+                <circle cx="200" cy="200" r={Math.max(1, attachedBodyRadius * 1000 - 4)} fill="url(#cylinder-face)" stroke="#b45309" strokeWidth="1" />
+                <circle cx="200" cy="200" r="6" fill="#451a03" />
+                {/* Decorative lines for rotation visibility */}
+                <line x1="200" y1={200 - attachedBodyRadius * 1000 + 8} x2="200" y2={200 - attachedBodyRadius * 1000 + 20} stroke="#451a03" strokeWidth="3" strokeLinecap="round" opacity="0.3" />
+                <line x1="200" y1={200 + attachedBodyRadius * 1000 - 20} x2="200" y2={200 + attachedBodyRadius * 1000 - 8} stroke="#451a03" strokeWidth="3" strokeLinecap="round" opacity="0.3" />
+              </g>
+            )}
+
+            {/* Benda: Bola Pejal (Tidak berputar, pencahayaan dan pantulan diam) */}
+            {attachedBodyShape === "solid-sphere" && (
+              <g>
+                <circle cx="200" cy="200" r={attachedBodyRadius * 1000} fill="url(#sphere-grad)" />
+                {/* Specular highlight memanjang khas material glossy */}
+                <ellipse 
+                  cx={200 - attachedBodyRadius * 350} 
+                  cy={200 - attachedBodyRadius * 350} 
+                  rx={Math.max(1, attachedBodyRadius * 300)} 
+                  ry={Math.max(1, attachedBodyRadius * 150)} 
+                  fill="rgba(255,255,255,0.4)" 
+                  transform={`rotate(-45, ${200 - attachedBodyRadius * 350}, ${200 - attachedBodyRadius * 350})`} 
+                />
+              </g>
+            )}
           </svg>
 
           {/* Kontrol Manual Tarik Piringan (Practicum Only) */}
