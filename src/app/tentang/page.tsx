@@ -28,7 +28,7 @@ export default function TentangPage() {
       {/* Background Glows */}
       <div className="absolute top-0 left-[20%] w-[800px] h-[800px] bg-blue-900/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-[10%] w-[600px] h-[600px] bg-purple-900/20 rounded-full blur-[100px] pointer-events-none" />
-      
+
       {/* Grid Pattern */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
 
@@ -92,7 +92,7 @@ export default function TentangPage() {
 
       {/* Main Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-16 pt-12 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-        
+
         {/* Left Column: Text & Features */}
         <div className="flex flex-col gap-8">
           <div>
@@ -101,34 +101,34 @@ export default function TentangPage() {
               Platform Edukasi Masa Depan
             </div>
             <h1 className="text-5xl font-extrabold text-white tracking-tight leading-[1.1] mb-6">
-              Simulasi Fisika <br/>
+              Simulasi Fisika <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
                 Presisi Tinggi.
               </span>
             </h1>
             <p className="text-lg text-white/70 leading-relaxed text-balance">
-              Virtual Lab Fisika ini dirancang untuk mensimulasikan hukum-hukum alam dengan akurasi matematis absolut. 
+              Virtual Lab Fisika ini dirancang untuk mensimulasikan hukum-hukum alam dengan akurasi matematis absolut.
               Menyediakan lingkungan eksperimen yang aman, interaktif, dan tak terbatas bagi mahasiswa maupun pelajar untuk mengeksplorasi konsep-konsep fisika fundamental.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
-            <FeatureCard 
+            <FeatureCard
               icon={<Activity className="w-6 h-6 text-emerald-400" />}
               title="Fixed-Timestep Engine"
               desc="Simulasi berjalan secara deterministik tanpa gangguan frame-rate."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<Zap className="w-6 h-6 text-amber-400" />}
               title="Real-Time Data"
               desc="Pengambilan data dan grafik dihasilkan secara instan saat simulasi berjalan."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<ShieldCheck className="w-6 h-6 text-blue-400" />}
               title="Aman & Praktis"
               desc="Eksperimen tanpa risiko kerusakan alat atau bahaya keselamatan."
             />
-            <FeatureCard 
+            <FeatureCard
               icon={<Code2 className="w-6 h-6 text-purple-400" />}
               title="18 Modul Lengkap"
               desc="Mencakup materi dari kinematika dasar hingga elektromagnetika lanjutan."
@@ -141,7 +141,7 @@ export default function TentangPage() {
           {/* Decorative floating elements */}
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl animate-pulse" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-2xl animate-pulse delay-1000" />
-          
+
           <div className="flex flex-col gap-6">
             {/* Engine Tech Card */}
             <div className="relative overflow-hidden p-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl group hover:border-white/20 transition-colors">
@@ -163,7 +163,7 @@ export default function TentangPage() {
               <div className="flex items-center gap-6 mb-6">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 p-[2px]">
                   <div className="w-full h-full bg-[#0B1020] rounded-full flex items-center justify-center">
-                    <span className="text-xl font-bold text-white">LF</span>
+                    <span className="text-xl font-bold text-white">JS</span>
                   </div>
                 </div>
                 <div>
@@ -172,11 +172,11 @@ export default function TentangPage() {
                 </div>
               </div>
               <div className="flex gap-4">
-                <a href="#" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm font-medium">
+                <a href="https://github.com/Jacobsaja/Lab-Fisika" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm font-medium">
                   <Code className="w-4 h-4" />
                   Source Code
                 </a>
-                <a href="#" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm font-medium">
+                <a href="https://www.instagram.com/itsjacbs?stkn=MTZ5bGg1NG1jMGQ3Ng==" className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm font-medium">
                   <Mail className="w-4 h-4" />
                   Hubungi Kami
                 </a>
