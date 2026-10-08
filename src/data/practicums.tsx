@@ -125,6 +125,16 @@ export const PRACTICUMS: PracticumDef[] = [
     bgGradient: "radial-gradient(circle at center, #831843 0%, #06080D 80%)",
   },
   {
+    id: "osilasi-torsional",
+    title: "Osilasi Torsional",
+    tagline: "TOR",
+    description: "Amati gerak osilasi pendulum torsi. Tentukan periode osilasi dan konstanta torsi menggunakan beban dan batang.",
+    icon: <div className={containerClasses}><RefreshCw className={iconClasses} style={{ color: "#8B5CF6" }} /></div>,
+    info: [{ label: "Fokus", value: "Dinamika Rotasi" }, { label: "Tingkat", value: "Menengah" }],
+    accent: "#8B5CF6",
+    bgGradient: "radial-gradient(circle at center, #4C1D95 0%, #06080D 80%)",
+  },
+  {
     id: "hkm",
     title: "Hukum Kekekalan Momentum",
     tagline: "HKM",

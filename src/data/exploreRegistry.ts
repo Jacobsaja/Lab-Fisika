@@ -63,5 +63,13 @@ export const EXPLORE_REGISTRY: Record<string, ExploreModule> = {
     available: true,
     desc: "Eksplorasi momen inersia benda tegar (silinder, bola). Bandingkan periode osilasi saat alat ditambah beban.",
     category: "mekanika"
+  },
+  "osilasi-torsional": {
+    id: "osilasi-torsional",
+    title: "Osilasi Torsional",
+    route: "/explore/mekanika/osilasi-torsional",
+    available: true,
+    desc: "Eksplorasi gerak osilasi torsi. Atur jari-jari dan massa beban untuk melihat pengaruhnya pada periode dan frekuensi sudut.",
+    category: "mekanika"
   }
 };
