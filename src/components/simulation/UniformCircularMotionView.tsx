@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useMemo } from "react";
+import React, { useId, useMemo, useRef, useState, useEffect } from "react";
 import { CircularMotionSnapshot } from "@/physics/circularMotion";
 import { worldToSvg, worldDeltaToSvg, arcPath, clampVectorLength, ViewTransform } from "./svgGeometry";
 import { VectorArrow } from "./VectorArrow";
@@ -104,9 +104,41 @@ export function UniformCircularMotionView({
     view
   );
 
-  // Detect when particle is in the optical tacho beam
-  const angleDiff = Math.abs(snapshot.thetaWrapped - theta0);
-  const isBeamInterrupted = angleDiff < 0.12 || Math.abs(angleDiff - 2 * Math.PI) < 0.12;
+  // Trajectory-based optical tacho beam crossing detection with ~90ms pulse latch
+  const [isLatched, setIsLatched] = useState(false);
+  const prevThetaRef = useRef<number>(snapshot.theta);
+  const latchTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const uPrev = (prevThetaRef.current - theta0) / (2 * Math.PI);
+    const uCurr = (snapshot.theta - theta0) / (2 * Math.PI);
+    prevThetaRef.current = snapshot.theta;
+
+    const didCross =
+      omega > 0
+        ? Math.floor(uCurr + 1e-7) > Math.floor(uPrev + 1e-7)
+        : omega < 0
+        ? Math.ceil(uCurr - 1e-7) < Math.ceil(uPrev - 1e-7)
+        : false;
+
+    if (didCross) {
+      setIsLatched(true);
+      if (latchTimerRef.current) clearTimeout(latchTimerRef.current);
+      latchTimerRef.current = setTimeout(() => {
+        setIsLatched(false);
+      }, 90);
+    }
+  }, [snapshot.theta, theta0, omega]);
+
+  useEffect(() => {
+    return () => {
+      if (latchTimerRef.current) clearTimeout(latchTimerRef.current);
+    };
+  }, []);
+
+  // When particle is at or very near start position (standing still or initial state)
+  const isAtStart = snapshot.t <= 0.001 || Math.abs(snapshot.thetaWrapped - theta0) < 0.08;
+  const isBeamInterrupted = isAtStart || isLatched;
 
   // Degrees of rotation for radial guide track
   const rotationDeg = -(snapshot.theta * 180) / Math.PI;
