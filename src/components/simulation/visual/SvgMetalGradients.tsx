@@ -25,6 +25,9 @@ export interface MetalGradientIds {
   cylinderTop: string;
   cylinderBody: string;
   sphereGloss: string;
+  turntablePlatter: string;
+  turntableRim: string;
+  sliderCarriage: string;
 }
 
 /**
@@ -56,6 +59,9 @@ export function useMetalGradientIds(customPrefix?: string): MetalGradientIds {
     cylinderTop: `${prefix}_cyl_top`,
     cylinderBody: `${prefix}_cyl_body`,
     sphereGloss: `${prefix}_sphere_gloss`,
+    turntablePlatter: `${prefix}_turntable_platter`,
+    turntableRim: `${prefix}_turntable_rim`,
+    sliderCarriage: `${prefix}_slider_carriage`,
   };
 }
 
@@ -229,6 +235,31 @@ export function SvgMetalGradients({ ids }: SvgMetalGradientsProps) {
         <stop offset="80%" stopColor="#1e3a8a" />
         <stop offset="100%" stopColor="#0a1128" />
       </radialGradient>
+
+      {/* 21. Turntable Rotating Platter (Machined Slate / Gunmetal Disc) */}
+      <radialGradient id={ids.turntablePlatter} cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stopColor="#1e293b" />
+        <stop offset="65%" stopColor="#0f172a" />
+        <stop offset="90%" stopColor="#1e293b" />
+        <stop offset="97%" stopColor="#334155" />
+        <stop offset="100%" stopColor="#020617" />
+      </radialGradient>
+
+      {/* 22. Turntable Bezel Rim (Cast Anodized Metal Ring) */}
+      <radialGradient id={ids.turntableRim} cx="45%" cy="45%" r="55%">
+        <stop offset="0%" stopColor="#475569" />
+        <stop offset="60%" stopColor="#1e293b" />
+        <stop offset="90%" stopColor="#0f172a" />
+        <stop offset="100%" stopColor="#020617" />
+      </radialGradient>
+
+      {/* 23. Sliding Sensor Carriage (High-Precision Brass / Cyan Clamp) */}
+      <linearGradient id={ids.sliderCarriage} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#38bdf8" />
+        <stop offset="40%" stopColor="#0284c7" />
+        <stop offset="85%" stopColor="#0369a1" />
+        <stop offset="100%" stopColor="#0c4a6e" />
+      </linearGradient>
     </defs>
   );
 }
