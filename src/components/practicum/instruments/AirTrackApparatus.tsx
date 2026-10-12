@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef, useId } from "react";
 import { TimerCounter } from "./TimerCounter";
+import { useMetalGradientIds, SvgMetalGradients } from "@/components/simulation/visual";
 import {
   solve1DCollision,
   restitutionCoefficient,
@@ -86,6 +87,13 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   onCollisionComplete,
   className = "",
 }, ref) => {
+  const instanceId = useId().replace(/[:]/g, "_");
+  const gradientIds = useMetalGradientIds(`airtrack_${instanceId}`);
+
+  // Permanent rule: isolate callback prop with useRef
+  const onCollisionCompleteRef = useRef(onCollisionComplete);
+  onCollisionCompleteRef.current = onCollisionComplete;
+
   // Determine actual masses based on props or activeCase
   const aHasWeight =
     cartAHasAddedMass !== undefined
@@ -329,7 +337,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
 
       if (readyToComplete && !callbackFiredRef.current) {
         callbackFiredRef.current = true;
-        if (onCollisionComplete) {
+        if (onCollisionCompleteRef.current) {
           const finalP11 = p11CalculatedRef.current!;
           const finalP21 = p21CalculatedRef.current!;
           const finalP22 = hasP22Expected ? p22CalculatedRef.current : null;
@@ -342,7 +350,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
           const pFin = momentum(effectiveMA, measuredVAPrime) + momentum(effectiveMB, measuredVBPrime);
           const eMeas = restitutionCoefficient(measuredVA, 0, measuredVAPrime, measuredVBPrime);
 
-          onCollisionComplete({
+          onCollisionCompleteRef.current({
             p11: finalP11,
             p21: finalP21,
             p22: finalP22,
@@ -381,7 +389,6 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
     effectiveMB,
     effectiveRestitution,
     hasP22Expected,
-    onCollisionComplete,
   ]);
 
   // Render variables in SVG space
@@ -466,35 +473,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
             viewBox={`0 0 ${SVG_W} ${SVG_H}`}
             className="w-full h-auto max-h-[300px] drop-shadow-2xl overflow-visible"
           >
-            <defs>
-              {/* Rail Gradient */}
-              <linearGradient id="railGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#475569" />
-                <stop offset="30%" stopColor="#94a3b8" />
-                <stop offset="60%" stopColor="#334155" />
-                <stop offset="100%" stopColor="#1e293b" />
-              </linearGradient>
-
-              {/* Cart A Gradient */}
-              <linearGradient id="cartAGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#38bdf8" />
-                <stop offset="50%" stopColor="#0284c7" />
-                <stop offset="100%" stopColor="#0369a1" />
-              </linearGradient>
-
-              {/* Cart B Gradient */}
-              <linearGradient id="cartBGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fbbf24" />
-                <stop offset="50%" stopColor="#d97706" />
-                <stop offset="100%" stopColor="#b45309" />
-              </linearGradient>
-
-              {/* Photogate Body Gradient */}
-              <linearGradient id="gateGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="100%" stopColor="#0f172a" />
-              </linearGradient>
-            </defs>
+            <SvgMetalGradients ids={gradientIds} />
 
             {/* Support Legs */}
             <rect x={TRACK_X1 + 100} y={TRACK_Y + 16} width="22" height="70" fill="#334155" rx="3" />
@@ -508,7 +487,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
             {/* Triangular Air Track Main Beam */}
             <path
               d={`M ${TRACK_X1 - 20} ${TRACK_Y} L ${TRACK_X2 + 20} ${TRACK_Y} L ${TRACK_X2 + 10} ${TRACK_Y + 18} L ${TRACK_X1 - 10} ${TRACK_Y + 18} Z`}
-              fill="url(#railGrad)"
+              fill={`url(#${gradientIds.aluminum})`}
               stroke="#64748b"
               strokeWidth="1.5"
             />
@@ -561,7 +540,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
             {/* Photogate 1 (Gate 1 at GATE1_X_PX) */}
             <g transform={`translate(${GATE1_X_PX}, 0)`}>
               {/* Gate Stand Pole */}
-              <rect x="-5" y={TRACK_Y - 100} width="10" height="120" fill="url(#gateGrad)" stroke="#475569" rx="2" />
+              <rect x="-5" y={TRACK_Y - 100} width="10" height="120" fill={`url(#${gradientIds.chassisDark})`} stroke="#475569" rx="2" />
               {/* Gate U-Arch */}
               <path
                 d={`M -20 ${TRACK_Y - 100} H 20 V ${TRACK_Y - 40} H 12 V ${TRACK_Y - 90} H -12 V ${TRACK_Y - 40} H -20 Z`}
@@ -604,7 +583,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
             {/* Photogate 2 (Gate 2 at GATE2_X_PX) */}
             <g transform={`translate(${GATE2_X_PX}, 0)`}>
               {/* Gate Stand Pole */}
-              <rect x="-5" y={TRACK_Y - 100} width="10" height="120" fill="url(#gateGrad)" stroke="#475569" rx="2" />
+              <rect x="-5" y={TRACK_Y - 100} width="10" height="120" fill={`url(#${gradientIds.chassisDark})`} stroke="#475569" rx="2" />
               {/* Gate U-Arch */}
               <path
                 d={`M -20 ${TRACK_Y - 100} H 20 V ${TRACK_Y - 40} H 12 V ${TRACK_Y - 90} H -12 V ${TRACK_Y - 40} H -20 Z`}
@@ -653,7 +632,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
                 width={CART_LEN_PX}
                 height="28"
                 rx="4"
-                fill="url(#cartAGrad)"
+                fill={`url(#${gradientIds.massBlockA})`}
                 stroke="#38bdf8"
                 strokeWidth="1.5"
               />
@@ -666,7 +645,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
               {/* Added Mass Slot on Cart A */}
               {aHasWeight && (
                 <g transform={`translate(${CART_LEN_PX / 2 - 16}, -14)`}>
-                  <rect x="0" y="0" width="32" height="12" fill="#64748b" stroke="#cbd5e1" strokeWidth="1" rx="2" />
+                  <rect x="0" y="0" width="32" height="12" fill={`url(#${gradientIds.brass})`} stroke="#cbd5e1" strokeWidth="1" rx="2" />
                   <text x="16" y="9" fill="#f8fafc" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
                     +50g
                   </text>
@@ -719,7 +698,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
                 width={CART_LEN_PX}
                 height="28"
                 rx="4"
-                fill="url(#cartBGrad)"
+                fill={`url(#${gradientIds.massBlockB})`}
                 stroke="#fbbf24"
                 strokeWidth="1.5"
               />
@@ -732,7 +711,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
               {/* Added Mass Slot on Cart B */}
               {bHasWeight && (
                 <g transform={`translate(${CART_LEN_PX / 2 - 16}, -14)`}>
-                  <rect x="0" y="0" width="32" height="12" fill="#64748b" stroke="#cbd5e1" strokeWidth="1" rx="2" />
+                  <rect x="0" y="0" width="32" height="12" fill={`url(#${gradientIds.brass})`} stroke="#cbd5e1" strokeWidth="1" rx="2" />
                   <text x="16" y="9" fill="#f8fafc" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
                     +50g
                   </text>
