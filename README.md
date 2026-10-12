@@ -4,6 +4,22 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 **CATATAN PENTING**: Simulasi dan instrumen praktikum dirancang untuk desktop/laptop (viewport ≥1024px). Tidak dioptimalkan untuk mobile. 
 - Halaman-halaman umum seperti Home atau daftar praktikum tetap responsive untuk diakses melalui mobile.
 - Komponen simulasi instrumen (mis. Jangka Sorong) bersifat *desktop-only* agar tidak mengorbankan fungsionalitas dan detail presisi bacaan skala demi ukuran layar kecil.
+
+## Developer Architecture Guidelines
+
+### Aturan Permanen: Callback Props & Animation/Effect Loops
+Callback dari parent (`onXxx`) yang dipakai di dalam `useEffect`, `useCallback`, atau loop animasi (seperti `requestAnimationFrame`) **wajib disimpan di `useRef`**, atau parent wajib membungkusnya dengan `useCallback`.
+- **DILARANG KERAS** memasukkan callback prop (`onStateUpdate`, `onTimeChange`, `onPosChange`, dsb.) ke dalam dependency array `useEffect` yang menjalankan atau menginisialisasi simulasi.
+- **Pola Baku pada Seluruh Apparatus**:
+  ```tsx
+  const onStateUpdateRef = useRef(onStateUpdate);
+  onStateUpdateRef.current = onStateUpdate;
+
+  // Di dalam loop animasi / efek:
+  onStateUpdateRef.current?.(t, angle, omega);
+  ```
+- Terapkan pola ini secara konsisten pada semua apparatus instrumen baru untuk mencegah loop render tak hingga (*infinite re-render* / `Maximum update depth exceeded`).
+
 ## Getting Started
 
 First, run the development server:
