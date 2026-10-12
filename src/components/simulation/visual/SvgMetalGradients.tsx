@@ -20,6 +20,11 @@ export interface MetalGradientIds {
   ballChrome: string;
   inclineRail: string;
   hollowRim: string;
+  torsionDisk: string;
+  spiralSpring: string;
+  cylinderTop: string;
+  cylinderBody: string;
+  sphereGloss: string;
 }
 
 /**
@@ -46,6 +51,11 @@ export function useMetalGradientIds(customPrefix?: string): MetalGradientIds {
     ballChrome: `${prefix}_ball_chrome`,
     inclineRail: `${prefix}_incline_rail`,
     hollowRim: `${prefix}_hollow_rim`,
+    torsionDisk: `${prefix}_torsion_disk`,
+    spiralSpring: `${prefix}_spiral_spring`,
+    cylinderTop: `${prefix}_cyl_top`,
+    cylinderBody: `${prefix}_cyl_body`,
+    sphereGloss: `${prefix}_sphere_gloss`,
   };
 }
 
@@ -175,6 +185,49 @@ export function SvgMetalGradients({ ids }: SvgMetalGradientsProps) {
         <stop offset="0%" stopColor="#67e8f9" />
         <stop offset="50%" stopColor="#0284c7" />
         <stop offset="100%" stopColor="#0f172a" />
+      </radialGradient>
+
+      {/* 16. Torsion Oscillator Disk (Circular Machined Stainless Steel) */}
+      <radialGradient id={ids.torsionDisk} cx="45%" cy="45%" r="55%">
+        <stop offset="0%" stopColor="#f8fafc" />
+        <stop offset="25%" stopColor="#cbd5e1" />
+        <stop offset="55%" stopColor="#94a3b8" />
+        <stop offset="85%" stopColor="#475569" />
+        <stop offset="100%" stopColor="#1e293b" />
+      </radialGradient>
+
+      {/* 17. Spiral Spring Steel Wire */}
+      <linearGradient id={ids.spiralSpring} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#f1f5f9" />
+        <stop offset="35%" stopColor="#94a3b8" />
+        <stop offset="70%" stopColor="#475569" />
+        <stop offset="100%" stopColor="#0f172a" />
+      </linearGradient>
+
+      {/* 18. Cylinder Top Bevel (Brass Laboratory Standard) */}
+      <radialGradient id={ids.cylinderTop} cx="38%" cy="35%" r="65%">
+        <stop offset="0%" stopColor="#fef3c7" />
+        <stop offset="35%" stopColor="#f59e0b" />
+        <stop offset="75%" stopColor="#b45309" />
+        <stop offset="100%" stopColor="#78350f" />
+      </radialGradient>
+
+      {/* 19. Cylinder Curved Body */}
+      <linearGradient id={ids.cylinderBody} x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="#78350f" />
+        <stop offset="20%" stopColor="#fef3c7" />
+        <stop offset="50%" stopColor="#f59e0b" />
+        <stop offset="80%" stopColor="#b45309" />
+        <stop offset="100%" stopColor="#451a03" />
+      </linearGradient>
+
+      {/* 20. Glossy Sphere (Chrome Blue Laboratory Solid Sphere) */}
+      <radialGradient id={ids.sphereGloss} cx="32%" cy="28%" r="68%">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="15%" stopColor="#93c5fd" />
+        <stop offset="45%" stopColor="#3b82f6" />
+        <stop offset="80%" stopColor="#1e3a8a" />
+        <stop offset="100%" stopColor="#0a1128" />
       </radialGradient>
     </defs>
   );

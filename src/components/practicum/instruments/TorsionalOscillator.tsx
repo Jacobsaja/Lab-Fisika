@@ -3,6 +3,13 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { simulateOscillationTime, getTorsionalState } from "@/physics/momentOfInertia";
 import { Activity } from "lucide-react";
+import {
+  SvgMetalGradients,
+  useMetalGradientIds,
+  SvgGridBackground,
+  SvgPhotogate,
+  SvgSpiralSpring,
+} from "@/components/simulation/visual";
 
 export interface TorsionalOscillatorProps {
   mode?: "practicum" | "explore";
@@ -167,207 +174,381 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
       };
     }, []);
 
-  return (
-    <div className={`relative w-full rounded-xl border border-white/10 bg-[#f5f7fa] overflow-hidden shadow-2xl flex flex-col lg:flex-row ${className}`}>
-      
-      {/* ── Kiri: Visual Alat (Piringan & Gerbang Cahaya) ── */}
-      <div className="flex-1 flex flex-col relative border-r border-slate-300">
-        <div className="bg-[#111827] text-white p-4 flex justify-between items-center z-10 border-b border-white/20">
-          <div>
-            <h3 className="font-bold text-lg tracking-wide">ALAT MOMEN INERSIA (BAGIAN B)</h3>
-            <p className="text-emerald-400 text-sm font-mono mt-1 font-bold">
-              {attachedBodyShape === "solid-sphere" ? "DENGAN BOLA PEJAL" : attachedBodyShape === "solid-cylinder" ? "DENGAN SILINDER PEJAL" : "PIRINGAN KOSONG (TANPA BEBAN)"}
-            </p>
-          </div>
-        </div>
+    const gradientIds = useMetalGradientIds("torsion");
+    const isBeamInterrupted = isOscillating ? Math.abs(angleDeg % 180) < 7 : Math.abs(angleDeg) < 3;
 
-        <div className="flex-1 min-h-[400px] flex justify-center items-center relative overflow-hidden">
-          <svg viewBox="0 0 400 400" className="w-full h-full max-h-[500px] drop-shadow-xl select-none">
-            <defs>
-              <filter id="blur-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="4" />
-              </filter>
-              
-              <radialGradient id="sphere-grad" cx="35%" cy="30%" r="65%">
-                <stop offset="0%" stopColor="#bfdbfe" />      {/* highlight */}
-                <stop offset="15%" stopColor="#3b82f6" />     {/* base blue */}
-                <stop offset="65%" stopColor="#1e3a8a" />     {/* shadow core */}
-                <stop offset="100%" stopColor="#0f172a" />    {/* rim shadow */}
-              </radialGradient>
-              
-              <linearGradient id="cylinder-face" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f59e0b" />
-                <stop offset="25%" stopColor="#fef3c7" />
-                <stop offset="50%" stopColor="#d97706" />
-                <stop offset="75%" stopColor="#fef3c7" />
-                <stop offset="100%" stopColor="#92400e" />
-              </linearGradient>
-
-              <linearGradient id="cylinder-rim" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#fef3c7" />
-                <stop offset="100%" stopColor="#78350f" />
-              </linearGradient>
-            </defs>
-
-            {/* Tiang & Base */}
-            <rect x="185" y="50" width="30" height="300" fill="#94a3b8" />
-            <rect x="130" y="350" width="140" height="20" fill="#1e293b" rx="4" />
-            
-            {/* Gerbang Cahaya (Photogate) U-Shape di posisi sudut 0 (bawah) */}
-            <g transform="translate(200, 310)">
-              <path d="M -20 0 L -20 -30 L -10 -30 L -10 -10 L 10 -10 L 10 -30 L 20 -30 L 20 0 Z" fill="#0f172a" />
-              <line x1="-10" y1="-20" x2="10" y2="-20" stroke={isOscillating ? "#ef4444" : "#ef444455"} strokeWidth="2" strokeDasharray="2 2" />
-              <text x="30" y="-15" fontSize="10" fill="#64748b" fontWeight="bold">PHOTOGATE</text>
-            </g>
-
-            {/* Susunan Piringan / Oscillator (Berputar) */}
-            <g style={{ transform: `rotate(${angleDeg}deg)`, transformOrigin: "200px 200px" }}>
-              <circle cx="200" cy="200" r="100" fill="#cbd5e1" stroke="#64748b" strokeWidth="4" />
-              <line x1="200" y1="100" x2="200" y2="300" stroke="#94a3b8" strokeWidth="2" />
-              <line x1="100" y1="200" x2="300" y2="200" stroke="#94a3b8" strokeWidth="2" />
-              <circle cx="200" cy="200" r="80" fill="none" stroke="#94a3b8" strokeWidth="1" strokeDasharray="10 5" />
-              <rect x="198" y="280" width="4" height="20" fill="#1e293b" />
-            </g>
-
-            {/* Bayangan Benda (Tetap di bawah benda) */}
-            {attachedBodyShape && (
-              <circle cx="205" cy="207" r={attachedBodyRadius * 1000} fill="rgba(0,0,0,0.4)" filter="url(#blur-shadow)" />
-            )}
-
-            {/* Poros murni (Hanya terlihat jika kosong) */}
-            {!attachedBodyShape && (
-              <g>
-                <circle cx="200" cy="200" r="15" fill="#334155" />
-                <circle cx="200" cy="200" r="5" fill="#0f172a" />
-              </g>
-            )}
-
-            {/* Benda: Silinder (Ikut berputar agar teksturnya berputar) */}
-            {attachedBodyShape === "solid-cylinder" && (
-              <g style={{ transform: `rotate(${angleDeg}deg)`, transformOrigin: "200px 200px" }}>
-                {/* 3D Bevel / Rim */}
-                <circle cx="200" cy="200" r={attachedBodyRadius * 1000} fill="url(#cylinder-rim)" />
-                {/* Flat metal face */}
-                <circle cx="200" cy="200" r={Math.max(1, attachedBodyRadius * 1000 - 4)} fill="url(#cylinder-face)" stroke="#b45309" strokeWidth="1" />
-                <circle cx="200" cy="200" r="6" fill="#451a03" />
-                {/* Decorative lines for rotation visibility */}
-                <line x1="200" y1={200 - attachedBodyRadius * 1000 + 8} x2="200" y2={200 - attachedBodyRadius * 1000 + 20} stroke="#451a03" strokeWidth="3" strokeLinecap="round" opacity="0.3" />
-                <line x1="200" y1={200 + attachedBodyRadius * 1000 - 20} x2="200" y2={200 + attachedBodyRadius * 1000 - 8} stroke="#451a03" strokeWidth="3" strokeLinecap="round" opacity="0.3" />
-              </g>
-            )}
-
-            {/* Benda: Bola Pejal (Tidak berputar, pencahayaan dan pantulan diam) */}
-            {attachedBodyShape === "solid-sphere" && (
-              <g>
-                <circle cx="200" cy="200" r={attachedBodyRadius * 1000} fill="url(#sphere-grad)" />
-                {/* Specular highlight memanjang khas material glossy */}
-                <ellipse 
-                  cx={200 - attachedBodyRadius * 350} 
-                  cy={200 - attachedBodyRadius * 350} 
-                  rx={Math.max(1, attachedBodyRadius * 300)} 
-                  ry={Math.max(1, attachedBodyRadius * 150)} 
-                  fill="rgba(255,255,255,0.4)" 
-                  transform={`rotate(-45, ${200 - attachedBodyRadius * 350}, ${200 - attachedBodyRadius * 350})`} 
-                />
-              </g>
-            )}
-          </svg>
-
-          {/* Kontrol Manual Tarik Piringan (Practicum Only) */}
-          {mode === "practicum" && (
-            <div className="absolute bottom-6 left-6 flex gap-3">
-               <button
-                onClick={handlePull}
-                disabled={isOscillating || isPulled}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-400 text-white font-bold rounded-lg shadow-md transition-colors"
-              >
-                Simpangkan 90°
-              </button>
-              <button
-                onClick={handleRelease}
-                disabled={!isPulled || isOscillating}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-400 text-white font-bold rounded-lg shadow-md transition-colors"
-              >
-                Lepas (Mulai)
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Kanan: Panel Instrumen (Scaler Counter) (Practicum Only) ── */}
-      {mode === "practicum" && (
-        <div className="w-full lg:w-72 bg-[#e2e8f0] p-6 flex flex-col gap-6 shrink-0 relative shadow-inner z-10 border-t lg:border-t-0 border-slate-300">
-          
-          {/* Scaler Counter Display */}
-          <div className="bg-[#1e293b] rounded-xl p-4 shadow-lg flex flex-col gap-2 relative border border-[#0f172a]">
-            <div className="flex justify-between items-center text-white/50 text-[10px] font-bold tracking-wider">
-              <span>SCALER TIMER</span>
-              <Activity className={`w-3 h-3 ${isOscillating ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
-            </div>
-            
-            <div className="flex gap-2 items-center mb-1">
-              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20">
-                MODE: {timerMode}
-              </span>
-              <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-                N = {cyclesTarget}
-              </span>
-            </div>
-
-            <div className="bg-black rounded border-2 border-[#0f172a] p-3 shadow-inner relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0JyBoZWlnaHQ9JzQnPjxyZWN0IHdpZHRoPSc0JyBoZWlnaHQ9JzInIGZpbGw9JyMxMTEnLz48L3N2Zz4=')] opacity-50 mix-blend-overlay" />
-              <div
-                className="font-mono text-4xl text-right text-red-500 font-bold tracking-widest"
-                style={{ textShadow: "0 0 10px rgba(239,68,68,0.5)" }}
-              >
-                {displayedTime.toFixed(3)}
+    return (
+      <div className={`relative w-full rounded-2xl border border-cyan-500/20 bg-[#080d1a] overflow-hidden shadow-2xl flex flex-col lg:flex-row ${className}`}>
+        
+        {/* ── Kiri: Visual Alat (Piringan & Gerbang Cahaya) ── */}
+        <div className="flex-1 flex flex-col relative border-b lg:border-b-0 lg:border-r border-white/10">
+          {/* Header Panel Bar */}
+          <div className="bg-[#0b1324] px-5 py-3.5 flex justify-between items-center z-10 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <h3 className="font-bold text-sm tracking-wider text-slate-100 font-mono">
+                  ALAT MOMEN INERSIA (BAGIAN B)
+                </h3>
               </div>
-            </div>
-            <div className="text-right text-white/40 text-[10px] font-bold">
-              SECONDS (s)
-            </div>
-
-            {/* Buttons on Counter */}
-            <div className="flex justify-between mt-3 gap-2">
-              <button 
-                onClick={handleReset}
-                disabled={isOscillating}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 disabled:opacity-50 text-white text-[10px] font-bold py-1.5 rounded border-b-2 border-slate-900 active:border-t-2 active:border-b-0 transition-all"
-              >
-                FUNCTION (RESET)
-              </button>
-              <button 
-                disabled={true} // Fixed to 5
-                className="flex-1 bg-slate-700 opacity-50 text-white text-[10px] font-bold py-1.5 rounded border-b-2 border-slate-900 cursor-not-allowed"
-              >
-                CH.OVER (5 GET)
-              </button>
-            </div>
-          </div>
-
-          {/* Feedback / Instructions */}
-          <div className="mt-auto p-4 bg-white/50 border border-slate-300 rounded-lg">
-            <h4 className="text-xs font-bold text-slate-700 mb-1">Instruksi Bagian B:</h4>
-            <ol className="text-[11px] text-slate-600 space-y-1 list-decimal pl-4">
-              <li>Simpangkan piringan 90°.</li>
-              <li>Lepas untuk memulai osilasi.</li>
-              <li>Timer otomatis berhenti setelah {cyclesTarget} getaran.</li>
-              <li>Catat waktu, lalu tekan FUNCTION untuk reset. Ulangi 5x.</li>
-            </ol>
-          </div>
-
-          {finalTime !== null && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg animate-fade-in">
-              <p className="text-xs text-emerald-700 font-bold text-center">WAKTU TERCATAT (5 GETARAN)</p>
-              <p className="text-lg text-center text-emerald-600 font-mono mt-1 font-bold">
-                {finalTime.toFixed(3)} s
+              <p className="text-cyan-400 text-xs font-mono mt-0.5 font-bold tracking-wide">
+                {attachedBodyShape === "solid-sphere"
+                  ? "BEBAN: BOLA PEJAL (SOLID SPHERE)"
+                  : attachedBodyShape === "solid-cylinder"
+                  ? "BEBAN: SILINDER PEJAL (SOLID CYLINDER)"
+                  : "PIRINGAN KOSONG (I₀ MURNI)"}
               </p>
             </div>
-          )}
+            
+            {/* Real-time Deflection Angle Badge */}
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-xs font-mono">
+              <span className="text-slate-400 text-[10px]">θ:</span>
+              <span className="text-cyan-300 font-bold">{angleDeg.toFixed(1)}°</span>
+            </div>
+          </div>
 
+          {/* SVG Simulation Stage */}
+          <div className="flex-1 min-h-[420px] flex justify-center items-center relative overflow-hidden bg-[#060a14]">
+            <svg viewBox="0 0 400 420" className="w-full h-full max-h-[520px] select-none">
+              <SvgMetalGradients ids={gradientIds} />
+              <SvgGridBackground
+                width={400}
+                height={420}
+                gridSize={40}
+                opacity={0.6}
+              />
+
+              {/* 1. Base Stand & Vertical Mast */}
+              {/* Heavy Machined Base Footing */}
+              <rect x="110" y="380" width="180" height="22" rx="4" fill={`url(#${gradientIds.chassisDark})`} stroke="#334155" strokeWidth="1.5" />
+              {/* Leveling Feet Screws */}
+              <circle cx="125" cy="404" r="6" fill="#475569" stroke="#0f172a" strokeWidth="1.2" />
+              <circle cx="275" cy="404" r="6" fill="#475569" stroke="#0f172a" strokeWidth="1.2" />
+              {/* Ground Anchor Bolts */}
+              <circle cx="160" cy="391" r="3.5" fill="#1e293b" stroke="#64748b" strokeWidth="1" />
+              <circle cx="240" cy="391" r="3.5" fill="#1e293b" stroke="#64748b" strokeWidth="1" />
+
+              {/* Heavy Vertical Support Post (Steel Mast) */}
+              <rect x="186" y="55" width="28" height="325" fill={`url(#${gradientIds.steelVertical})`} stroke="#1e293b" strokeWidth="1.2" />
+              {/* Mast Center Chamfer Highlight */}
+              <line x1="200" y1="55" x2="200" y2="380" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
+
+              {/* Top Support Cap & Axis Bearing Housing */}
+              <rect x="176" y="45" width="48" height="18" rx="2" fill={`url(#${gradientIds.chassisDark})`} stroke="#475569" strokeWidth="1" />
+              <circle cx="200" cy="54" r="4" fill="#f59e0b" stroke="#78350f" strokeWidth="1" />
+
+              {/* 2. Laboratory Photogate (U-Shape Arch at bottom) */}
+              <SvgPhotogate
+                x={200}
+                y={362}
+                orientation="up"
+                width={56}
+                height={62}
+                throatWidth={26}
+                throatDepth={38}
+                beamActive={isBeamInterrupted}
+                label="PHOTOGATE"
+                subLabel="0° SENSOR"
+                chassisFillId={gradientIds.chassisDark}
+              />
+
+              {/* 3. Spiral Torsion Spring (Stationary mount beneath/around rotating disk) */}
+              <SvgSpiralSpring
+                cx={200}
+                cy={200}
+                turns={4.2}
+                outerRadius={36}
+                innerRadius={8}
+                strokeFillId={gradientIds.spiralSpring}
+              />
+
+              {/* 4. Rotating Assembly: Oscillator Disc (Rotates by angleDeg) */}
+              {/* Strictly ZERO SVG filters on this moving group for guaranteed 60 FPS */}
+              <g style={{ transform: `rotate(${angleDeg}deg)`, transformOrigin: "200px 200px" }}>
+                {/* Main Stainless Steel Turntable Disc */}
+                <circle
+                  cx="200"
+                  cy="200"
+                  r="100"
+                  fill={`url(#${gradientIds.torsionDisk})`}
+                  stroke="#1e293b"
+                  strokeWidth="3"
+                />
+
+                {/* Disc Beveled Outer Rim */}
+                <circle
+                  cx="200"
+                  cy="200"
+                  r="96"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.45)"
+                  strokeWidth="1.2"
+                />
+                <circle
+                  cx="200"
+                  cy="200"
+                  r="78"
+                  fill="none"
+                  stroke="rgba(0, 0, 0, 0.3)"
+                  strokeWidth="1"
+                  strokeDasharray="4 2"
+                />
+                <circle
+                  cx="200"
+                  cy="200"
+                  r="52"
+                  fill="none"
+                  stroke="rgba(0, 0, 0, 0.25)"
+                  strokeWidth="1"
+                  strokeDasharray="8 4"
+                />
+
+                {/* Laser-Engraved Crosshair Axes */}
+                <line x1="200" y1="102" x2="200" y2="298" stroke="#334155" strokeWidth="1.5" />
+                <line x1="102" y1="200" x2="298" y2="200" stroke="#334155" strokeWidth="1.5" />
+
+                {/* Radial 30° Graduation Ticks around perimeter */}
+                {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => {
+                  const rad = (deg * Math.PI) / 180;
+                  const x1 = 200 + 88 * Math.cos(rad);
+                  const y1 = 200 + 88 * Math.sin(rad);
+                  const x2 = 200 + 96 * Math.cos(rad);
+                  const y2 = 200 + 96 * Math.sin(rad);
+                  return (
+                    <line
+                      key={deg}
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke="#1e293b"
+                      strokeWidth={deg % 90 === 0 ? "2" : "1"}
+                    />
+                  );
+                })}
+
+                {/* Optical Interruption Flag (Extending from bottom rim at 0 deg) */}
+                {/* Passes cleanly through photogate throat at y=330..350 */}
+                <rect
+                  x="197"
+                  y="288"
+                  width="6"
+                  height="26"
+                  rx="1"
+                  fill="#0f172a"
+                  stroke="#334155"
+                  strokeWidth="1"
+                />
+
+                {/* Central Spindle Flange & Brass Collar */}
+                <circle cx="200" cy="200" r="18" fill={`url(#${gradientIds.brass})`} stroke="#78350f" strokeWidth="1.2" />
+                <circle cx="200" cy="200" r="8" fill="#1e293b" stroke="#0f172a" strokeWidth="1" />
+                <circle cx="200" cy="200" r="3.5" fill="#f8fafc" />
+
+                {/* Solid Cylinder Body (Rotating with the disc) */}
+                {attachedBodyShape === "solid-cylinder" && (
+                  <g>
+                    {/* Knurled Outer Collar */}
+                    <circle
+                      cx="200"
+                      cy="200"
+                      r={Math.max(12, attachedBodyRadius * 1000)}
+                      fill={`url(#${gradientIds.cylinderBody})`}
+                      stroke="#451a03"
+                      strokeWidth="2"
+                    />
+                    {/* Cylinder Machined Top Face */}
+                    <circle
+                      cx="200"
+                      cy="200"
+                      r={Math.max(8, attachedBodyRadius * 1000 - 4)}
+                      fill={`url(#${gradientIds.cylinderTop})`}
+                      stroke="#b45309"
+                      strokeWidth="1.2"
+                    />
+                    {/* Concentric Machining Rings */}
+                    <circle
+                      cx="200"
+                      cy="200"
+                      r={Math.max(4, attachedBodyRadius * 600)}
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.35)"
+                      strokeWidth="1"
+                      strokeDasharray="4 2"
+                    />
+                    {/* Center Brass Locking Bolt */}
+                    <circle cx="200" cy="200" r="7" fill={`url(#${gradientIds.brass})`} stroke="#78350f" strokeWidth="1" />
+                    <circle cx="200" cy="200" r="2.5" fill="#451a03" />
+
+                    {/* Radial Orientation Witness Lines */}
+                    <line
+                      x1="200"
+                      y1={200 - attachedBodyRadius * 1000 + 8}
+                      x2="200"
+                      y2={200 - attachedBodyRadius * 1000 + 22}
+                      stroke="#451a03"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1="200"
+                      y1={200 + attachedBodyRadius * 1000 - 22}
+                      x2="200"
+                      y2={200 + attachedBodyRadius * 1000 - 8}
+                      stroke="#451a03"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                  </g>
+                )}
+              </g>
+
+              {/* Solid Sphere Body (Stationary specular lighting over the rotating hub) */}
+              {attachedBodyShape === "solid-sphere" && (
+                <g pointerEvents="none">
+                  {/* Sphere Contact Ring Base */}
+                  <ellipse
+                    cx="200"
+                    cy={200 + attachedBodyRadius * 400}
+                    rx={attachedBodyRadius * 700}
+                    ry={attachedBodyRadius * 250}
+                    fill="rgba(0, 0, 0, 0.45)"
+                  />
+                  {/* 3D Sphere Body with Pure Radial Specular Gradient (No SVG filters) */}
+                  <circle
+                    cx="200"
+                    cy="200"
+                    r={attachedBodyRadius * 1000}
+                    fill={`url(#${gradientIds.sphereGloss})`}
+                    stroke="#0a1128"
+                    strokeWidth="1.5"
+                  />
+                  {/* Specular Glare Reflection Arc */}
+                  <ellipse
+                    cx={200 - attachedBodyRadius * 360}
+                    cy={200 - attachedBodyRadius * 360}
+                    rx={Math.max(2, attachedBodyRadius * 320)}
+                    ry={Math.max(1, attachedBodyRadius * 160)}
+                    fill="rgba(255, 255, 255, 0.55)"
+                    transform={`rotate(-45, ${200 - attachedBodyRadius * 360}, ${200 - attachedBodyRadius * 360})`}
+                  />
+                </g>
+              )}
+            </svg>
+
+            {/* Manual Controls Overlay (Practicum Only) */}
+            {mode === "practicum" && (
+              <div className="absolute bottom-5 left-5 flex gap-2.5 z-10">
+                <button
+                  onClick={handlePull}
+                  disabled={isOscillating || isPulled}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-mono text-xs font-bold rounded-lg shadow-lg border border-cyan-400/30 transition-all active:scale-95"
+                >
+                  Simpangkan 90°
+                </button>
+                <button
+                  onClick={handleRelease}
+                  disabled={!isPulled || isOscillating}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-mono text-xs font-bold rounded-lg shadow-lg border border-emerald-400/30 transition-all active:scale-95"
+                >
+                  Lepas (Mulai)
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
-  );
-});
+
+        {/* ── Kanan: Panel Instrumen (Scaler Counter) (Practicum Only) ── */}
+        {mode === "practicum" && (
+          <div className="w-full lg:w-80 bg-[#090e1c] p-5 flex flex-col gap-5 shrink-0 relative shadow-inner z-10 border-t lg:border-t-0 lg:border-l border-white/10">
+            
+            {/* Laboratory Rack Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <span className="text-[11px] font-mono font-bold tracking-widest text-slate-300">
+                INSTRUMEN PENCACAH WAKTU
+              </span>
+              <div className="flex gap-1.5 items-center">
+                <span className="text-[9px] font-mono text-slate-400">CH 1</span>
+                <span className={`w-2 h-2 rounded-full ${isOscillating ? 'bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]' : 'bg-slate-700'}`} />
+              </div>
+            </div>
+
+            {/* Scaler Counter Display Chassis */}
+            <div className="bg-[#050811] rounded-xl p-4 shadow-2xl flex flex-col gap-2.5 relative border border-cyan-500/30">
+              <div className="flex justify-between items-center text-white/50 text-[10px] font-mono font-bold tracking-wider">
+                <span className="text-cyan-400">DIGITAL SCALER COUNTER</span>
+                <Activity className={`w-3.5 h-3.5 ${isOscillating ? 'text-red-400 animate-pulse' : 'text-slate-600'}`} />
+              </div>
+              
+              <div className="flex gap-2 items-center">
+                <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
+                  MODE: {timerMode}
+                </span>
+                <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
+                  N = {cyclesTarget}
+                </span>
+              </div>
+
+              {/* 7-Segment Digital Display Box */}
+              <div className="bg-black rounded-lg border border-red-500/30 p-3 shadow-inner relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(#ef444408_1px,transparent_1px)] [background-size:6px_6px]" />
+                <div
+                  className="font-mono text-4xl text-right text-red-500 font-bold tracking-widest relative z-10"
+                  style={{ textShadow: "0 0 12px rgba(239, 68, 68, 0.65)" }}
+                >
+                  {displayedTime.toFixed(3)}
+                </div>
+              </div>
+              <div className="text-right text-white/40 text-[10px] font-mono font-bold">
+                DETIK (s)
+              </div>
+
+              {/* Laboratory Control Pushbuttons */}
+              <div className="flex justify-between mt-2 gap-2">
+                <button 
+                  onClick={handleReset}
+                  disabled={isOscillating}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 disabled:opacity-40 text-slate-200 text-[10px] font-mono font-bold py-2 rounded border border-slate-700 hover:border-cyan-500/50 transition-all shadow-md"
+                >
+                  FUNCTION (RESET)
+                </button>
+                <button 
+                  disabled={true}
+                  className="flex-1 bg-slate-900 opacity-60 text-slate-400 text-[10px] font-mono font-bold py-2 rounded border border-slate-800 cursor-not-allowed"
+                >
+                  CH.OVER (5 GET)
+                </button>
+              </div>
+            </div>
+
+            {/* Feedback / Instructions Box */}
+            <div className="p-3.5 bg-slate-900/60 border border-white/10 rounded-xl">
+              <h4 className="text-xs font-mono font-bold text-cyan-400 mb-1.5 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                Instruksi Pengukuran:
+              </h4>
+              <ol className="text-[11px] text-slate-300 font-mono space-y-1 list-decimal pl-4">
+                <li>Simpangkan piringan 90°.</li>
+                <li>Lepas untuk memulai osilasi.</li>
+                <li>Timer otomatis berhenti pada getaran ke-{cyclesTarget}.</li>
+                <li>Catat waktu, lalu tekan FUNCTION untuk reset.</li>
+              </ol>
+            </div>
+
+            {finalTime !== null && (
+              <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl animate-fade-in shadow-lg">
+                <p className="text-[10px] font-mono text-emerald-400 font-bold text-center tracking-wider">
+                  HASIL WAKTU TERCATAT ({cyclesTarget} GETARAN)
+                </p>
+                <p className="text-xl text-center text-emerald-300 font-mono mt-1 font-bold tracking-widest">
+                  {finalTime.toFixed(3)} s
+                </p>
+              </div>
+            )}
+
+          </div>
+        )}
+      </div>
+    );
+  }
+);

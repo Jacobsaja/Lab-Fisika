@@ -620,3 +620,253 @@ export function SvgRollingCylinder({
   );
 }
 
+export interface SvgPhotogateProps {
+  x: number;
+  y: number;
+  beamActive?: boolean;
+  label?: string;
+  subLabel?: string;
+  width?: number;
+  height?: number;
+  throatWidth?: number;
+  throatDepth?: number;
+  orientation?: "up" | "down";
+  chassisFillId?: string;
+  showStandPole?: boolean;
+  poleHeight?: number;
+  poleFillId?: string;
+  className?: string;
+}
+
+/**
+ * Standard Laboratory Photogate (U-Shape Arch) matching Atwood and HKM style.
+ */
+export function SvgPhotogate({
+  x,
+  y,
+  beamActive = false,
+  label = "PHOTOGATE",
+  subLabel,
+  width = 50,
+  height = 56,
+  throatWidth = 24,
+  throatDepth = 36,
+  orientation = "up",
+  chassisFillId,
+  showStandPole = false,
+  poleHeight = 100,
+  poleFillId,
+  className = "",
+}: SvgPhotogateProps) {
+  const halfW = width / 2;
+  const halfThroat = throatWidth / 2;
+  const dir = orientation === "up" ? 1 : -1;
+  const beamY = -dir * (height - throatDepth * 0.55);
+
+  const uPath = orientation === "up"
+    ? `M ${-halfW} ${-height}
+       L ${-halfThroat} ${-height}
+       L ${-halfThroat} ${-(height - throatDepth)}
+       L ${halfThroat} ${-(height - throatDepth)}
+       L ${halfThroat} ${-height}
+       L ${halfW} ${-height}
+       L ${halfW} 0
+       L ${-halfW} 0
+       Z`
+    : `M ${-halfW} ${height}
+       L ${-halfThroat} ${height}
+       L ${-halfThroat} ${height - throatDepth}
+       L ${halfThroat} ${height - throatDepth}
+       L ${halfThroat} ${height}
+       L ${halfW} ${height}
+       L ${halfW} 0
+       L ${-halfW} 0
+       Z`;
+
+  return (
+    <g transform={`translate(${x}, ${y})`} className={className}>
+      {/* Optional Stand Pole */}
+      {showStandPole && (
+        <rect
+          x="-5"
+          y="0"
+          width="10"
+          height={poleHeight}
+          fill={poleFillId ? `url(#${poleFillId})` : "#334155"}
+          stroke="#1e293b"
+          rx="2"
+        />
+      )}
+
+      {/* Main U-Arch Chassis */}
+      <path
+        d={uPath}
+        fill={chassisFillId ? `url(#${chassisFillId})` : "#0f172a"}
+        stroke="#334155"
+        strokeWidth="1.5"
+      />
+      {/* Precision Accent Trim */}
+      <path
+        d={uPath}
+        fill="none"
+        stroke="rgba(6, 182, 212, 0.4)"
+        strokeWidth="1"
+      />
+
+      {/* Emitter Lens (Left Arm) */}
+      <circle
+        cx={-halfThroat - 3}
+        cy={beamY}
+        r="3"
+        fill="#1e293b"
+        stroke="#06b6d4"
+        strokeWidth="1"
+      />
+      {/* Detector Lens (Right Arm) */}
+      <circle
+        cx={halfThroat + 3}
+        cy={beamY}
+        r="3"
+        fill="#1e293b"
+        stroke="#06b6d4"
+        strokeWidth="1"
+      />
+
+      {/* Optical Infrared Beam */}
+      <line
+        x1={-halfThroat}
+        y1={beamY}
+        x2={halfThroat}
+        y2={beamY}
+        stroke={beamActive ? "#ef4444" : "rgba(6, 182, 212, 0.55)"}
+        strokeWidth={beamActive ? 2.5 : 1.5}
+        strokeDasharray={beamActive ? "none" : "2 2"}
+      />
+
+      {/* Status Indicator LED */}
+      <circle
+        cx={halfW - 8}
+        cy={orientation === "up" ? -8 : 8}
+        r="3.5"
+        fill="#0f172a"
+        stroke="#475569"
+        strokeWidth="1"
+      />
+      <circle
+        cx={halfW - 8}
+        cy={orientation === "up" ? -8 : 8}
+        r="2"
+        fill={beamActive ? "#ef4444" : "#10b981"}
+      />
+
+      {/* Technical Typography Label */}
+      {label && (
+        <text
+          x={0}
+          y={orientation === "up" ? -6 : 14}
+          fill="#06b6d4"
+          fontSize="8"
+          fontWeight="bold"
+          fontFamily={SCIENTIFIC_THEME.typography.fontMono}
+          textAnchor="middle"
+          letterSpacing="0.5"
+        >
+          {label}
+        </text>
+      )}
+
+      {subLabel && (
+        <text
+          x={0}
+          y={orientation === "up" ? 14 : -6}
+          fill="#94a3b8"
+          fontSize="7"
+          fontFamily={SCIENTIFIC_THEME.typography.fontMono}
+          textAnchor="middle"
+        >
+          {subLabel}
+        </text>
+      )}
+    </g>
+  );
+}
+
+export interface SvgSpiralSpringProps {
+  cx: number;
+  cy: number;
+  turns?: number;
+  outerRadius?: number;
+  innerRadius?: number;
+  strokeFillId?: string;
+  wireColor?: string;
+  wireWidth?: number;
+  className?: string;
+}
+
+/**
+ * Precision Archimedean Spiral Torsion Spring.
+ */
+export function SvgSpiralSpring({
+  cx,
+  cy,
+  turns = 4.2,
+  outerRadius = 38,
+  innerRadius = 9,
+  strokeFillId,
+  wireColor = "#cbd5e1",
+  wireWidth = 2.4,
+  className = "",
+}: SvgSpiralSpringProps) {
+  const steps = Math.round(turns * 24);
+  const maxTheta = turns * 2 * Math.PI;
+
+  let pathD = "";
+  for (let i = 0; i <= steps; i++) {
+    const theta = (i / steps) * maxTheta;
+    const r = innerRadius + (outerRadius - innerRadius) * (i / steps);
+    const x = cx + r * Math.cos(theta);
+    const y = cy + r * Math.sin(theta);
+    if (i === 0) {
+      pathD += `M ${x.toFixed(2)} ${y.toFixed(2)}`;
+    } else {
+      pathD += ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+    }
+  }
+
+  // Outer anchor pin coordinates
+  const lastX = cx + outerRadius * Math.cos(maxTheta);
+  const lastY = cy + outerRadius * Math.sin(maxTheta);
+
+  return (
+    <g className={className}>
+      {/* Outer Anchor Mounting Post */}
+      <rect
+        x={lastX - 3}
+        y={lastY - 3}
+        width="6"
+        height="12"
+        fill="#334155"
+        stroke="#0f172a"
+        rx="1"
+      />
+      <circle cx={lastX} cy={lastY + 3} r="2.5" fill="#f59e0b" stroke="#78350f" strokeWidth="0.8" />
+
+      {/* Main Spiral Coil Wire */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke={strokeFillId ? `url(#${strokeFillId})` : wireColor}
+        strokeWidth={wireWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Inner Central Axle Arbor / Clamp Nut */}
+      <circle cx={cx} cy={cy} r={innerRadius + 1} fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+      <circle cx={cx} cy={cy} r={innerRadius * 0.55} fill="#475569" stroke="#0f172a" strokeWidth="1" />
+      <rect x={cx - 1} y={cy - innerRadius} width="2" height={innerRadius * 2} fill="#64748b" />
+    </g>
+  );
+}
+
+
