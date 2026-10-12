@@ -10,6 +10,7 @@ import {
   SvgElectromagnet,
   SvgContactPlate,
   SvgMetalBall,
+  DigitalDisplayCard,
   SCIENTIFIC_THEME,
 } from "@/components/simulation/visual";
 
@@ -410,27 +411,20 @@ export function FreeFallApparatus({
           
           {/* Top: Precision Digital Scaler Counter */}
           <div className="flex flex-col gap-4">
-            <div className="bg-slate-950 p-4 rounded-xl border border-cyan-500/30 shadow-[0_4px_25px_rgba(0,0,0,0.8)] relative overflow-hidden">
-              {/* Counter Bezel Header */}
-              <div className="flex justify-between items-center text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-3">
-                <span className="flex items-center gap-1.5 text-cyan-300">
-                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                  SCALER COUNTER
-                </span>
-                <span className={`w-2 h-2 rounded-full ${isFalling ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" : isMorsePressed ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-600"}`} />
-              </div>
-
-              {/* 7-Segment style LED Red Digital Readout */}
-              <div className="bg-black/95 rounded-lg border border-slate-800 p-3.5 shadow-inner flex items-baseline justify-end gap-2">
-                <span
-                  className="font-mono text-4xl sm:text-5xl font-bold tracking-widest text-red-500 drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]"
-                >
-                  {displayedTime.toFixed(3)}
-                </span>
-                <span className="text-xs font-mono font-bold text-red-400/80">s</span>
-              </div>
-
-              <div className="text-right text-slate-500 text-[10px] font-bold mt-2">
+            <div className="flex flex-col gap-1.5">
+              <DigitalDisplayCard
+                label="SCALER COUNTER"
+                value={displayedTime.toFixed(3)}
+                unit="s"
+                variant="red"
+                size="lg"
+                indicatorLed={{
+                  active: isFalling || isMorsePressed,
+                  color: isFalling ? "red" : isMorsePressed ? "emerald" : "cyan",
+                  label: isFalling ? "PULSE" : isMorsePressed ? "ARMED" : "STANDBY",
+                }}
+              />
+              <div className="text-right text-slate-500 text-[10px] font-bold font-mono px-1">
                 RESOLUSI: 0.001 s
               </div>
             </div>
