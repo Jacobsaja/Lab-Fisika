@@ -116,9 +116,9 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       isAutoScrollingRef.current = false;
     };
     
+    // Cancel tracking only if user manually scrolls with wheel or touch
     window.addEventListener("wheel", cancelAutoScroll, { passive: true });
     window.addEventListener("touchmove", cancelAutoScroll, { passive: true });
-    window.addEventListener("mousedown", cancelAutoScroll, { passive: true });
     const handleKeyDown = (e: KeyboardEvent) => {
       if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", " ", "Spacebar"].includes(e.key)) {
         cancelAutoScroll();
@@ -129,7 +129,6 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     return () => {
       window.removeEventListener("wheel", cancelAutoScroll);
       window.removeEventListener("touchmove", cancelAutoScroll);
-      window.removeEventListener("mousedown", cancelAutoScroll);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
@@ -226,8 +225,15 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     setClampRetracted(true);
     isAutoScrollingRef.current = true;
     
+    // Target posisi vertikal m2 pada layar (~28% dari atas viewport, batas 80px - 260px)
+    const targetViewportY = Math.max(80, Math.min(window.innerHeight * 0.28, 260));
+    idealYRef.current = targetViewportY;
+
+    // SCROLL LANGSUNG LAYAR: Langsung fokuskan layar ke posisi awal beban m2
     if (m2GroupRef.current) {
-      idealYRef.current = m2GroupRef.current.getBoundingClientRect().top;
+      const currentRect = m2GroupRef.current.getBoundingClientRect();
+      const initialDiff = currentRect.top - targetViewportY;
+      scrollAncestorBy(initialDiff, m2GroupRef.current);
     }
     
     lastM2YRef.current = Y_A;
@@ -293,14 +299,6 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
         currentM2Y = Y_A + yDrop;
         currentMTambahanY = Y_A + yDrop;
         currentM1Y = Y_M1_INITIAL - yDrop;
-        
-        if (isAutoScrollingRef.current && m2GroupRef.current && idealYRef.current !== null) {
-          const currentRect = m2GroupRef.current.getBoundingClientRect();
-          const diff = currentRect.top - idealYRef.current;
-          if (Math.abs(diff) > 1) { 
-            window.scrollBy({ top: diff, behavior: "instant" });
-          }
-        }
 
         animReqRef.current = requestAnimationFrame(animate);
       } else if (elapsed <= t_AB + t_BC) {
@@ -325,14 +323,6 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
         currentM2Y = Y_A + yDrop;
         currentMTambahanY = posB; // Additional weights caught exactly on Ring B
         currentM1Y = Y_M1_INITIAL - yDrop;
-        
-        if (isAutoScrollingRef.current && m2GroupRef.current && idealYRef.current !== null) {
-          const currentRect = m2GroupRef.current.getBoundingClientRect();
-          const diff = currentRect.top - idealYRef.current;
-          if (Math.abs(diff) > 1) { 
-            window.scrollBy({ top: diff, behavior: "instant" });
-          }
-        }
         
         animReqRef.current = requestAnimationFrame(animate);
       } else {
@@ -362,11 +352,12 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       if (ropeLRef.current) ropeLRef.current.setAttribute("y2", String(currentM2Y));
       if (ropeRRef.current) ropeRRef.current.setAttribute("y2", String(currentM1Y));
 
+      // Camera tracking shot: ikuti gerakan beban m2 secara mulus
       if (isAutoScrollingRef.current && m2GroupRef.current && idealYRef.current !== null) {
         const currentRect = m2GroupRef.current.getBoundingClientRect();
         const diff = currentRect.top - idealYRef.current;
-        if (diff > 1) { 
-          window.scrollBy({ top: diff, behavior: "instant" });
+        if (Math.abs(diff) > 0.5) { 
+          scrollAncestorBy(diff, m2GroupRef.current);
         }
       }
       
@@ -392,6 +383,14 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     if (ropeRRef.current) ropeRRef.current.setAttribute("y2", String(Y_M1_INITIAL));
 
     if (animReqRef.current) cancelAnimationFrame(animReqRef.current);
+
+    // Scroll kembali untuk memfokuskan m2 di posisi awal (Point A)
+    if (m2GroupRef.current) {
+      const targetViewportY = Math.max(80, Math.min(window.innerHeight * 0.28, 260));
+      const currentRect = m2GroupRef.current.getBoundingClientRect();
+      const diff = currentRect.top - targetViewportY;
+      scrollAncestorBy(diff, m2GroupRef.current);
+    }
   };
 
   useImperativeHandle(ref, () => ({
@@ -1119,3 +1118,37 @@ AtwoodApparatus.displayName = "AtwoodApparatus";
 function metalsDarker(id: string) {
   return id ? `url(#${id})` : "#334155";
 }
+
+/**
+ * Robust scroll utility that scrolls ancestor container (if overflow-y-auto exists)
+ * or main window, ensuring camera tracking works seamlessly in nested layouts.
+ */
+function scrollAncestorBy(diff: number, el: Element | null) {
+  if (typeof window === "undefined" || Math.abs(diff) < 0.5) return;
+  
+  let remainingDiff = diff;
+  
+  // 1. Check scrollable ancestor elements from innermost to outermost
+  let curr = el?.parentElement;
+  while (curr && curr !== document.body && curr !== document.documentElement) {
+    const style = window.getComputedStyle(curr);
+    const overflowY = style.overflowY;
+    const canScrollY = (overflowY === "auto" || overflowY === "scroll") && curr.scrollHeight > curr.clientHeight;
+    if (canScrollY) {
+      const prev = curr.scrollTop;
+      curr.scrollTop += remainingDiff;
+      const scrolledAmount = curr.scrollTop - prev;
+      remainingDiff -= scrolledAmount;
+      if (Math.abs(remainingDiff) < 0.5) {
+        return;
+      }
+    }
+    curr = curr.parentElement;
+  }
+  
+  // 2. Any remaining diff is scrolled on window
+  if (Math.abs(remainingDiff) >= 0.5) {
+    window.scrollBy({ top: remainingDiff, behavior: "instant" });
+  }
+}
+
