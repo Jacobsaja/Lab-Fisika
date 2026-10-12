@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { TorsionalOscillator, TorsionalOscillatorRef } from "@/components/practicum/instruments/TorsionalOscillator";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
@@ -40,27 +40,27 @@ export default function MomenInersia2ExplorePage() {
   const T_pred = getPredictedPeriodWithBody(i0True, kappaTrue, bodyInertia);
   const T0_pred = getPredictedPeriodWithBody(i0True, kappaTrue, 0);
 
-  const handleTimeChange = (t: number, running: boolean, reset: boolean) => {
+  const handleTimeChange = useCallback((t: number, running: boolean, reset: boolean) => {
     setSimTime(t);
     setIsOscillating(running);
     if (reset) {
       setGraphData([]);
       setMeasuredPeriod(null);
     }
-  };
+  }, []);
 
-  const handleStateUpdate = (t: number, thetaDeg: number, omega: number) => {
+  const handleStateUpdate = useCallback((t: number, thetaDeg: number, omega: number) => {
     setLiveState({ thetaDeg, omegaRad: omega });
     setGraphData(prev => {
       const newData = [...prev, { t, val: thetaDeg }];
       if (newData.length > 200) return newData.slice(newData.length - 200);
       return newData;
     });
-  };
+  }, []);
   
-  const handleCycleComplete = (period: number) => {
+  const handleCycleComplete = useCallback((period: number) => {
     setMeasuredPeriod(period);
-  };
+  }, []);
 
   const handleReset = () => {
     appRef.current?.reset();

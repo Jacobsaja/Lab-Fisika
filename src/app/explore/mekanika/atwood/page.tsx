@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { AtwoodApparatus, AtwoodApparatusRef } from "@/components/practicum/instruments/AtwoodApparatus";
 import { getAtwoodExploreState } from "@/physics/atwood";
@@ -35,16 +35,16 @@ export default function AtwoodExplorePage() {
   const mTotal2 = (m1 + m2) / 1000;
   const a2_pred = mTotal2 > 0 ? (((m2 - m1)/1000) * g) / mTotal2 : 0;
 
-  const handleTimeChange = (t: number, falling: boolean, reset: boolean) => {
+  const handleTimeChange = useCallback((t: number, falling: boolean, reset: boolean) => {
     setSimTime(t);
     if (reset) setIsFalling(false);
     else setIsFalling(falling);
-  };
+  }, []);
 
-  const handlePosChange = (newSB: number, newSC: number) => {
+  const handlePosChange = useCallback((newSB: number, newSC: number) => {
     setSB(newSB);
     setSC(newSC);
-  };
+  }, []);
 
   const handleReset = () => {
     setResetKey(prev => prev + 1);

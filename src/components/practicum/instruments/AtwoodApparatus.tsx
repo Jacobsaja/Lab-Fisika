@@ -74,10 +74,13 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const [posC, setPosC] = useState(Y_A + 600);
   const [draggingItem, setDraggingItem] = useState<"B" | "C" | null>(null);
 
-  // Notify parent of initial pos
+  // Notify parent of initial pos with decoupled ref to avoid loop hazard
+  const onPosChangeRef = useRef(onPosChange);
+  onPosChangeRef.current = onPosChange;
+
   useEffect(() => {
-    if (onPosChange) onPosChange((posB - Y_A) / PX_PER_METER, (posC - Y_A) / PX_PER_METER);
-  }, [posB, posC, onPosChange]);
+    onPosChangeRef.current?.((posB - Y_A) / PX_PER_METER, (posC - Y_A) / PX_PER_METER);
+  }, [posB, posC]);
 
   // Animation & Physics state
   const [isAnimating, setIsAnimating] = useState(false);

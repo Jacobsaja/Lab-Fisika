@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import { ClipboardPlus, Info } from "lucide-react";
 import { useSimulationLoop } from "@/physics/hooks/useSimulationLoop";
 import {
@@ -71,11 +71,14 @@ export function CircularMotionApparatus({
   else if (alreadyRecorded) blockReason = "Pengukuran ini sudah dicatat. Reset jam untuk percobaan berikutnya.";
   else if (!nearTarget) blockReason = `Partikel belum tepat menempuh ${targetN} putaran. Reset dan ulangi pengukuran.`;
 
+  const onRecordRef = useRef(onRecord);
+  onRecordRef.current = onRecord;
+
   const handleRecord = () => {
-    if (blockReason || !onRecord) return;
+    if (blockReason || !onRecordRef.current) return;
     const t = round(sim.time, 2);
     const derived = deriveFromMeasurement(r, targetN, t);
-    onRecord({
+    onRecordRef.current({
       trial: recordedDataCount + 1,
       r: round(r, 2),
       N: targetN,

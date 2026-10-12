@@ -43,6 +43,14 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
     const lastTimestampRef = useRef<number | null>(null);
     const cyclesCompleted = useRef<number>(0);
 
+    // Callback refs to decouple animation loop from parent callback identities
+    const onTimeChangeRef = useRef(onTimeChange);
+    onTimeChangeRef.current = onTimeChange;
+    const onStateUpdateRef = useRef(onStateUpdate);
+    onStateUpdateRef.current = onStateUpdate;
+    const onCycleCompleteRef = useRef(onCycleComplete);
+    onCycleCompleteRef.current = onCycleComplete;
+
     const handlePull = () => {
       if (isOscillating) return;
       setIsPulled(true);
@@ -51,8 +59,8 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
       setFinalTime(null);
       timeAccumulator.current = 0;
       cyclesCompleted.current = 0;
-      if (onStateUpdate) onStateUpdate(0, initialAngle, 0);
-      if (onTimeChange) onTimeChange(0, false, true);
+      onStateUpdateRef.current?.(0, initialAngle, 0);
+      onTimeChangeRef.current?.(0, false, true);
     };
 
     const handleRelease = useCallback(() => {
@@ -86,7 +94,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
             setDisplayedTime(totalTimeSimulated);
             setFinalTime(totalTimeSimulated);
             setIsOscillating(false);
-            if (onTimeChange) onTimeChange(totalTimeSimulated, false, false);
+            onTimeChangeRef.current?.(totalTimeSimulated, false, false);
             return;
           } else {
             const gamma = 0.05;
@@ -103,14 +111,14 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
           setAngleDeg(state.thetaDeg);
           setDisplayedTime(currentT);
           
-          if (onStateUpdate) onStateUpdate(currentT, state.thetaDeg, state.omegaRad);
-          if (onTimeChange) onTimeChange(currentT, true, false);
+          onStateUpdateRef.current?.(currentT, state.thetaDeg, state.omegaRad);
+          onTimeChangeRef.current?.(currentT, true, false);
 
           // Detect one full cycle
           if (currentT > (cyclesCompleted.current + 1) * state.period) {
              cyclesCompleted.current++;
-             if (cyclesCompleted.current === 1 && onCycleComplete) {
-               onCycleComplete(state.period); // emit measured period after 1 cycle
+             if (cyclesCompleted.current === 1) {
+               onCycleCompleteRef.current?.(state.period); // emit measured period after 1 cycle
              }
           }
 
@@ -119,13 +127,13 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
       };
 
       reqRef.current = requestAnimationFrame(animate);
-    }, [isPulled, isOscillating, totalInertia, kappaTrue, mode, initialAngle, onTimeChange, onStateUpdate, onCycleComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [isPulled, isOscillating, totalInertia, kappaTrue, mode, initialAngle]);
 
     const handlePause = () => {
       setIsOscillating(false);
       setIsPulled(true); // Treat as pulled so we can resume
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
-      if (onTimeChange) onTimeChange(timeAccumulator.current, false, false);
+      onTimeChangeRef.current?.(timeAccumulator.current, false, false);
     };
 
     const handleReset = () => {
@@ -137,7 +145,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
       setIsPulled(false);
       timeAccumulator.current = 0;
       cyclesCompleted.current = 0;
-      if (onTimeChange) onTimeChange(0, false, true);
+      onTimeChangeRef.current?.(0, false, true);
     };
 
     useImperativeHandle(ref, () => ({

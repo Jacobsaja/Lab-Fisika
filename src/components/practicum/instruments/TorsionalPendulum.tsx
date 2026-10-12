@@ -36,14 +36,22 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
     const lastTimestampRef = useRef<number | null>(null);
     const cyclesTarget = 5;
 
+    // Callback refs to decouple animation loop from parent callback identities
+    const onTimeChangeRef = useRef(onTimeChange);
+    onTimeChangeRef.current = onTimeChange;
+    const onStateUpdateRef = useRef(onStateUpdate);
+    onStateUpdateRef.current = onStateUpdate;
+    const onOscillationEndRef = useRef(onOscillationEnd);
+    onOscillationEndRef.current = onOscillationEnd;
+
     const handlePull = () => {
       if (isOscillating) return;
       setIsPulled(true);
       setAngleDeg(initialAngleDeg);
       setDisplayedTime(0);
       timeAccumulator.current = 0;
-      if (onStateUpdate) onStateUpdate(0, initialAngleDeg, 0);
-      if (onTimeChange) onTimeChange(0, false, true);
+      onStateUpdateRef.current?.(0, initialAngleDeg, 0);
+      onTimeChangeRef.current?.(0, false, true);
     };
 
     const handleRelease = useCallback(() => {
@@ -79,8 +87,8 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
             setAngleDeg(0); 
             setDisplayedTime(totalSimTime);
             setIsOscillating(false);
-            if (onTimeChange) onTimeChange(totalSimTime, false, false);
-            if (onOscillationEnd) onOscillationEnd(totalSimTime);
+            onTimeChangeRef.current?.(totalSimTime, false, false);
+            onOscillationEndRef.current?.(totalSimTime);
             return;
           } else {
             // Slight damping for visual realism
@@ -94,7 +102,7 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
             
             // Calculate instantaneous omega for graph
             const vOmega = -startAngle * damping * omega * Math.sin(omega * currentT);
-            if (onStateUpdate) onStateUpdate(currentT, currentAngleDeg, vOmega);
+            onStateUpdateRef.current?.(currentT, currentAngleDeg, vOmega);
             
             reqRef.current = requestAnimationFrame(animate);
           }
@@ -107,21 +115,21 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
           setDisplayedTime(currentT);
           
           const vOmega = -startAngle * omega * Math.sin(omega * currentT);
-          if (onStateUpdate) onStateUpdate(currentT, currentAngleDeg, vOmega);
+          onStateUpdateRef.current?.(currentT, currentAngleDeg, vOmega);
           
           reqRef.current = requestAnimationFrame(animate);
         }
       };
 
       reqRef.current = requestAnimationFrame(animate);
-    }, [isPulled, isOscillating, mode, totalInertia, kappa, initialAngleDeg, onTimeChange, onStateUpdate, onOscillationEnd]);
+    }, [isPulled, isOscillating, mode, totalInertia, kappa, initialAngleDeg]);
 
     const handleStop = useCallback(() => {
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
       reqRef.current = null;
       setIsOscillating(false);
-      if (onTimeChange) onTimeChange(displayedTime, false, false);
-    }, [displayedTime, onTimeChange]);
+      onTimeChangeRef.current?.(displayedTime, false, false);
+    }, [displayedTime]);
 
     const handleReset = useCallback(() => {
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
@@ -131,9 +139,9 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
       setAngleDeg(0);
       setDisplayedTime(0);
       timeAccumulator.current = 0;
-      if (onTimeChange) onTimeChange(0, false, true);
-      if (onStateUpdate) onStateUpdate(0, 0, 0);
-    }, [onTimeChange, onStateUpdate]);
+      onTimeChangeRef.current?.(0, false, true);
+      onStateUpdateRef.current?.(0, 0, 0);
+    }, []);
 
     useImperativeHandle(ref, () => ({
       start: () => {
