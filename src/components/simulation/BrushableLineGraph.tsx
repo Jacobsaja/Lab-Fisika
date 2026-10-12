@@ -18,14 +18,15 @@ export function BrushableLineGraph({
   data,
   width,
   height,
-  color,
+  color = "#38bdf8",
   xLabel,
   yLabel,
-  onSelectionChange
+  onSelectionChange,
 }: BrushableLineGraphProps) {
-  const padding = { top: 20, right: 20, bottom: 40, left: 50 };
-  const graphW = width - padding.left - padding.right;
-  const graphH = height - padding.top - padding.bottom;
+  // Matched padding with LineGraph
+  const padding = { top: 24, right: 24, bottom: 44, left: 60 };
+  const graphW = Math.max(0, width - padding.left - padding.right);
+  const graphH = Math.max(0, height - padding.top - padding.bottom);
 
   const [brushStart, setBrushStart] = useState<number | null>(null);
   const [brushEnd, setBrushEnd] = useState<number | null>(null);
@@ -36,7 +37,7 @@ export function BrushableLineGraph({
   const tMax = data.length > 0 ? data[data.length - 1].t : 1;
 
   const getTFromMouse = (e: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>) => {
-    if (!svgRef.current) return 0;
+    if (!svgRef.current || graphW <= 0) return 0;
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left - padding.left;
     const px = Math.max(0, Math.min(x, graphW));
@@ -72,32 +73,41 @@ export function BrushableLineGraph({
   let slope: number | null = null;
 
   if (actualStart !== null && actualEnd !== null) {
-    selectedData = data.filter(d => d.t >= actualStart && d.t <= actualEnd);
-    if (selectedData.length >= 3) { // Require at least 3 points for meaningful regression
-      const reg = calculateLinearRegression(selectedData.map(d => ({ x: d.t, y: d.val })));
+    selectedData = data.filter((d) => d.t >= actualStart && d.t <= actualEnd);
+    if (selectedData.length >= 3) {
+      // Require at least 3 points for meaningful linear regression
+      const reg = calculateLinearRegression(selectedData.map((d) => ({ x: d.t, y: d.val })));
       slope = reg.b;
       regressionLine = { slope: reg.b, intercept: reg.a };
     }
   }
 
-  // Notify parent on change
-  useEffect(() => {
-    if (onSelectionChange) {
-      onSelectionChange(selectedData, slope);
-    }
-  }, [actualStart, actualEnd, data, onSelectionChange]);
+  // Permanent rule: isolate callback prop with useRef
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
-  const overlayX = actualStart !== null ? padding.left + ((actualStart - tMin) / (tMax - tMin)) * graphW : 0;
-  const overlayW = actualStart !== null && actualEnd !== null ? ((actualEnd - actualStart) / (tMax - tMin)) * graphW : 0;
+  useEffect(() => {
+    onSelectionChangeRef.current?.(selectedData, slope);
+  }, [actualStart, actualEnd, data, slope]);
+
+  const tRange = Math.max(tMax - tMin, 0.05);
+  const overlayX = actualStart !== null ? padding.left + ((actualStart - tMin) / tRange) * graphW : 0;
+  const overlayW = actualStart !== null && actualEnd !== null ? ((actualEnd - actualStart) / tRange) * graphW : 0;
 
   return (
     <div className="relative" style={{ width, height, userSelect: "none", touchAction: "none" }}>
       <div className="absolute inset-0 pointer-events-none">
-        <LineGraph 
-          data={data} width={width} height={height} color={color} xLabel={xLabel} yLabel={yLabel}
+        <LineGraph
+          data={data}
+          width={width}
+          height={height}
+          color={color}
+          xLabel={xLabel}
+          yLabel={yLabel}
           regressionLine={regressionLine}
         />
       </div>
+
       <svg
         ref={svgRef}
         width={width}
@@ -107,17 +117,86 @@ export function BrushableLineGraph({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       >
-        {actualStart !== null && overlayW > 0 && (
-          <rect 
-            x={overlayX} 
-            y={padding.top} 
-            width={overlayW} 
-            height={graphH} 
-            fill="rgba(59, 130, 246, 0.2)" 
-            stroke="rgba(59, 130, 246, 0.5)" 
-            strokeWidth="1"
-            pointerEvents="none"
-          />
+        {actualStart !== null && actualEnd !== null && overlayW > 2 && (
+          <g pointerEvents="none">
+            {/* Luminous Brush Selection Box */}
+            <rect
+              x={overlayX}
+              y={padding.top}
+              width={overlayW}
+              height={graphH}
+              fill="rgba(56, 189, 248, 0.16)"
+              stroke="rgba(56, 189, 248, 0.35)"
+              strokeWidth="1"
+            />
+
+            {/* Left Boundary Line */}
+            <line
+              x1={overlayX}
+              y1={padding.top}
+              x2={overlayX}
+              y2={padding.top + graphH}
+              stroke="#38bdf8"
+              strokeWidth="2"
+            />
+            {/* Left Pill Grip Handle */}
+            <rect
+              x={overlayX - 3}
+              y={padding.top + graphH / 2 - 14}
+              width="6"
+              height="28"
+              rx="3"
+              fill="#38bdf8"
+              stroke="#0f172a"
+              strokeWidth="1"
+            />
+
+            {/* Right Boundary Line */}
+            <line
+              x1={overlayX + overlayW}
+              y1={padding.top}
+              x2={overlayX + overlayW}
+              y2={padding.top + graphH}
+              stroke="#38bdf8"
+              strokeWidth="2"
+            />
+            {/* Right Pill Grip Handle */}
+            <rect
+              x={overlayX + overlayW - 3}
+              y={padding.top + graphH / 2 - 14}
+              width="6"
+              height="28"
+              rx="3"
+              fill="#38bdf8"
+              stroke="#0f172a"
+              strokeWidth="1"
+            />
+
+            {/* Top Selection Info Badge */}
+            <g transform={`translate(${overlayX + overlayW / 2}, ${padding.top - 12})`}>
+              <rect
+                x="-36"
+                y="-9"
+                width="72"
+                height="18"
+                rx="4"
+                fill="#0f172a"
+                stroke="#38bdf8"
+                strokeWidth="0.8"
+              />
+              <text
+                x="0"
+                y="3.5"
+                fill="#38bdf8"
+                fontSize="9"
+                fontFamily="'JetBrains Mono', monospace"
+                fontWeight="bold"
+                textAnchor="middle"
+              >
+                Δt={(actualEnd - actualStart).toFixed(2)}s
+              </text>
+            </g>
+          </g>
         )}
       </svg>
     </div>
