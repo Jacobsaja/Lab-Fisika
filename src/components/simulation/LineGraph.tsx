@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useId } from "react";
 
 export interface DataPoint {
   t: number;
@@ -27,11 +27,15 @@ interface LineGraphProps {
   regressionLine?: { slope: number; intercept: number };
 }
 
+/**
+ * High-contrast Scientific Night instrument-grade line graph.
+ * Features subtle precision grid lines, monospace typography, and zero SVG filters for 60 FPS live streaming.
+ */
 export function LineGraph({
   data,
   width,
   height,
-  color = "var(--color-primary)",
+  color = "#38bdf8",
   xLabel = "Waktu (s)",
   yLabel = "Nilai",
   timeWindow,
@@ -39,15 +43,48 @@ export function LineGraph({
   yMax,
   drawLine = true,
   drawPoints = false,
-  regressionLine
+  regressionLine,
 }: LineGraphProps) {
-  const padding = { top: 20, right: 20, bottom: 40, left: 50 };
-  const graphW = width - padding.left - padding.right;
-  const graphH = height - padding.top - padding.bottom;
+  const instanceId = useId().replace(/[:]/g, "_");
 
-  const { pathData, currentYMin, currentYMax, currentTMin, currentTMax, plottedPoints, regPath } = useMemo(() => {
+  // Adequate padding for multi-digit monospace axis labels without truncation
+  const padding = { top: 24, right: 24, bottom: 44, left: 60 };
+  const graphW = Math.max(0, width - padding.left - padding.right);
+  const graphH = Math.max(0, height - padding.top - padding.bottom);
+
+  const {
+    pathData,
+    areaPathData,
+    currentYMin,
+    currentYMax,
+    currentTMin,
+    currentTMax,
+    plottedPoints,
+    regPath,
+    yTicks,
+    xTicks,
+  } = useMemo(() => {
     if (data.length === 0 || graphW <= 0 || graphH <= 0) {
-      return { pathData: "", currentYMin: 0, currentYMax: 1, currentTMin: 0, currentTMax: 1, plottedPoints: [], regPath: "" };
+      return {
+        pathData: "",
+        areaPathData: "",
+        currentYMin: 0,
+        currentYMax: 1,
+        currentTMin: 0,
+        currentTMax: 1,
+        plottedPoints: [],
+        regPath: "",
+        yTicks: [
+          { val: 0, y: 0 },
+          { val: 0.5, y: graphH / 2 },
+          { val: 1, y: graphH },
+        ],
+        xTicks: [
+          { t: 0, x: 0 },
+          { t: 0.5, x: graphW / 2 },
+          { t: 1, x: graphW },
+        ],
+      };
     }
 
     const tMax = data[data.length - 1].t;
@@ -56,7 +93,7 @@ export function LineGraph({
     let cYMin = yMin !== undefined ? yMin : Math.min(...data.map((d) => d.val));
     let cYMax = yMax !== undefined ? yMax : Math.max(...data.map((d) => d.val));
 
-    // Pad Y axis slightly if it's auto-scaled and flat
+    // Pad Y axis slightly if flat or auto-scaled
     if (cYMin === cYMax) {
       cYMin -= 1;
       cYMax += 1;
@@ -66,72 +103,232 @@ export function LineGraph({
       cYMax += range * 0.1;
     }
 
-    const tRange = Math.max(tMax - tMin, 0.1);
+    const tRange = Math.max(tMax - tMin, 0.05);
     const yRange = cYMax - cYMin;
 
-    const visibleData = timeWindow ? data.filter(d => d.t >= tMin) : data;
+    const visibleData = timeWindow ? data.filter((d) => d.t >= tMin) : data;
 
     const mapX = (t: number) => ((t - tMin) / tRange) * graphW;
     const mapY = (val: number) => graphH - ((val - cYMin) / yRange) * graphH;
 
-    const pts = visibleData.map((d, i) => `${i === 0 ? "M" : "L"} ${mapX(d.t).toFixed(2)},${mapY(d.val).toFixed(2)}`);
-    
-    // Pre-compute point coordinates for scatter and regression
-    const plottedPoints = visibleData.map(d => ({ x: mapX(d.t), y: mapY(d.val) }));
-    
-    let regPath = "";
-    if (regressionLine) {
-       const regStartVal = regressionLine.intercept + regressionLine.slope * tMin;
-       const regEndVal = regressionLine.intercept + regressionLine.slope * Math.max(tMax, tMin + 0.1);
-       regPath = `M 0,${mapY(regStartVal).toFixed(2)} L ${graphW},${mapY(regEndVal).toFixed(2)}`;
+    const pts = visibleData.map(
+      (d, i) => `${i === 0 ? "M" : "L"} ${mapX(d.t).toFixed(2)},${mapY(d.val).toFixed(2)}`
+    );
+
+    // Area under path (soft gradient fill)
+    let areaPathData = "";
+    if (pts.length > 0) {
+      const firstX = mapX(visibleData[0].t).toFixed(2);
+      const lastX = mapX(visibleData[visibleData.length - 1].t).toFixed(2);
+      const bottomY = graphH.toFixed(2);
+      areaPathData = `${pts.join(" ")} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
     }
 
-    return { 
-      pathData: pts.join(" "), 
-      currentYMin: cYMin, currentYMax: cYMax, currentTMin: tMin, currentTMax: Math.max(tMax, tMin + 0.1),
+    const plottedPoints = visibleData.map((d) => ({ x: mapX(d.t), y: mapY(d.val) }));
+
+    let regPath = "";
+    if (regressionLine) {
+      const regStartVal = regressionLine.intercept + regressionLine.slope * tMin;
+      const regEndVal = regressionLine.intercept + regressionLine.slope * Math.max(tMax, tMin + 0.1);
+      regPath = `M 0,${mapY(regStartVal).toFixed(2)} L ${graphW},${mapY(regEndVal).toFixed(2)}`;
+    }
+
+    // Generate clean intermediate ticks
+    const yTickCount = 4;
+    const yTicks = Array.from({ length: yTickCount + 1 }).map((_, i) => {
+      const frac = i / yTickCount;
+      const val = cYMin + frac * yRange;
+      const y = graphH - frac * graphH;
+      return { val, y };
+    });
+
+    const xTickCount = width < 450 ? 3 : 5;
+    const xTicks = Array.from({ length: xTickCount }).map((_, i) => {
+      const frac = i / (xTickCount - 1);
+      const t = tMin + frac * tRange;
+      const x = frac * graphW;
+      return { t, x };
+    });
+
+    return {
+      pathData: pts.join(" "),
+      areaPathData,
+      currentYMin: cYMin,
+      currentYMax: cYMax,
+      currentTMin: tMin,
+      currentTMax: Math.max(tMax, tMin + 0.1),
       plottedPoints,
-      regPath
+      regPath,
+      yTicks,
+      xTicks,
     };
-  }, [data, graphW, graphH, timeWindow, yMin, yMax, regressionLine]);
+  }, [data, graphW, graphH, timeWindow, yMin, yMax, regressionLine, width]);
 
   return (
-    <svg width={width} height={height} className="bg-transparent font-sans">
+    <svg width={width} height={height} className="bg-[#090d16] rounded-xl select-none">
+      <defs>
+        {/* Subtle Area Gradient Under Data Curve */}
+        <linearGradient id={`line-area-grad-${instanceId}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.01" />
+        </linearGradient>
+      </defs>
+
+      {/* Outer Enclosure Frame */}
+      <rect
+        x="0.5"
+        y="0.5"
+        width={width - 1}
+        height={height - 1}
+        rx="10"
+        fill="#090d16"
+        stroke="#1e293b"
+        strokeWidth="1"
+      />
+
       <g transform={`translate(${padding.left}, ${padding.top})`}>
-        {/* Grid and Axes */}
-        <line x1={0} y1={graphH} x2={graphW} y2={graphH} stroke="rgba(255,255,255,0.3)" strokeWidth={2} />
-        <line x1={0} y1={0} x2={0} y2={graphH} stroke="rgba(255,255,255,0.3)" strokeWidth={2} />
-        
-        {/* Center zero line if applicable */}
+        {/* ── Precision Subtle Grid Lines ── */}
+        {yTicks.map((tick, idx) => (
+          <line
+            key={`y-grid-${idx}`}
+            x1={0}
+            y1={tick.y}
+            x2={graphW}
+            y2={tick.y}
+            stroke="rgba(148, 163, 184, 0.08)"
+            strokeWidth={1}
+          />
+        ))}
+
+        {xTicks.map((tick, idx) => (
+          <line
+            key={`x-grid-${idx}`}
+            x1={tick.x}
+            y1={0}
+            x2={tick.x}
+            y2={graphH}
+            stroke="rgba(148, 163, 184, 0.08)"
+            strokeWidth={1}
+          />
+        ))}
+
+        {/* Center zero reference line if applicable */}
         {currentYMin < 0 && currentYMax > 0 && (
-          <line 
-            x1={0} 
-            y1={graphH - ((0 - currentYMin) / (currentYMax - currentYMin)) * graphH} 
-            x2={graphW} 
-            y2={graphH - ((0 - currentYMin) / (currentYMax - currentYMin)) * graphH} 
-            stroke="rgba(255,255,255,0.1)" strokeWidth={1} strokeDasharray="4 4" 
+          <line
+            x1={0}
+            y1={graphH - ((0 - currentYMin) / (currentYMax - currentYMin)) * graphH}
+            x2={graphW}
+            y2={graphH - ((0 - currentYMin) / (currentYMax - currentYMin)) * graphH}
+            stroke="rgba(56, 189, 248, 0.35)"
+            strokeWidth={1.2}
+            strokeDasharray="4 4"
           />
         )}
 
-        {/* Data Path */}
-        {drawLine && <path d={pathData} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+        {/* Main Axes */}
+        <line x1={0} y1={graphH} x2={graphW} y2={graphH} stroke="#334155" strokeWidth={1.5} />
+        <line x1={0} y1={0} x2={0} y2={graphH} stroke="#334155" strokeWidth={1.5} />
 
-        {/* Regression Path */}
-        {regressionLine && <path d={regPath} fill="none" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 5" />}
+        {/* Soft Shaded Area Under Curve */}
+        {drawLine && areaPathData && (
+          <path d={areaPathData} fill={`url(#line-area-grad-${instanceId})`} />
+        )}
 
-        {/* Scatter Points */}
-        {drawPoints && plottedPoints.map((pt, i) => (
-          <circle key={i} cx={pt.x} cy={pt.y} r={4} fill={color} />
+        {/* Data Curve */}
+        {drawLine && pathData && (
+          <path
+            d={pathData}
+            fill="none"
+            stroke={color}
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Linear Regression Best-Fit Line */}
+        {regressionLine && regPath && (
+          <path
+            d={regPath}
+            fill="none"
+            stroke="#f43f5e"
+            strokeWidth={2.2}
+            strokeDasharray="5 5"
+          />
+        )}
+
+        {/* Scatter Points with Dark Rings */}
+        {drawPoints &&
+          plottedPoints.map((pt, i) => (
+            <circle
+              key={`pt-${i}`}
+              cx={pt.x}
+              cy={pt.y}
+              r={3.8}
+              fill={color}
+              stroke="#090d16"
+              strokeWidth={1.2}
+            />
+          ))}
+
+        {/* ── Y Axis Numeric Ticks & Label ── */}
+        {yTicks.map((tick, idx) => (
+          <text
+            key={`y-label-${idx}`}
+            x={-8}
+            y={tick.y + 3.5}
+            fill="rgba(148, 163, 184, 0.75)"
+            fontSize={11}
+            fontFamily="'JetBrains Mono', monospace"
+            fontWeight="500"
+            textAnchor="end"
+          >
+            {tick.val.toFixed(1)}
+          </text>
         ))}
 
-        {/* Y Axis Labels */}
-        <text x={-8} y={5} fill="rgba(255,255,255,0.5)" fontSize={10} textAnchor="end">{currentYMax.toFixed(1)}</text>
-        <text x={-8} y={graphH + 4} fill="rgba(255,255,255,0.5)" fontSize={10} textAnchor="end">{currentYMin.toFixed(1)}</text>
-        <text x={-padding.left + 10} y={graphH / 2} fill="rgba(255,255,255,0.7)" fontSize={11} textAnchor="middle" transform={`rotate(-90, ${-padding.left + 10}, ${graphH / 2})`}>{yLabel}</text>
+        {/* Y Axis Title */}
+        <text
+          x={-padding.left + 16}
+          y={graphH / 2}
+          fill="#94a3b8"
+          fontSize={11}
+          fontFamily="'JetBrains Mono', monospace"
+          fontWeight="bold"
+          textAnchor="middle"
+          transform={`rotate(-90, ${-padding.left + 16}, ${graphH / 2})`}
+        >
+          {yLabel}
+        </text>
 
-        {/* X Axis Labels */}
-        <text x={0} y={graphH + 16} fill="rgba(255,255,255,0.5)" fontSize={10} textAnchor="middle">{currentTMin.toFixed(1)}</text>
-        <text x={graphW} y={graphH + 16} fill="rgba(255,255,255,0.5)" fontSize={10} textAnchor="middle">{currentTMax.toFixed(1)}</text>
-        <text x={graphW / 2} y={graphH + 30} fill="rgba(255,255,255,0.7)" fontSize={11} textAnchor="middle">{xLabel}</text>
+        {/* ── X Axis Numeric Ticks & Label ── */}
+        {xTicks.map((tick, idx) => (
+          <text
+            key={`x-label-${idx}`}
+            x={tick.x}
+            y={graphH + 18}
+            fill="rgba(148, 163, 184, 0.75)"
+            fontSize={11}
+            fontFamily="'JetBrains Mono', monospace"
+            fontWeight="500"
+            textAnchor="middle"
+          >
+            {tick.t.toFixed(1)}
+          </text>
+        ))}
+
+        {/* X Axis Title */}
+        <text
+          x={graphW / 2}
+          y={graphH + 34}
+          fill="#94a3b8"
+          fontSize={11}
+          fontFamily="'JetBrains Mono', monospace"
+          fontWeight="bold"
+          textAnchor="middle"
+        >
+          {xLabel}
+        </text>
       </g>
     </svg>
   );
