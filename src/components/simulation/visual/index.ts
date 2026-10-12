@@ -5,3 +5,4 @@ export * from "./SvgGridBackground";
 export * from "./SvgRuler";
 export * from "./SvgCalloutBadge";
 export * from "./SvgHardware";
+export * from "./DigitalDisplay";
