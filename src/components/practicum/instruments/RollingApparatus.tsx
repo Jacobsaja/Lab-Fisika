@@ -118,17 +118,22 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       },
     }));
 
+    const onStateUpdateRef = useRef(onStateUpdate);
+    useEffect(() => {
+      onStateUpdateRef.current = onStateUpdate;
+    }, [onStateUpdate]);
+
     // Auto update state on prop change if not running
     useEffect(() => {
       if (!isAnimatingRef.current && simTimeRef.current === 0) {
-        if (onStateUpdate) {
-          onStateUpdate(
+        if (onStateUpdateRef.current) {
+          onStateUpdateRef.current(
             getRollingState(0, a1, r, shape === "block"),
             compareShape ? getRollingState(0, a2, r, compareShape === "block") : undefined
           );
         }
       }
-    }, [a1, a2, shape, compareShape, r, onStateUpdate]);
+    }, [a1, a2, shape, compareShape, r]);
 
     const animate = (timestamp: number) => {
       if (!isAnimatingRef.current) return;

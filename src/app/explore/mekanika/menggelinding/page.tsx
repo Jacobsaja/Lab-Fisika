@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { RollingApparatus, RollingApparatusRef } from "@/components/practicum/instruments/RollingApparatus";
 import { CylinderShape, calculateRollingAcceleration } from "@/physics/rollingMotion";
@@ -34,26 +34,27 @@ export default function RollingExplorePage() {
   const a_pred = calculateRollingAcceleration(shape, thetaDeg, r, rInner, g);
   const a_compare_pred = isCompareMode ? calculateRollingAcceleration(compareShape, thetaDeg, r, rInner, g) : 0;
 
-  const handleTimeChange = (t: number, running: boolean, reset: boolean) => {
+  const handleTimeChange = useCallback((t: number, running: boolean, reset: boolean) => {
     setSimTime(t);
     setIsFalling(running);
     if (reset) {
       setGraphData([]);
     }
-  };
+  }, []);
 
-  const handleStateUpdate = (state: any, compState?: any) => {
+  const handleStateUpdate = useCallback((state: any, compState?: any) => {
     setLiveState(state);
     setLiveCompareState(compState);
     if (state.v > 0 || state.s > 0) {
       setGraphData(prev => {
         // limit data points
-        const newData = [...prev, { t: simTime, val: state.v }];
+        const tVal = state.t ?? (prev.length > 0 ? prev[prev.length - 1].t + 0.05 : 0);
+        const newData = [...prev, { t: tVal, val: state.v }];
         if (newData.length > 200) return newData.slice(newData.length - 200);
         return newData;
       });
     }
-  };
+  }, []);
 
   const handleReset = () => {
     appRef.current?.reset();
