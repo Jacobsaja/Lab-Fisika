@@ -9,6 +9,8 @@ import {
   SvgGridBackground,
   SvgPhotogate,
   SvgSpiralSpring,
+  DigitalDisplayCard,
+  DigitalDisplayPanel,
 } from "@/components/simulation/visual";
 
 export interface TorsionalOscillatorProps {
@@ -473,35 +475,27 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
               </div>
             </div>
 
-            {/* Scaler Counter Display Chassis */}
-            <div className="bg-[#050811] rounded-xl p-4 shadow-2xl flex flex-col gap-2.5 relative border border-cyan-500/30">
-              <div className="flex justify-between items-center text-white/50 text-[10px] font-mono font-bold tracking-wider">
-                <span className="text-cyan-400">DIGITAL SCALER COUNTER</span>
-                <Activity className={`w-3.5 h-3.5 ${isOscillating ? 'text-red-400 animate-pulse' : 'text-slate-600'}`} />
-              </div>
-              
-              <div className="flex gap-2 items-center">
-                <span className="text-[10px] font-mono font-bold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/30">
-                  MODE: {timerMode}
-                </span>
-                <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
-                  N = {cyclesTarget}
-                </span>
-              </div>
-
-              {/* 7-Segment Digital Display Box */}
-              <div className="bg-black rounded-lg border border-red-500/30 p-3 shadow-inner relative overflow-hidden">
-                <div className="absolute inset-0 bg-[radial-gradient(#ef444408_1px,transparent_1px)] [background-size:6px_6px]" />
-                <div
-                  className="font-mono text-4xl text-right text-red-500 font-bold tracking-widest relative z-10"
-                  style={{ textShadow: "0 0 12px rgba(239, 68, 68, 0.65)" }}
-                >
-                  {displayedTime.toFixed(3)}
-                </div>
-              </div>
-              <div className="text-right text-white/40 text-[10px] font-mono font-bold">
-                DETIK (s)
-              </div>
+            {/* Scaler Counter Display Enclosure */}
+            <DigitalDisplayPanel
+              title="DIGITAL SCALER COUNTER"
+              modeText={`MODE: ${timerMode}`}
+              badge={`N = ${cyclesTarget}`}
+              isOscillating={isOscillating}
+              className="w-full"
+            >
+              <DigitalDisplayCard
+                label="WAKTU GETARAN"
+                sublabel={`N=${cyclesTarget}`}
+                value={displayedTime.toFixed(3)}
+                unit="s"
+                variant="red"
+                size="lg"
+                indicatorLed={{
+                  active: isOscillating,
+                  color: "red",
+                  label: isOscillating ? "GATE" : "STANDBY",
+                }}
+              />
 
               {/* Laboratory Control Pushbuttons */}
               <div className="flex justify-between mt-2 gap-2">
@@ -519,7 +513,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
                   CH.OVER (5 GET)
                 </button>
               </div>
-            </div>
+            </DigitalDisplayPanel>
 
             {/* Feedback / Instructions Box */}
             <div className="p-3.5 bg-slate-900/60 border border-white/10 rounded-xl">
