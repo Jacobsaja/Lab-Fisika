@@ -1,0 +1,77 @@
+/**
+ * Type definitions for linear momentum and 1D collision physics.
+ * Pure TypeScript, zero external UI/React dependencies.
+ */
+
+export type CollisionType = "elastic" | "inelastic" | "perfectly_inelastic";
+
+export interface GliderParams {
+  mass: number; // in kg
+  initialVelocity: number; // in m/s (positive = rightward)
+}
+
+export interface Collision1DResult {
+  vAPrime: number; // final velocity of cart A in m/s
+  vBPrime: number; // final velocity of cart B in m/s
+  pTotalInitial: number; // initial total momentum in kg·m/s
+  pTotalFinal: number; // final total momentum in kg·m/s
+  eKInitial: number; // initial total kinetic energy in Joules
+  eKFinal: number; // final total kinetic energy in Joules
+  eKLoss: number; // energy lost in Joules
+  eKLossRatio: number; // fraction of kinetic energy lost [0, 1]
+  restitution: number; // coefficient of restitution e
+}
+
+export type ModulCase = "A" | "B" | "C" | "D";
+
+export interface ModulCaseParams {
+  caseId: ModulCase;
+  baseMass: number; // m (kg), mass of single base cart
+  addedMass: number; // M (kg), extra mass added to Cart A in cases B & D
+  vA: number; // initial velocity of cart A (m/s)
+  flagWidth: number; // width of photogate flag (m), e.g. 0.03 m
+}
+
+export interface ModulCaseTheory {
+  caseId: ModulCase;
+  mA: number; // kg
+  mB: number; // kg
+  vA: number; // m/s
+  vB: number; // m/s (always 0 in Modul 7 setup)
+  vAPrime: number; // theoretical vA'
+  vBPrime: number; // theoretical vB'
+  pTotalInitial: number; // kg·m/s
+  pTotalFinal: number; // kg·m/s
+  eKInitial: number; // J
+  eKFinal: number; // J
+  restitution: number; // theoretical e
+  hasP22: boolean; // whether Cart A passes Gate 2 after collision
+}
+
+export interface GateTimeReadings {
+  tA: number; // Gate 1 pulse 1 (P11) in seconds
+  tBPrime: number; // Gate 2 pulse 1 (P21) in seconds
+  tAPrime: number | null; // Gate 2 pulse 2 (P22) in seconds, null if Cart A stops before Gate 2
+}
+
+export interface ModulTrialData {
+  trialIndex: number;
+  // Raw Gate Readings
+  p11: number; // tA (s)
+  p21: number; // tB' (s)
+  p22: number | null; // tA' (s)
+  // Derived Kinematics & Momentum
+  vA: number; // m/s
+  pA: number; // kg·m/s
+  vB: number; // m/s (0)
+  pB: number; // kg·m/s (0)
+  vAPrime: number; // m/s
+  pAPrime: number; // kg·m/s
+  vBPrime: number; // m/s
+  pBPrime: number; // kg·m/s
+  pTotalInitial: number;
+  pTotalFinal: number;
+  deltaP: number; // pFinal - pInitial
+  ksrP: number; // percentage error of momentum conservation
+  restitution: number;
+}

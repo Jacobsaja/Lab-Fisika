@@ -71,5 +71,14 @@ export const EXPLORE_REGISTRY: Record<string, ExploreModule> = {
     available: true,
     desc: "Eksplorasi gerak osilasi torsi. Atur jari-jari dan massa beban untuk melihat pengaruhnya pada periode dan frekuensi sudut.",
     category: "mekanika"
+  },
+  "hkm": {
+    id: "hkm",
+    title: "Hukum Kekekalan Momentum",
+    route: "/explore/mekanika/hkm",
+    available: true,
+    desc: "Eksplorasi tumbukan satu dimensi pada rel udara. Variasikan massa kereta, kecepatan awal, dan koefisien restitusi.",
+    category: "mekanika"
   }
 };
+
