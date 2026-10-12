@@ -16,6 +16,10 @@ export interface MetalGradientIds {
   massBlockA: string;
   massBlockB: string;
   slottedDisk: string;
+  copper: string;
+  ballChrome: string;
+  inclineRail: string;
+  hollowRim: string;
 }
 
 /**
@@ -38,6 +42,10 @@ export function useMetalGradientIds(customPrefix?: string): MetalGradientIds {
     massBlockA: `${prefix}_mass_block_a`,
     massBlockB: `${prefix}_mass_block_b`,
     slottedDisk: `${prefix}_slotted_disk`,
+    copper: `${prefix}_copper`,
+    ballChrome: `${prefix}_ball_chrome`,
+    inclineRail: `${prefix}_incline_rail`,
+    hollowRim: `${prefix}_hollow_rim`,
   };
 }
 
@@ -137,6 +145,37 @@ export function SvgMetalGradients({ ids }: SvgMetalGradientsProps) {
         <stop offset="45%" stopColor={accents.red} />
         <stop offset="100%" stopColor="#991b1b" />
       </linearGradient>
+
+      {/* 12. Electromagnet Copper Coil Winding */}
+      <linearGradient id={ids.copper} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#fed7aa" />
+        <stop offset="35%" stopColor="#ea580c" />
+        <stop offset="75%" stopColor="#c2410c" />
+        <stop offset="100%" stopColor="#7c2d12" />
+      </linearGradient>
+
+      {/* 13. Chrome Bearing Ball (Radial 3D specular highlight, NO FILTER) */}
+      <radialGradient id={ids.ballChrome} cx="35%" cy="32%" r="65%">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="25%" stopColor="#e2e8f0" />
+        <stop offset="65%" stopColor="#64748b" />
+        <stop offset="100%" stopColor="#1e293b" />
+      </radialGradient>
+
+      {/* 14. Inclined Track Rail (Silver Extrusion) */}
+      <linearGradient id={ids.inclineRail} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#f8fafc" />
+        <stop offset="30%" stopColor="#cbd5e1" />
+        <stop offset="70%" stopColor="#64748b" />
+        <stop offset="100%" stopColor="#334155" />
+      </linearGradient>
+
+      {/* 15. Hollow Rim Metallic Tube */}
+      <radialGradient id={ids.hollowRim} cx="35%" cy="35%" r="65%">
+        <stop offset="0%" stopColor="#67e8f9" />
+        <stop offset="50%" stopColor="#0284c7" />
+        <stop offset="100%" stopColor="#0f172a" />
+      </radialGradient>
     </defs>
   );
 }

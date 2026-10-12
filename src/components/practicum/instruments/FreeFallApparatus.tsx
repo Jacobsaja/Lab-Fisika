@@ -1,23 +1,31 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { calculateFallTime } from "@/physics/freefall";
-import { Activity } from "lucide-react";
+import { Activity, Radio } from "lucide-react";
+import {
+  useMetalGradientIds,
+  SvgMetalGradients,
+  SvgGridBackground,
+  SvgElectromagnet,
+  SvgContactPlate,
+  SvgMetalBall,
+  SCIENTIFIC_THEME,
+} from "@/components/simulation/visual";
 
-// ── Skala & Koordinat ──────────────────────────────────────────────
-// 1 mm = 1 px.  1 m = 1000 px.
-const PX_PER_METER = 1000;
-const TIANG_TOP_Y = 50;   // ujung atas tiang di SVG
-const GROUND_Y = 1250;     // dasar tiang (pelat kontak)
-// Tiang total: 1250 − 50 = 1200 px = 1.2 m
+// ── Physical Scale & Simulation Coordinates ──────────────────────────
+// 1 mm = 1 px. 1 m = 1000 px.
+const TIANG_TOP_Y = 50;   // Top of the vertical mast in SVG
+const GROUND_Y = 1250;    // Base of mast / contact plate level
+// Total mast span: 1250 − 50 = 1200 px = 1.2 m
 
-// Offset kosmetik: bola digambar sedikit di bawah magnet secara visual.
-// Offset ini TIDAK mempengaruhi kalkulasi h — h selalu dari magnetY.
+// Visual offset: ball sits just underneath the electromagnet pole tip.
+// Physical height h is strictly measured from magnetY (zero calibration bias).
 const BALL_VISUAL_OFFSET = 20;
 
-interface FreeFallApparatusProps {
+export interface FreeFallApparatusProps {
   className?: string;
-  gLocal?: number; // Ground truth g, di-generate 1× di level PracticumShell
+  gLocal?: number; // Local gravity acceleration (m/s²)
   mode?: "practicum" | "explore";
   onHeightChange?: (h: number) => void;
   onTimeChange?: (t: number, isFalling: boolean, reset: boolean) => void;
@@ -34,8 +42,9 @@ export function FreeFallApparatus({
   scaleMaxMeters = 1.2,
   controlledHeight
 }: FreeFallApparatusProps) {
+  const gradientIds = useMetalGradientIds("freefall");
   const svgRef = useRef<SVGSVGElement>(null);
-  const reqRef = useRef<number>(null);
+  const reqRef = useRef<number | null>(null);
   const ballRef = useRef<SVGCircleElement>(null);
   const isAutoScrollingRef = useRef(false);
   const idealYRef = useRef<number | null>(null);
@@ -43,7 +52,7 @@ export function FreeFallApparatus({
   const PX_PER_METER = 1200 / scaleMaxMeters;
 
   // ── State ──
-  const [magnetY, setMagnetY] = useState(250);       // koordinat SVG Y
+  const [magnetY, setMagnetY] = useState(250);       // SVG Y coordinate of electromagnet
   const [isDragging, setIsDragging] = useState(false);
   const [isMorsePressed, setIsMorsePressed] = useState(false);
   const [isFalling, setIsFalling] = useState(false);
@@ -62,13 +71,15 @@ export function FreeFallApparatus({
     }
   }, [controlledHeight, PX_PER_METER, isDragging, isFalling, isMorsePressed, magnetY]);
 
-  // ── Konversi koordinat ──
-  const pixelsToMeters = (svgY: number) =>
-    Math.max(0, (GROUND_Y - svgY) / PX_PER_METER);
+  // ── Coordinate Conversion ──
+  const pixelsToMeters = useCallback(
+    (svgY: number) => Math.max(0, (GROUND_Y - svgY) / PX_PER_METER),
+    [PX_PER_METER]
+  );
 
-  // ── Magnet dragging ──
+  // ── Magnet Dragging ──
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (isMorsePressed || isFalling) return; // kunci saat simulasi
+    if (isMorsePressed || isFalling) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsDragging(true);
   };
@@ -80,7 +91,7 @@ export function FreeFallApparatus({
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
 
-    // Rentang magnet: h min ≈ 0.2 m (svgY=1050), h max ≈ 1.1 m (svgY=150)
+    // Magnet height travel range: h min ≈ 0.2 m (svgY=1050), h max ≈ 1.1 m (svgY=150)
     let newY = svgP.y;
     if (newY < 150) newY = 150;
     if (newY > 1050) newY = 1050;
@@ -100,16 +111,24 @@ export function FreeFallApparatus({
     }
   };
 
-  // ── Morse Key ──
+  // ── Morse Key Actuation ──
   const handleMorsePress = () => {
     if (isDragging) return;
     setIsMorsePressed(true);
     setIsFalling(false);
-    setBallY(magnetY + BALL_VISUAL_OFFSET); // bola menempel magnet
+    setBallY(magnetY + BALL_VISUAL_OFFSET); // Ball adheres to electromagnet
     setDisplayedTime(0);
     setFinalTime(null);
     if (onTimeChange) onTimeChange(0, false, true);
     if (reqRef.current) cancelAnimationFrame(reqRef.current);
+
+    // Initial focus on the armed sphere
+    if (ballRef.current) {
+      const targetViewportY = Math.max(80, Math.min(window.innerHeight * 0.28, 250));
+      const currentRect = ballRef.current.getBoundingClientRect();
+      const diff = currentRect.top - targetViewportY;
+      scrollAncestorBy(diff, ballRef.current);
+    }
   };
 
   const handleMorseRelease = useCallback(() => {
@@ -117,24 +136,26 @@ export function FreeFallApparatus({
     setIsMorsePressed(false);
     setIsFalling(true);
 
-    // ┌──────────────────────────────────────────────────────────────┐
-    // │  h dihitung dari magnetY — IDENTIK dengan posisi arrow.     │
-    // │  Tidak ada offset. Tidak ada bias.                          │
-    // └──────────────────────────────────────────────────────────────┘
     isAutoScrollingRef.current = true;
+    const targetViewportY = Math.max(80, Math.min(window.innerHeight * 0.28, 250));
+    idealYRef.current = targetViewportY;
+
+    // Immediately align camera to falling sphere at start
     if (ballRef.current) {
-      idealYRef.current = ballRef.current.getBoundingClientRect().top;
+      const currentRect = ballRef.current.getBoundingClientRect();
+      const diff = currentRect.top - targetViewportY;
+      scrollAncestorBy(diff, ballRef.current);
     }
+
     const h = pixelsToMeters(magnetY);
-    // Di mode eksplorasi, jangan beri noise (pure theoretical)
     const { t: actualTime } = calculateFallTime(h, gLocal, mode === "practicum");
 
     const ballStartY = magnetY + BALL_VISUAL_OFFSET;
-    const ballEndY = GROUND_Y - 12; // sedikit di atas pelat kontak
+    const ballEndY = GROUND_Y - 12; // Striking the brass contact pad
     let startAnim: number | null = null;
     
-    // Faktor slow-mo: di mode praktikum (h kecil) kita perlamat 2.5x agar bola terlihat jatuh.
-    // Di mode explore, kita gunakan 1.5x agar perbedaan antar planet lebih terasa namun tidak terlalu lambat/cepat.
+    // Slow-motion factor for visual clarity:
+    // Practicum mode: 2.5x slower; Explore mode: 1.5x slower
     const slowMoFactor = mode === "practicum" ? 2.5 : 1.5;
     const durationMs = actualTime * 1000 * slowMoFactor;
 
@@ -149,22 +170,20 @@ export function FreeFallApparatus({
         setIsFalling(false);
         if (onTimeChange) onTimeChange(actualTime, false, false);
       } else {
-        // Interpolasi kuadratik (progress²) meniru percepatan konstan
-        const currentY =
-          ballStartY + (ballEndY - ballStartY) * progress * progress;
-        
+        // Quadratic trajectory (progress²) replicating constant acceleration
+        const currentY = ballStartY + (ballEndY - ballStartY) * progress * progress;
         setBallY(currentY);
         
         const currTime = actualTime * progress;
         setDisplayedTime(currTime);
         if (onTimeChange) onTimeChange(currTime, true, false);
 
-        // Auto-focus kamera (Absolute Tracking Shot)
+        // Dynamic 60 FPS Camera Tracking Shot
         if (isAutoScrollingRef.current && ballRef.current && idealYRef.current !== null) {
           const currentRect = ballRef.current.getBoundingClientRect();
           const diff = currentRect.top - idealYRef.current;
-          if (diff > 1) { 
-            window.scrollBy({ top: diff, behavior: 'instant' });
+          if (Math.abs(diff) > 0.5) { 
+            scrollAncestorBy(diff, ballRef.current);
           }
         }
         
@@ -173,8 +192,9 @@ export function FreeFallApparatus({
     };
 
     reqRef.current = requestAnimationFrame(animate);
-  }, [isMorsePressed, magnetY, gLocal, mode, onTimeChange]);
+  }, [isMorsePressed, magnetY, gLocal, mode, onTimeChange, pixelsToMeters]);
 
+  // Clean up RAF on unmount & cancel camera tracking on user scroll
   useEffect(() => {
     const cancelAutoScroll = () => {
       isAutoScrollingRef.current = false;
@@ -182,7 +202,6 @@ export function FreeFallApparatus({
     
     window.addEventListener("wheel", cancelAutoScroll, { passive: true });
     window.addEventListener("touchmove", cancelAutoScroll, { passive: true });
-    window.addEventListener("mousedown", cancelAutoScroll, { passive: true });
     const handleKeyDown = (e: KeyboardEvent) => {
       if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", " ", "Spacebar"].includes(e.key)) {
         cancelAutoScroll();
@@ -193,47 +212,51 @@ export function FreeFallApparatus({
     return () => {
       window.removeEventListener("wheel", cancelAutoScroll);
       window.removeEventListener("touchmove", cancelAutoScroll);
-      window.removeEventListener("mousedown", cancelAutoScroll);
       window.removeEventListener("keydown", handleKeyDown);
       if (reqRef.current) cancelAnimationFrame(reqRef.current);
     };
   }, []);
 
-  // ── Skala tiang (di-memo karena elemen bisa banyak) ──
-  const scaleTicks = React.useMemo(() => {
+  // ── High-Contrast Engraved Millimeter Scale Ticks ──
+  const scaleTicks = useMemo(() => {
     const ticks: React.ReactNode[] = [];
     const maxMm = scaleMaxMeters * 1000;
-    
-    // Jika tinggi lebih dari 2 meter, kita tidak gambar setiap mm untuk performa
     const step = scaleMaxMeters > 2 ? 10 : 1; 
-    
+
     for (let mm = 0; mm <= maxMm; mm += step) {
       const y = GROUND_Y - (mm / 1000) * PX_PER_METER;
 
       const isTenCm = mm % 100 === 0;
-      const isCm = mm % 10 === 0;
-      const isFiveMm = mm % 5 === 0;
+      const isFiveCm = !isTenCm && mm % 50 === 0;
+      const isCm = !isTenCm && !isFiveCm && mm % 10 === 0;
+      const isFiveMm = !isTenCm && !isFiveCm && !isCm && mm % 5 === 0;
+
+      if (!isTenCm && !isFiveCm && !isCm && !isFiveMm && step === 1 && mm % 2 !== 0) continue;
 
       let tickLen: number;
       let sw: number;
       let color: string;
 
       if (isTenCm) {
-        tickLen = 20;
-        sw = 2;
-        color = "#334155";
+        tickLen = 22;
+        sw = 1.8;
+        color = SCIENTIFIC_THEME.typography.scaleTickMajor;
+      } else if (isFiveCm) {
+        tickLen = 15;
+        sw = 1.4;
+        color = "#cbd5e1";
       } else if (isCm) {
         tickLen = 10;
         sw = 1;
-        color = "#475569";
+        color = SCIENTIFIC_THEME.typography.scaleTick;
       } else if (isFiveMm) {
-        tickLen = 5;
-        sw = 0.7;
+        tickLen = 6;
+        sw = 0.8;
         color = "#64748b";
       } else {
-        tickLen = 2;
+        tickLen = 3;
         sw = 0.5;
-        color = "#94a3b8";
+        color = "#475569";
       }
 
       ticks.push(
@@ -248,17 +271,18 @@ export function FreeFallApparatus({
         />
       );
 
-      // Label setiap 10 cm
+      // Label every 10 cm
       if (isTenCm && mm > 0) {
         ticks.push(
           <text
             key={`lbl-${mm}`}
-            x={-5}
-            y={y + 4}
-            fontSize="11"
-            fontFamily="monospace"
-            fill="#334155"
+            x={-7}
+            y={y + 4.5}
+            fontSize="12"
+            fontFamily={SCIENTIFIC_THEME.typography.fontMono}
+            fill={SCIENTIFIC_THEME.typography.scaleTextMajor}
             textAnchor="end"
+            fontWeight="600"
           >
             {mm / 10}
           </text>
@@ -268,251 +292,244 @@ export function FreeFallApparatus({
     return ticks;
   }, [scaleMaxMeters, PX_PER_METER]);
 
+  const currentHeightMeters = pixelsToMeters(magnetY);
+
   return (
     <div
-      className={`relative w-full rounded-xl border border-white/10 bg-[#f5f7fa] overflow-hidden shadow-2xl flex flex-col ${className}`}
+      className={`relative w-full rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-slate-950 via-[#0a0f1d] to-slate-950 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden ${className}`}
+      style={{ fontFamily: SCIENTIFIC_THEME.typography.fontMono }}
     >
-      {/* Header */}
-      <div className="bg-[#111827] text-white p-4 flex justify-between items-center z-10 border-b border-white/20 shrink-0">
-        <div>
-          <h3 className="font-bold text-lg tracking-wide">
-            ALAT GERAK JATUH BEBAS
+      {/* Top Header Information Ribbon */}
+      <div className="w-full flex items-center justify-between px-4 sm:px-6 py-3 border-b border-slate-800/80 bg-slate-950/60 text-[11px] text-slate-400 z-10 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
+          <h3 className="font-bold tracking-wider text-cyan-300 uppercase">
+            ALAT GERAK JATUH BEBAS (GJB)
           </h3>
-          <p className="text-white/50 text-sm font-mono mt-1">
-            TIANG BERSKALA (NST 1 MM) | SCALER COUNTER
-          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded border border-cyan-500/30 bg-cyan-950/40 text-cyan-300 font-bold">
+            h = {(currentHeightMeters * 100).toFixed(1)} cm
+          </span>
+          <span className="px-2 py-0.5 rounded border border-slate-800 bg-slate-900/60 text-slate-300 font-mono">
+            g = {gLocal.toFixed(2)} m/s²
+          </span>
         </div>
       </div>
 
-      <div className="flex-1 flex w-full relative min-h-0">
-        {/* ── SVG Area ── */}
-        <div className="flex-1 h-full min-h-0 flex justify-center items-center p-4">
+      <div className="flex-1 flex flex-col md:flex-row w-full relative min-h-0">
+        {/* ── LEFT SECTION: SVG EXPERIMENT APPARATUS ── */}
+        <div className="flex-1 h-full min-h-0 flex justify-center items-center p-2 sm:p-4 touch-none select-none relative">
           <svg
             ref={svgRef}
             viewBox="0 0 400 1350"
-            className="h-full w-auto select-none touch-none drop-shadow-xl"
+            className="w-full max-w-[420px] h-auto max-h-[85vh] md:max-h-full drop-shadow-2xl"
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
+            style={{ aspectRatio: "400 / 1350" }}
           >
-            <defs>
-              <linearGradient
-                id="ff-column-gradient"
-                x1="0"
-                y1="0"
-                x2="1"
-                y2="0"
-              >
-                <stop offset="0%" stopColor="#cbd5e1" />
-                <stop offset="50%" stopColor="#f8fafc" />
-                <stop offset="100%" stopColor="#94a3b8" />
-              </linearGradient>
-            </defs>
+            {/* Instance-unique SVG Metal Gradients */}
+            <SvgMetalGradients ids={gradientIds} />
 
-            {/* Tiang Utama */}
+            {/* Precision Coordinate Grid */}
+            <SvgGridBackground width={400} height={1350} gridSize={30} opacity={0.3} />
+
+            {/* ── 1. STRUCTURAL VERTICAL MAST ── */}
+            {/* Mast Outer Frame Channel */}
             <rect
-              x="185"
+              x="182"
               y={TIANG_TOP_Y}
-              width="30"
+              width="36"
               height={GROUND_Y - TIANG_TOP_Y}
-              fill="url(#ff-column-gradient)"
+              rx="2"
+              fill={`url(#${gradientIds.chassisDark})`}
+              stroke="#1e293b"
+              strokeWidth="1.5"
+            />
+            {/* Stainless Steel Center Guide Rail */}
+            <rect
+              x="187"
+              y={TIANG_TOP_Y}
+              width="26"
+              height={GROUND_Y - TIANG_TOP_Y}
+              fill={`url(#${gradientIds.steelVertical})`}
+              opacity="0.9"
             />
 
-            {/* Skala Tiang (di sebelah kiri tiang) */}
-            <g transform="translate(185, 0)">{scaleTicks}</g>
+            {/* Precision Engraved Millimeter Scale Ruler */}
+            <g transform="translate(187, 0)">{scaleTicks}</g>
 
-            {/* Label satuan */}
+            {/* Scale Unit Badge (cm) */}
             <text
-              x="135"
+              x="142"
               y={GROUND_Y + 45}
-              fontSize="12"
-              fontFamily="monospace"
-              fill="#64748b"
+              fontSize="11"
+              fontFamily={SCIENTIFIC_THEME.typography.fontMono}
+              fill={SCIENTIFIC_THEME.typography.labelMuted}
               textAnchor="middle"
+              fontWeight="bold"
             >
               (cm)
             </text>
 
-            {/* Pelat Kontak */}
-            <rect
-              x="145"
+            {/* ── 2. BASE GROUNDING & BRASS CONTACT PLATE ── */}
+            <SvgContactPlate
+              x={200}
               y={GROUND_Y}
-              width="110"
-              height="20"
-              fill="#334155"
-              rx="2"
-            />
-            {/* Bantalan kuningan */}
-            <rect
-              x="165"
-              y={GROUND_Y - 5}
-              width="70"
-              height="5"
-              fill="#eab308"
+              width={130}
+              brassFillId={gradientIds.brass}
+              chassisFillId={gradientIds.chassisDark}
             />
 
-            {/* Alas / Base */}
-            <rect
-              x="120"
-              y={GROUND_Y + 20}
-              width="160"
-              height="30"
-              fill="#1e293b"
-              rx="4"
-            />
-
-            {/* ── Elektromagnet Penempel ── */}
-            <g
-              transform={`translate(215, ${magnetY})`}
-              className={
-                isDragging
-                  ? "cursor-grabbing"
-                  : isMorsePressed || isFalling
-                    ? "cursor-not-allowed"
-                    : "cursor-grab"
-              }
+            {/* ── 3. ADJUSTABLE ELECTROMAGNET RELEASE ── */}
+            <SvgElectromagnet
+              x={213}
+              y={magnetY}
+              armed={isMorsePressed}
+              coilFillId={gradientIds.copper}
+              chassisFillId={gradientIds.chassisDark}
+              isDragging={isDragging}
+              disabled={isMorsePressed || isFalling}
               onPointerDown={handlePointerDown}
-            >
-              <rect
-                x="0"
-                y="-15"
-                width="80"
-                height="30"
-                fill="#1e293b"
-                rx="4"
-              />
-              <rect x="-10" y="-5" width="10" height="10" fill="#0f172a" />
-              {/* LED Indikator */}
-              <circle
-                cx="65"
-                cy="0"
-                r="4"
-                fill={isMorsePressed ? "#22c55e" : "#ef4444"}
-              />
-              <text
-                x="18"
-                y="4"
-                fontSize="9"
-                fill="white"
-                fontWeight="bold"
-              >
-                MAGNET
-              </text>
-              {/*
-                Garis Pembaca Ketinggian — di y=0 relatif grup.
-                Dalam koordinat SVG global ini = magnetY.
-                Physics calc: pixelsToMeters(magnetY).
-                → Arrow dan physics IDENTIK, nol bias.
-              */}
-              <line
-                x1="-35"
-                y1="0"
-                x2="0"
-                y2="0"
-                stroke="#ef4444"
-                strokeWidth="2"
-                strokeDasharray="4 2"
-              />
-              <polygon points="-35,0 -25,-5 -25,5" fill="#ef4444" />
-            </g>
+            />
 
-            {/* Bola Logam */}
-            <circle
+            {/* ── 4. PRECISION FALLING METAL SPHERE (ZERO FILTERS) ── */}
+            <SvgMetalBall
               ref={ballRef}
-              cx="200"
+              cx={200}
               cy={ballY}
-              r="10"
-              fill="#94a3b8"
-              stroke="#475569"
-              strokeWidth="2"
+              r={10}
+              fillId={gradientIds.ballChrome}
             />
           </svg>
         </div>
 
-        {/* ── Right Panel: Elektronik & Kontrol ── */}
-        <div className="w-64 bg-[#e2e8f0] border-l border-white/20 p-6 flex flex-col gap-8 shrink-0 relative shadow-inner z-10">
-          {/* Kabel hiasan */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
-            <path
-              d="M 0 100 Q 100 150 120 200 T 250 300"
-              fill="transparent"
-              stroke="#1e293b"
-              strokeWidth="4"
-            />
-            <path
-              d="M 0 500 C 50 500 100 450 150 400 S 250 300 250 250"
-              fill="transparent"
-              stroke="#1e293b"
-              strokeWidth="4"
-            />
-          </svg>
+        {/* ── RIGHT SECTION: ELECTRONIC SCALER COUNTER & MORSE ACTUATOR ── */}
+        <div className="w-full md:w-72 bg-slate-900/90 border-t md:border-t-0 md:border-l border-cyan-500/20 p-5 sm:p-6 flex flex-col justify-between shrink-0 relative shadow-inner z-10 backdrop-blur-md">
+          
+          {/* Top: Precision Digital Scaler Counter */}
+          <div className="flex flex-col gap-4">
+            <div className="bg-slate-950 p-4 rounded-xl border border-cyan-500/30 shadow-[0_4px_25px_rgba(0,0,0,0.8)] relative overflow-hidden">
+              {/* Counter Bezel Header */}
+              <div className="flex justify-between items-center text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-3">
+                <span className="flex items-center gap-1.5 text-cyan-300">
+                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                  SCALER COUNTER
+                </span>
+                <span className={`w-2 h-2 rounded-full ${isFalling ? "bg-red-500 animate-pulse shadow-[0_0_8px_#ef4444]" : isMorsePressed ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-600"}`} />
+              </div>
 
-          {/* Scaler Counter */}
-          <div 
-            className="md:absolute left-6 right-6 md:-translate-y-1/2 transition-all duration-200 ease-out z-20"
-            style={{ top: `calc(16px + (100% - 32px) * ${GROUND_Y / 1350})` }}
-          >
-            <div className="bg-[#1e293b] rounded-xl p-4 shadow-lg flex flex-col gap-2 border border-[#0f172a]">
-              <div className="flex justify-between items-center text-white/50 text-[10px] font-bold tracking-wider">
-              <span>SCALER COUNTER</span>
-              <Activity className="w-3 h-3 text-emerald-400" />
-            </div>
-            <div className="bg-black rounded border-2 border-[#0f172a] p-3 shadow-inner relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0JyBoZWlnaHQ9JzQnPjxyZWN0IHdpZHRoPSc0JyBoZWlnaHQ9JzInIGZpbGw9JyMxMTEnLz48L3N2Zz4=')] opacity-50 mix-blend-overlay" />
-              <div
-                className="font-mono text-4xl text-right text-red-500 font-bold tracking-widest"
-                style={{ textShadow: "0 0 10px rgba(239,68,68,0.5)" }}
-              >
-                {displayedTime.toFixed(3)}
+              {/* 7-Segment style LED Red Digital Readout */}
+              <div className="bg-black/95 rounded-lg border border-slate-800 p-3.5 shadow-inner flex items-baseline justify-end gap-2">
+                <span
+                  className="font-mono text-4xl sm:text-5xl font-bold tracking-widest text-red-500 drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]"
+                >
+                  {displayedTime.toFixed(3)}
+                </span>
+                <span className="text-xs font-mono font-bold text-red-400/80">s</span>
+              </div>
+
+              <div className="text-right text-slate-500 text-[10px] font-bold mt-2">
+                RESOLUSI: 0.001 s
               </div>
             </div>
-            <div className="text-right text-white/40 text-[10px] font-bold">
-              SECONDS (s)
+
+            {/* Recorded Fall Time Result Badge */}
+            {finalTime !== null && (
+              <div className="p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-xl shadow-lg flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                    WAKTU JATUH (t)
+                  </p>
+                  <p className="text-lg font-mono font-bold text-emerald-300">
+                    {finalTime.toFixed(3)} s
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">
+                    KETINGGIAN (h)
+                  </p>
+                  <p className="text-sm font-mono text-cyan-300 font-bold">
+                    {(currentHeightMeters * 100).toFixed(1)} cm
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom: Tactical Morse Key Push Switch */}
+          <div className="mt-6 md:mt-0 flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-slate-300 text-xs font-bold tracking-wider uppercase mb-1">
+              <Radio className="w-3.5 h-3.5 text-cyan-400" />
+              SAKLAR PELEPAS (MORSE KEY)
             </div>
-          </div>
-          </div>
 
-          {/* Morse Key */}
-          <div className="mt-8 md:mt-0 flex flex-col items-center gap-3">
-            <p className="text-sm font-semibold text-[#334155] text-center mb-2">
-              MORSE KEY
-            </p>
-
+            {/* Industrial Momentary Button */}
             <button
               onPointerDown={handleMorsePress}
               onPointerUp={handleMorseRelease}
               onPointerLeave={handleMorseRelease}
               className={`
-                w-24 h-24 rounded-full relative outline-none select-none transition-all duration-75
+                w-24 h-24 rounded-full relative outline-none select-none transition-all duration-75 flex items-center justify-center
                 ${
                   isMorsePressed
-                    ? "bg-slate-300 shadow-[inset_0_4px_10px_rgba(0,0,0,0.3)] translate-y-2"
-                    : "bg-slate-100 shadow-[0_10px_20px_rgba(0,0,0,0.2),inset_0_-4px_10px_rgba(0,0,0,0.1)] hover:bg-white"
+                    ? "bg-emerald-600 shadow-[inset_0_4px_12px_rgba(0,0,0,0.8),0_0_20px_rgba(16,185,129,0.5)] translate-y-1.5"
+                    : "bg-gradient-to-b from-slate-700 to-slate-800 shadow-[0_10px_25px_rgba(0,0,0,0.7),inset_0_-4px_10px_rgba(0,0,0,0.4)] hover:brightness-110 active:translate-y-1.5"
                 }
               `}
-              style={{ border: "8px solid #94a3b8" }}
+              style={{ border: "6px solid #475569" }}
             >
-              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/50 to-transparent pointer-events-none" />
+              <div className="w-16 h-16 rounded-full border border-slate-600 flex flex-col items-center justify-center text-center p-1 pointer-events-none">
+                <span className="text-[10px] font-bold text-white uppercase tracking-wider">
+                  {isMorsePressed ? "ARMED" : "HOLD"}
+                </span>
+                <span className="text-[8px] text-slate-400 leading-none mt-0.5">
+                  {isMorsePressed ? "MAGNET ON" : "TEKAN"}
+                </span>
+              </div>
             </button>
-            <div className="text-[11px] text-center text-slate-500 font-medium px-4 leading-tight">
-              Tahan (Klik Kiri) untuk mengaktifkan magnet. Lepas untuk
-              menjatuhkan.
-            </div>
+
+            <p className="text-[11px] text-center text-slate-400 px-2 leading-relaxed">
+              <strong>Tahan (Klik Kiri)</strong> untuk menyalakan magnet dan menempelkan bola. <strong>Lepas</strong> untuk menjatuhkan.
+            </p>
           </div>
 
-          {/* Feedback setelah drop */}
-          {finalTime !== null && (
-            <div className="mt-auto p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-              <p className="text-xs text-emerald-700 font-bold text-center">
-                WAKTU TERCATAT
-              </p>
-              <p className="text-sm text-center text-emerald-600 font-mono mt-1">
-                {finalTime.toFixed(3)} s
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
+}
+
+/**
+ * Robust scroll utility that scrolls ancestor container (if overflow-y-auto exists)
+ * or main window, ensuring camera tracking works seamlessly in nested layouts.
+ */
+function scrollAncestorBy(diff: number, el: Element | null) {
+  if (typeof window === "undefined" || Math.abs(diff) < 0.5) return;
+  
+  let remainingDiff = diff;
+  
+  // 1. Check scrollable ancestor elements from innermost to outermost
+  let curr = el?.parentElement;
+  while (curr && curr !== document.body && curr !== document.documentElement) {
+    const style = window.getComputedStyle(curr);
+    const overflowY = style.overflowY;
+    const canScrollY = (overflowY === "auto" || overflowY === "scroll") && curr.scrollHeight > curr.clientHeight;
+    if (canScrollY) {
+      const prev = curr.scrollTop;
+      curr.scrollTop += remainingDiff;
+      const scrolledAmount = curr.scrollTop - prev;
+      remainingDiff -= scrolledAmount;
+      if (Math.abs(remainingDiff) < 0.5) {
+        return;
+      }
+    }
+    curr = curr.parentElement;
+  }
+  
+  // 2. Any remaining diff is scrolled on window
+  if (Math.abs(remainingDiff) >= 0.5) {
+    window.scrollBy({ top: remainingDiff, behavior: "instant" });
+  }
 }
