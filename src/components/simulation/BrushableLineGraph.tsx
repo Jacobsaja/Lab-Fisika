@@ -14,6 +14,25 @@ interface BrushableLineGraphProps {
   onSelectionChange?: (selectedData: DataPoint[], slope: number | null) => void;
 }
 
+/**
+ * Pure mapping function from relative pixel offset within graph area to time t.
+ */
+export function mapPixelToTime(px: number, graphW: number, tMin: number, tMax: number): number {
+  if (graphW <= 0) return tMin;
+  const clampedPx = Math.max(0, Math.min(px, graphW));
+  const ratio = clampedPx / graphW;
+  return tMin + ratio * (tMax - tMin);
+}
+
+/**
+ * Pure inverse mapping function from time t to pixel offset within graph area.
+ */
+export function mapTimeToPixel(t: number, graphW: number, tMin: number, tMax: number): number {
+  const tRange = Math.max(tMax - tMin, 1e-6);
+  const clampedT = Math.max(tMin, Math.min(t, tMax));
+  return ((clampedT - tMin) / tRange) * graphW;
+}
+
 export function BrushableLineGraph({
   data,
   width,
@@ -40,9 +59,7 @@ export function BrushableLineGraph({
     if (!svgRef.current || graphW <= 0) return 0;
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left - padding.left;
-    const px = Math.max(0, Math.min(x, graphW));
-    const ratio = px / graphW;
-    return tMin + ratio * (tMax - tMin);
+    return mapPixelToTime(x, graphW, tMin, tMax);
   };
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {

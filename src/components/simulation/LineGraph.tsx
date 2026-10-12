@@ -246,12 +246,12 @@ export function LineGraph({
           />
         )}
 
-        {/* Linear Regression Best-Fit Line */}
+        {/* Linear Regression Best-Fit Line (Amber Gold - never red) */}
         {regressionLine && regPath && (
           <path
             d={regPath}
             fill="none"
-            stroke="#f43f5e"
+            stroke="#f59e0b"
             strokeWidth={2.2}
             strokeDasharray="5 5"
           />
