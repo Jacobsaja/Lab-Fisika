@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useMemo } from "react";
 import { period, angleAt } from "@/physics/torsionalOscillation";
 import { Activity } from "lucide-react";
+import {
+  SvgMetalGradients,
+  useMetalGradientIds,
+  SvgGridBackground,
+} from "@/components/simulation/visual";
 
 export interface TorsionalPendulumProps {
   mode?: "practicum" | "explore";
@@ -174,92 +179,277 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
     const loadRadius = 15; // Visual size of the loads
     const loadOffset = radiusCm * scale; // Distance from center
 
+    const gradientIds = useMetalGradientIds("pendulum");
+    const isCrossingZero = Math.abs(angleDeg % 180) < 5;
+
+    // Protractor graduation ticks around the perimeter dial
+    const dialTicks = useMemo(() => {
+      const ticks: React.ReactNode[] = [];
+      const dialR = 170;
+      for (let deg = -120; deg <= 120; deg += 5) {
+        const isFifteen = deg % 15 === 0;
+        const isThirty = deg % 30 === 0;
+        const len = isThirty ? 14 : isFifteen ? 9 : 5;
+        const rad = ((deg - 90) * Math.PI) / 180;
+        const x1 = (dialR - len) * Math.cos(rad);
+        const y1 = (dialR - len) * Math.sin(rad);
+        const x2 = dialR * Math.cos(rad);
+        const y2 = dialR * Math.sin(rad);
+        
+        ticks.push(
+          <line
+            key={`dtick-${deg}`}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke={isThirty ? "#38bdf8" : isFifteen ? "#0ea5e9" : "rgba(100, 116, 139, 0.45)"}
+            strokeWidth={isThirty ? 2 : isFifteen ? 1.2 : 0.8}
+          />
+        );
+
+        if (isThirty) {
+          const tx = (dialR - 24) * Math.cos(rad);
+          const ty = (dialR - 24) * Math.sin(rad);
+          ticks.push(
+            <text
+              key={`dlbl-${deg}`}
+              x={tx}
+              y={ty + 3.5}
+              fontSize="9"
+              fontFamily="monospace"
+              fontWeight="bold"
+              fill={deg === 0 ? "#38bdf8" : "#94a3b8"}
+              textAnchor="middle"
+            >
+              {Math.abs(deg)}°
+            </text>
+          );
+        }
+      }
+      return ticks;
+    }, []);
+
+    // Millimeter ticks along the rod
+    const rodTicks = useMemo(() => {
+      const ticks: React.ReactNode[] = [];
+      const halfL = svgRodLength / 2;
+      const maxCm = rodLengthCm / 2;
+      for (let cm = -maxCm; cm <= maxCm; cm += 1) {
+        const x = cm * scale;
+        const isFive = cm % 5 === 0;
+        const isTen = cm % 10 === 0;
+        const len = isTen ? 6 : isFive ? 4 : 2.5;
+        ticks.push(
+          <line
+            key={`rtick-${cm}`}
+            x1={x}
+            y1={-len / 2}
+            x2={x}
+            y2={len / 2}
+            stroke={isTen ? "#1e293b" : "rgba(30, 41, 59, 0.6)"}
+            strokeWidth={isTen ? 1.2 : 0.7}
+          />
+        );
+      }
+      return ticks;
+    }, [svgRodLength, rodLengthCm, scale]);
+
     return (
-      <div className={`relative flex flex-col items-center justify-center p-6 bg-slate-900 rounded-2xl border border-slate-700 shadow-xl overflow-hidden ${className}`}>
+      <div className={`relative flex flex-col items-center justify-center p-5 bg-[#080d1a] rounded-2xl border border-cyan-500/20 shadow-2xl overflow-hidden ${className}`}>
         
         {/* Background Grid */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+        <div className="absolute inset-0 pointer-events-none opacity-40">
+          <div className="w-full h-full [background-image:linear-gradient(rgba(6,182,212,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.08)_1px,transparent_1px)] [background-size:40px_40px]" />
+        </div>
 
         {/* LED Timer Display (Practicum mode) */}
         {mode === "practicum" && (
-          <div className="absolute top-4 right-4 z-10 bg-black border-2 border-slate-700 px-4 py-2 rounded shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
-              <Activity className="w-3 h-3 text-red-500" /> Waktu (5T)
+          <div className="absolute top-4 right-4 z-10 bg-[#050811] border border-cyan-500/30 px-4 py-2.5 rounded-xl shadow-2xl">
+            <div className="text-[10px] text-cyan-400 font-mono font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Activity className="w-3 h-3 text-red-500 animate-pulse" />
+              <span>PENCACAH WAKTU (5T)</span>
             </div>
-            <div className="font-mono text-2xl text-red-500 tracking-widest drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] tabular-nums" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+            <div
+              className="font-mono text-2xl text-red-500 font-bold tracking-widest tabular-nums"
+              style={{ textShadow: "0 0 10px rgba(239, 68, 68, 0.65)" }}
+            >
               {formatTime(displayedTime)}
             </div>
           </div>
         )}
 
-        {/* Explore mode info overlay */}
+        {/* Explore mode live status badges */}
         {mode === "explore" && (
-          <div className="absolute top-4 left-4 z-10 bg-slate-800/80 backdrop-blur border border-slate-600 px-4 py-2 rounded text-xs text-slate-300">
-            <div>T: {period(totalInertia, kappa).toFixed(2)} s</div>
-            <div>θ: {angleDeg.toFixed(1)}°</div>
+          <div className="absolute top-4 left-4 z-10 flex gap-2">
+            <div className="bg-[#0b1324] border border-white/10 px-3 py-1.5 rounded-lg text-xs font-mono">
+              <span className="text-slate-400 text-[10px]">T: </span>
+              <span className="text-cyan-300 font-bold">{period(totalInertia, kappa).toFixed(3)} s</span>
+            </div>
+            <div className="bg-[#0b1324] border border-white/10 px-3 py-1.5 rounded-lg text-xs font-mono">
+              <span className="text-slate-400 text-[10px]">θ: </span>
+              <span className="text-emerald-300 font-bold">{angleDeg.toFixed(1)}°</span>
+            </div>
+            <div className="bg-[#0b1324] border border-white/10 px-3 py-1.5 rounded-lg text-xs font-mono">
+              <span className="text-slate-400 text-[10px]">d: </span>
+              <span className="text-amber-300 font-bold">{radiusCm} cm</span>
+            </div>
           </div>
         )}
 
         {/* Interactive / Visual Area */}
-        <div className="relative w-full h-[400px] flex items-center justify-center z-0">
-          
-          <svg width="400" height="400" viewBox="-200 -200 400 400" className="drop-shadow-lg">
-            {/* Equilibrium Line / Light Gate Marker */}
-            <line x1="0" y1="-180" x2="0" y2="180" stroke="#475569" strokeWidth="2" strokeDasharray="5,5" />
-            <polygon points="-5,-160 5,-160 0,-150" fill="#38bdf8" />
-            <text x="10" y="-155" fill="#94a3b8" fontSize="12" fontFamily="sans-serif">Setimbang</text>
+        <div className="relative w-full h-[420px] flex items-center justify-center z-0">
+          <svg width="400" height="400" viewBox="-200 -200 400 400" className="select-none max-w-full max-h-full">
+            <SvgMetalGradients ids={gradientIds} />
 
-            {/* The Rotating Dumbbell Assembly */}
-            <g transform={`rotate(${angleDeg})`}>
-              
-              {/* Rod */}
-              <rect 
-                x={-svgRodLength / 2} 
-                y={-4} 
-                width={svgRodLength} 
-                height={8} 
-                rx="4" 
-                fill="#94a3b8" 
-                stroke="#64748b" 
-                strokeWidth="1"
-              />
-              
-              {/* Loads */}
-              {/* Left Load */}
-              <circle cx={-loadOffset} cy="0" r={loadRadius} fill="#f59e0b" stroke="#b45309" strokeWidth="2" />
-              <circle cx={-loadOffset} cy="0" r="4" fill="#fbbf24" />
-              
-              {/* Right Load */}
-              <circle cx={loadOffset} cy="0" r={loadRadius} fill="#f59e0b" stroke="#b45309" strokeWidth="2" />
-              <circle cx={loadOffset} cy="0" r="4" fill="#fbbf24" />
+            {/* 1. Concentric Protractor Dial Background */}
+            <circle cx="0" cy="0" r="172" fill="#060a14" stroke="#1e293b" strokeWidth="2.5" />
+            <circle cx="0" cy="0" r="168" fill="none" stroke="rgba(6, 182, 212, 0.2)" strokeWidth="1" />
+            <circle cx="0" cy="0" r="140" fill="none" stroke="rgba(255, 255, 255, 0.06)" strokeWidth="1" strokeDasharray="4 4" />
+            <circle cx="0" cy="0" r="100" fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" />
 
-              {/* Center pivot / Wire connection */}
-              <circle cx="0" cy="0" r="10" fill="#38bdf8" stroke="#0369a1" strokeWidth="2" />
-              <circle cx="0" cy="0" r="3" fill="#0284c7" />
+            {/* Dial Graduation Ticks */}
+            {dialTicks}
+
+            {/* 2. Optical Equilibrium Sensor Line (Setimbang / 0°) */}
+            <line x1="0" y1="-185" x2="0" y2="185" stroke="rgba(6, 182, 212, 0.3)" strokeWidth="1.5" strokeDasharray="4 3" />
+            {/* Top Equilibrium Sensor Housing */}
+            <g transform="translate(0, -172)">
+              <rect x="-14" y="-14" width="28" height="14" rx="2" fill="#0f172a" stroke="#334155" strokeWidth="1" />
+              <circle cx="0" cy="-7" r="3" fill={isCrossingZero ? "#ef4444" : "#10b981"} />
             </g>
-            
-            {/* Angle Indicator Arc (Only show when pulled and not running, or in explore) */}
-            {((isPulled && !isOscillating) || mode === "explore") && angleDeg !== 0 && (
+            <text x="0" y="-148" fill="#38bdf8" fontSize="9" fontWeight="bold" fontFamily="monospace" textAnchor="middle" letterSpacing="0.5">
+              SETIMBANG (0°)
+            </text>
+
+            {/* 3. Real-time Deflection Angle Arc (Visible during pull or oscillation) */}
+            {angleDeg !== 0 && (
               <path 
-                d={`M 0 -80 A 80 80 0 0 ${angleDeg > 0 ? 1 : 0} ${80 * Math.sin(angleDeg * Math.PI / 180)} ${-80 * Math.cos(angleDeg * Math.PI / 180)}`} 
+                d={`M 0 -90 A 90 90 0 0 ${angleDeg > 0 ? 1 : 0} ${90 * Math.sin(angleDeg * Math.PI / 180)} ${-90 * Math.cos(angleDeg * Math.PI / 180)}`} 
                 fill="none" 
-                stroke="#10b981" 
+                stroke={isOscillating ? "rgba(6, 182, 212, 0.8)" : "#10b981"} 
                 strokeWidth="2" 
-                strokeDasharray="4,4"
+                strokeDasharray={isOscillating ? "none" : "3 3"}
               />
             )}
-            
+
+            {/* 4. The Rotating Dumbbell Assembly */}
+            {/* Strictly ZERO SVG filters on this moving group for 60 FPS performance */}
+            <g transform={`rotate(${angleDeg})`}>
+              
+              {/* Precision Extruded Stainless Steel Rod */}
+              <rect 
+                x={-svgRodLength / 2} 
+                y={-5} 
+                width={svgRodLength} 
+                height={10} 
+                rx="3" 
+                fill={`url(#${gradientIds.steel})`} 
+                stroke="#1e293b" 
+                strokeWidth="1.2"
+              />
+              {/* Rod Top Chamfer Highlight */}
+              <line
+                x1={-svgRodLength / 2 + 2}
+                y1={-3}
+                x2={svgRodLength / 2 - 2}
+                y2={-3}
+                stroke="rgba(255, 255, 255, 0.4)"
+                strokeWidth="1"
+              />
+
+              {/* Rod Millimeter Graduation Ticks */}
+              {rodTicks}
+
+              {/* Left Sliding Load (Beban Silinder Geser Kiri) */}
+              <g transform={`translate(${-loadOffset}, 0)`}>
+                {/* Cylindrical Brass Weight */}
+                <rect
+                  x={-loadRadius}
+                  y={-loadRadius}
+                  width={loadRadius * 2}
+                  height={loadRadius * 2}
+                  rx="3"
+                  fill={`url(#${gradientIds.brass})`}
+                  stroke="#78350f"
+                  strokeWidth="1.5"
+                />
+                {/* Knurled Collar Texture */}
+                <line x1={-loadRadius + 3} y1={-loadRadius} x2={-loadRadius + 3} y2={loadRadius} stroke="#451a03" strokeWidth="1" opacity="0.4" />
+                <line x1={loadRadius - 3} y1={-loadRadius} x2={loadRadius - 3} y2={loadRadius} stroke="#451a03" strokeWidth="1" opacity="0.4" />
+                {/* Top Clamp Thumbscrew */}
+                <circle cx="0" cy={-loadRadius - 3} r="3" fill="#64748b" stroke="#0f172a" strokeWidth="1" />
+                {/* Center Bore Pin */}
+                <circle cx="0" cy="0" r="4" fill="#451a03" />
+                <circle cx="0" cy="0" r="1.5" fill="#fef3c7" />
+              </g>
+
+              {/* Right Sliding Load (Beban Silinder Geser Kanan) */}
+              <g transform={`translate(${loadOffset}, 0)`}>
+                {/* Cylindrical Brass Weight */}
+                <rect
+                  x={-loadRadius}
+                  y={-loadRadius}
+                  width={loadRadius * 2}
+                  height={loadRadius * 2}
+                  rx="3"
+                  fill={`url(#${gradientIds.brass})`}
+                  stroke="#78350f"
+                  strokeWidth="1.5"
+                />
+                {/* Knurled Collar Texture */}
+                <line x1={-loadRadius + 3} y1={-loadRadius} x2={-loadRadius + 3} y2={loadRadius} stroke="#451a03" strokeWidth="1" opacity="0.4" />
+                <line x1={loadRadius - 3} y1={-loadRadius} x2={loadRadius - 3} y2={loadRadius} stroke="#451a03" strokeWidth="1" opacity="0.4" />
+                {/* Top Clamp Thumbscrew */}
+                <circle cx="0" cy={-loadRadius - 3} r="3" fill="#64748b" stroke="#0f172a" strokeWidth="1" />
+                {/* Center Bore Pin */}
+                <circle cx="0" cy="0" r="4" fill="#451a03" />
+                <circle cx="0" cy="0" r="1.5" fill="#fef3c7" />
+              </g>
+
+              {/* Distance Callout Tags on Weights */}
+              <g pointerEvents="none">
+                <text
+                  x={-loadOffset}
+                  y={loadRadius + 14}
+                  fill="#fef3c7"
+                  fontSize="8"
+                  fontFamily="monospace"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                >
+                  d={radiusCm}cm
+                </text>
+                <text
+                  x={loadOffset}
+                  y={loadRadius + 14}
+                  fill="#fef3c7"
+                  fontSize="8"
+                  fontFamily="monospace"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                >
+                  d={radiusCm}cm
+                </text>
+              </g>
+
+              {/* Center Torsion Pivot / Wire Arbor Clamp */}
+              <circle cx="0" cy="0" r="14" fill={`url(#${gradientIds.brass})`} stroke="#78350f" strokeWidth="1.5" />
+              <circle cx="0" cy="0" r="9" fill="#1e293b" stroke="#0f172a" strokeWidth="1.2" />
+              <circle cx="0" cy="0" r="4" fill="#06b6d4" stroke="#0284c7" strokeWidth="1" />
+              {/* Pointer witness tick */}
+              <line x1="0" y1="-14" x2="0" y2="-22" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+            </g>
           </svg>
-          
         </div>
 
         {/* Controls for Practicum Mode */}
         {mode === "practicum" && (
-          <div className="absolute bottom-6 flex gap-4 z-10">
+          <div className="flex gap-3 z-10 mt-2">
             {!isPulled && !isOscillating && (
               <button 
                 onClick={handlePull}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-full shadow-lg shadow-indigo-500/30 transition-all border border-indigo-400"
+                className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono text-xs font-bold rounded-xl shadow-lg border border-cyan-400/30 transition-all active:scale-95"
               >
                 Simpangkan ({initialAngleDeg}°)
               </button>
@@ -267,7 +457,7 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
             {isPulled && !isOscillating && (
               <button 
                 onClick={handleRelease}
-                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-full shadow-lg shadow-emerald-500/30 transition-all border border-emerald-400 animate-pulse"
+                className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-mono text-xs font-bold rounded-xl shadow-lg border border-emerald-400/30 transition-all active:scale-95 animate-pulse"
               >
                 Lepas & Mulai Timer
               </button>
@@ -275,7 +465,7 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
             {isOscillating && (
               <button 
                 disabled
-                className="px-6 py-2 bg-slate-700 text-slate-400 font-semibold rounded-full cursor-not-allowed border border-slate-600"
+                className="px-5 py-2 bg-slate-800 text-slate-400 font-mono text-xs font-bold rounded-xl cursor-not-allowed border border-slate-700"
               >
                 Sedang Berosilasi...
               </button>
