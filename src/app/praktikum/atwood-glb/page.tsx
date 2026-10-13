@@ -163,6 +163,16 @@ function GLBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
     );
   }
 
+  // State kontrol vektor kualitatif agar tetap persisten saat reset run / pengambilan data baru
+  const [vectorControls, setVectorControls] = useState<any>(() => ({
+    showWeight: true,
+    showTension: true,
+    showAcceleration: true,
+    showVelocity: true,
+    arrowScale: 1.0,
+    showValues: false,
+  }));
+
   return (
     <div className="w-full h-full flex flex-col items-center">
       <div className="flex-1 w-full flex justify-center items-center pb-8 px-4 overflow-y-auto">
@@ -179,6 +189,8 @@ function GLBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
             g={gLocal}
             isVectorLocked={isVectorLocked}
             vectorLockMessage={vectorLockMessage}
+            vectorControls={vectorControls}
+            onVectorControlsChange={setVectorControls}
           />
 
         </div>

@@ -117,6 +117,9 @@ const M3_H = 14; // Height of each slotted disk
 const Y_A = 280; // Initial release level (Point A)
 const Y_M1_INITIAL = 1450; // Initial resting level for m1 held by Clamp P (lengthened to 1170px travel span)
 
+// Module-level cache to persist user vector preferences across resets, re-renders, and remounts
+const vectorControlsCache: Partial<Record<string, AtwoodVectorState>> = {};
+
 export interface AtwoodApparatusRef {
   startDrop: () => void;
   resetApparatus: () => void;
@@ -161,14 +164,19 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
 
   const isQualitative = mode !== "explore";
 
-  // Vector Controls State
-  const [internalVectorControls, setInternalVectorControls] = useState<AtwoodVectorState>({
-    showWeight: true,
-    showTension: true,
-    showAcceleration: true,
-    showVelocity: true,
-    arrowScale: 1.0,
-    showValues: !isQualitative,
+  // Vector Controls State: restore cached settings if available so preferences stay intact across reset runs
+  const [internalVectorControls, setInternalVectorControls] = useState<AtwoodVectorState>(() => {
+    if (vectorControlsCache[mode]) {
+      return { ...vectorControlsCache[mode]! };
+    }
+    return {
+      showWeight: true,
+      showTension: true,
+      showAcceleration: true,
+      showVelocity: true,
+      arrowScale: 1.0,
+      showValues: !isQualitative,
+    };
   });
 
   const activeVectorControls = controlledVectorControls ?? internalVectorControls;
@@ -181,6 +189,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     if (id === "acceleration") updated.showAcceleration = !updated.showAcceleration;
     if (id === "velocity") updated.showVelocity = !(updated.showVelocity ?? true);
     
+    vectorControlsCache[mode] = updated;
     if (onVectorControlsChange) {
       onVectorControlsChange(updated);
     } else {
@@ -191,6 +200,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const handleScaleChange = (scale: number) => {
     if (isVectorLocked) return;
     const updated = { ...activeVectorControls, arrowScale: scale };
+    vectorControlsCache[mode] = updated;
     if (onVectorControlsChange) {
       onVectorControlsChange(updated);
     } else {
@@ -201,6 +211,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const handleToggleShowValues = () => {
     if (isVectorLocked || isQualitative) return;
     const updated = { ...activeVectorControls, showValues: !activeVectorControls.showValues };
+    vectorControlsCache[mode] = updated;
     if (onVectorControlsChange) {
       onVectorControlsChange(updated);
     } else {

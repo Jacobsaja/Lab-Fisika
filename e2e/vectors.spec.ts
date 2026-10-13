@@ -375,4 +375,35 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
       expect(text).not.toMatch(/\d+\.\d+\s*(N|m\/s|m\/s²)/);
     }
   });
+
+  test("Explore & Practicum GLB: pilihan vektor tetap persisten saat reset run (tidak nyala lagi semua)", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/explore/mekanika/atwood", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    const weightBtn = page.locator("button:has-text('Gaya Berat')");
+    await expect(weightBtn).toBeVisible();
+
+    // Matikan Gaya Berat
+    await weightBtn.click();
+    await page.waitForTimeout(200);
+
+    // Pastikan panah w tidak ada
+    expect(await page.locator("g[id*='_arrow_w1']").count()).toBe(0);
+    expect(await page.locator("g[id*='_arrow_w2']").count()).toBe(0);
+
+    // Jalankan simulasi
+    await page.locator("[data-testid='btn-play']").first().click();
+    await page.waitForTimeout(1000);
+
+    // Klik Reset Run
+    const resetBtn = page.locator("[data-testid='btn-reset']").first();
+    await resetBtn.click();
+    await page.waitForTimeout(400);
+
+    // Pastikan Gaya Berat TETAP MATI (tidak nyala lagi otomatis)
+    expect(await page.locator("g[id*='_arrow_w1']").count()).toBe(0);
+    expect(await page.locator("g[id*='_arrow_w2']").count()).toBe(0);
+  });
 });
+

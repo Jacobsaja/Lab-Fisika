@@ -47,7 +47,7 @@ export default function AtwoodExplorePage() {
   }, []);
 
   const handleReset = () => {
-    setResetKey(prev => prev + 1);
+    appRef.current?.resetApparatus();
     setSimTime(0);
     setIsFalling(false);
   };
@@ -235,7 +235,6 @@ export default function AtwoodExplorePage() {
           <div className="w-full max-w-5xl flex justify-center">
             <AtwoodApparatus 
               ref={appRef}
-              key={resetKey}
               mode="explore" 
               additionalMassConfig="m3"
               a_true={a1_pred}
