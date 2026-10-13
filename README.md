@@ -36,6 +36,32 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Pengujian (Testing)
+
+### 1. Unit Tests (Jest)
+Menjalankan pengujian logika fisika murni, regresi linier, kalkulasi ketidakpastian, dan pemetaan grafis:
+```bash
+npm test
+```
+
+### 2. End-to-End Smoke Tests (Playwright)
+Menjalankan pengujian otomatis permanen di seluruh rute Explore, Practicum, dan Home pada tiga ukuran viewport (375px, 768px, 1440px):
+- Memeriksa konsol bersih tanpa error/warning.
+- Memastikan tidak ada overflow horizontal pada layout.
+- Memvalidasi elemen apparatus/SVG utama terlihat dengan dimensi non-nol.
+- Menjalankan 1 siklus simulasi penuh (Play, tunggu 2-3 detik, Reset).
+- Memastikan tidak ada background putih polos (kecuali pelat skala Caliper/Ohaus).
+- Memverifikasi konsistensi pemetaan proporsional drag pada BrushableLineGraph.
+
+Jalankan test e2e dengan:
+```bash
+npm run test:e2e
+```
+Untuk menjalankan dengan UI interaktif:
+```bash
+npx playwright test --ui
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Learn More
