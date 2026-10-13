@@ -10,12 +10,19 @@ import {
   deriveFromMeasurement,
   isStopNearTarget,
   CircularMotionParams,
+  getCircularMotionVectors,
 } from "@/physics/circularMotion";
+import { worldToSvg } from "@/components/simulation/svgGeometry";
 import { SimulationContainer } from "@/components/simulation/SimulationContainer";
 import { UniformCircularMotionView, UCM_COLORS } from "@/components/simulation/UniformCircularMotionView";
 import { ReadoutPanel, formatReadout } from "@/components/simulation/ReadoutPanel";
-import { ToggleChip } from "@/components/simulation/ToggleChip";
 import { ParameterSlider, NumberInput } from "@/components/ui/NumberInput";
+import {
+  VectorItem,
+  VectorControls,
+  VectorCategoryConfig,
+  SCIENTIFIC_THEME,
+} from "@/components/simulation/visual";
 
 export const GMB_MOTOR_PERIOD = 1.6;
 export const GMB_MOTOR_OMEGA = TWO_PI / GMB_MOTOR_PERIOD;
@@ -33,6 +40,7 @@ interface CircularMotionApparatusProps {
   onRecord?: (data: any) => void;
   recordedDataCount?: number;
   isDataStep?: boolean;
+  isVectorLocked?: boolean;
 }
 
 export function CircularMotionApparatus({
@@ -40,15 +48,26 @@ export function CircularMotionApparatus({
   onRecord,
   recordedDataCount = 0,
   isDataStep = true,
+  isVectorLocked,
 }: CircularMotionApparatusProps) {
   const [r, setR] = useState(0.5);
   const [targetN, setTargetN] = useState(5);
   const [omega, setOmega] = useState(GMB_MOTOR_OMEGA);
   const [theta0, setTheta0] = useState(0);
 
-  const [showVelocity, setShowVelocity] = useState(true);
-  const [showAcceleration, setShowAcceleration] = useState(true);
   const [lastRecordedTime, setLastRecordedTime] = useState<number | null>(null);
+
+  // ── Vector Overlay State (Tahap J) ──
+  const [vectorState, setVectorState] = useState({
+    showVelocity: true,
+    showAcceleration: true,
+    showCentripetalForce: true,
+    arrowScale: 1.0,
+    showValues: true,
+  });
+
+  const isVectorLockedEffective = mode === "practicum" ? (isVectorLocked ?? (recordedDataCount === 0)) : false;
+  const vectorLockMessage = "Vektor kualitatif terkunci. Silakan catat minimal 1 data percobaan pada tabel atau buka Petunjuk Level 3 untuk membukanya.";
 
   const actualOmega = mode === "practicum" ? GMB_MOTOR_OMEGA : omega;
   const actualTheta0 = mode === "practicum" ? 0 : theta0;
@@ -60,6 +79,104 @@ export function CircularMotionApparatus({
 
   const sim = useSimulationLoop(circularMotionModel, params);
   const snapshot = computeSnapshot(params, sim.time);
+
+  const gmbVectors = useMemo(() => {
+    return getCircularMotionVectors({
+      r,
+      omega: actualOmega,
+      theta: snapshot.theta,
+      mass: 0.20,
+    });
+  }, [r, actualOmega, snapshot.theta]);
+
+  const viewTransform = useMemo(() => ({
+    originX: 520 / 2,
+    originY: 520 / 2,
+    scale: 195 / Math.max(R_MAX, 1e-6),
+  }), []);
+
+  const particleSvg = useMemo(() => {
+    return worldToSvg(snapshot.position, viewTransform);
+  }, [snapshot.position, viewTransform]);
+
+  const vectorCategories: VectorCategoryConfig[] = [
+    {
+      id: "velocity",
+      label: "Kecepatan Tangensial",
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      checked: vectorState.showVelocity,
+      title: "Tampilkan vektor kecepatan tangensial (v)",
+    },
+    {
+      id: "acceleration",
+      label: "Percepatan Sentripetal",
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      checked: vectorState.showAcceleration,
+      title: "Tampilkan vektor percepatan sentripetal (ac)",
+    },
+    {
+      id: "force",
+      label: "Gaya Sentripetal",
+      color: SCIENTIFIC_THEME.vectors.force,
+      dashed: true,
+      checked: vectorState.showCentripetalForce,
+      title: "Tampilkan vektor gaya sentripetal (Fc = m ac)",
+    },
+  ];
+
+  const handleToggleCategory = (catId: string) => {
+    if (isVectorLockedEffective) return;
+    if (catId === "velocity") setVectorState((s) => ({ ...s, showVelocity: !s.showVelocity }));
+    else if (catId === "acceleration") setVectorState((s) => ({ ...s, showAcceleration: !s.showAcceleration }));
+    else if (catId === "force") setVectorState((s) => ({ ...s, showCentripetalForce: !s.showCentripetalForce }));
+  };
+
+  const showValuesInOverlay = mode === "explore" && vectorState.showValues;
+
+  const vectorItems: VectorItem[] = [];
+  if (vectorState.showVelocity && gmbVectors.speed > 1e-4) {
+    vectorItems.push({
+      id: "v",
+      category: "velocity",
+      label: "v",
+      origin: particleSvg,
+      components: { dx: gmbVectors.v.x, dy: -gmbVectors.v.y },
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      scale: 35,
+      showValue: showValuesInOverlay,
+      valueText: `${gmbVectors.speed.toFixed(2)} m/s`,
+    });
+  }
+
+  if (vectorState.showAcceleration && gmbVectors.acMag > 1e-4) {
+    vectorItems.push({
+      id: "ac",
+      category: "acceleration",
+      label: "ac",
+      origin: particleSvg,
+      components: { dx: gmbVectors.ac.x, dy: -gmbVectors.ac.y },
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      scale: 10,
+      showValue: showValuesInOverlay,
+      valueText: `${gmbVectors.acMag.toFixed(2)} m/s²`,
+    });
+  }
+
+  if (vectorState.showCentripetalForce && gmbVectors.FcMag > 1e-4) {
+    vectorItems.push({
+      id: "Fc",
+      category: "force",
+      label: "Fc",
+      origin: particleSvg,
+      components: { dx: gmbVectors.Fc.x, dy: -gmbVectors.Fc.y },
+      color: SCIENTIFIC_THEME.vectors.force,
+      dashed: true,
+      strokeDasharray: "5 3",
+      scale: 50,
+      showValue: showValuesInOverlay,
+      valueText: `${gmbVectors.FcMag.toFixed(2)} N`,
+    });
+  }
 
   const alreadyRecorded = lastRecordedTime !== null && lastRecordedTime === sim.time;
   const nearTarget = isStopNearTarget(snapshot.revolutions, targetN, STOP_TOLERANCE_REV);
@@ -136,8 +253,10 @@ export function CircularMotionApparatus({
               omega={actualOmega}
               theta0={actualTheta0}
               maxRadius={R_MAX}
-              showVelocity={showVelocity}
-              showAcceleration={showAcceleration}
+              vectorItems={vectorItems}
+              userVectorScale={vectorState.arrowScale}
+              showVectorValues={showValuesInOverlay}
+              isVectorLocked={isVectorLockedEffective}
             />
           </div>
         </SimulationContainer>
@@ -206,20 +325,18 @@ export function CircularMotionApparatus({
             </>
           )}
 
-          <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-800/80">
-            <ToggleChip
-              id="gmb-toggle-velocity"
-              label="Vektor Kecepatan (v)"
-              checked={showVelocity}
-              onChange={setShowVelocity}
-              color={UCM_COLORS.velocity}
-            />
-            <ToggleChip
-              id="gmb-toggle-acceleration"
-              label="Vektor Percepatan (ac)"
-              checked={showAcceleration}
-              onChange={setShowAcceleration}
-              color={UCM_COLORS.acceleration}
+          {/* Vector Controls (Tahap J) */}
+          <div className="pt-2 border-t border-slate-800/80">
+            <VectorControls
+              categories={vectorCategories}
+              onToggleCategory={handleToggleCategory}
+              arrowScale={vectorState.arrowScale}
+              onScaleChange={(scale) => setVectorState((s) => ({ ...s, arrowScale: scale }))}
+              showValues={vectorState.showValues}
+              onToggleShowValues={() => setVectorState((s) => ({ ...s, showValues: !s.showValues }))}
+              isQualitative={mode === "practicum"}
+              isLocked={isVectorLockedEffective}
+              lockMessage={vectorLockMessage}
             />
           </div>
         </section>

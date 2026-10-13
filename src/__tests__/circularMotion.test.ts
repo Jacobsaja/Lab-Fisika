@@ -215,6 +215,76 @@ describe("Uniform Circular Motion physics", () => {
       expect(s.t).toBeCloseTo(1, 10);
     });
   });
+
+  describe("getCircularMotionVectors (Tahap J)", () => {
+    const { getCircularMotionVectors } = require("../physics/circularMotion");
+
+    it("memastikan |a_c| = v^2/r = omega^2 * r", () => {
+      const r = 0.8;
+      const omega = 3.5;
+      const theta = 1.2;
+      const vec = getCircularMotionVectors({ r, omega, theta });
+
+      const expectedAc = omega * omega * r;
+      const vSpeed = vec.speed;
+      const expectedAcFromSpeed = (vSpeed * vSpeed) / r;
+
+      expect(vec.acMag).toBeCloseTo(expectedAc, 10);
+      expect(vec.acMag).toBeCloseTo(expectedAcFromSpeed, 10);
+      expect(Math.hypot(vec.ac.x, vec.ac.y)).toBeCloseTo(expectedAc, 10);
+    });
+
+    it("memastikan a_c tegak lurus dengan kecepatan v (v · a_c = 0)", () => {
+      const angles = [0, Math.PI / 4, Math.PI / 2, Math.PI, (3 * Math.PI) / 2, 2.71];
+      for (const theta of angles) {
+        const vec = getCircularMotionVectors({ r: 0.6, omega: 4.2, theta });
+        const dotProduct = vec.v.x * vec.ac.x + vec.v.y * vec.ac.y;
+        expect(Math.abs(dotProduct)).toBeLessThan(1e-12);
+      }
+    });
+
+    it("memastikan arah a_c selalu mengarah tepat ke pusat rotasi (0,0)", () => {
+      const r = 0.5;
+      const omega = 2.5;
+      const angles = [0.3, 1.5, 3.2, 5.1];
+      for (const theta of angles) {
+        const vec = getCircularMotionVectors({ r, omega, theta });
+        // Posisi partikel P = (r cos theta, r sin theta)
+        // Vektor ke pusat adalah -P = (-r cos theta, -r sin theta)
+        // a_c = omega^2 * (-P), jadi ac_x / (-cos theta) = omega^2 * r
+        const dirX = vec.ac.x / (-Math.cos(theta));
+        const dirY = vec.ac.y / (-Math.sin(theta));
+        expect(dirX).toBeCloseTo(omega * omega * r, 10);
+        expect(dirY).toBeCloseTo(omega * omega * r, 10);
+      }
+    });
+
+    it("memastikan arah v berbalik saat omega bertanda negatif", () => {
+      const r = 0.7;
+      const theta = 0.9;
+      const vecPositive = getCircularMotionVectors({ r, omega: 3.0, theta });
+      const vecNegative = getCircularMotionVectors({ r, omega: -3.0, theta });
+
+      expect(vecNegative.v.x).toBeCloseTo(-vecPositive.v.x, 10);
+      expect(vecNegative.v.y).toBeCloseTo(-vecPositive.v.y, 10);
+      expect(vecNegative.speed).toBeCloseTo(vecPositive.speed, 10);
+      // a_c tidak berbalik karena a_c bergantung pada omega^2
+      expect(vecNegative.ac.x).toBeCloseTo(vecPositive.ac.x, 10);
+      expect(vecNegative.ac.y).toBeCloseTo(vecPositive.ac.y, 10);
+    });
+
+    it("menghitung gaya sentripetal F_c = m * a_c dengan benar", () => {
+      const r = 0.5;
+      const omega = 2.0;
+      const theta = 0.5;
+      const mass = 0.25; // 250 g
+      const vec = getCircularMotionVectors({ r, omega, theta, mass });
+
+      expect(vec.Fc.x).toBeCloseTo(mass * vec.ac.x, 10);
+      expect(vec.Fc.y).toBeCloseTo(mass * vec.ac.y, 10);
+      expect(vec.FcMag).toBeCloseTo(mass * vec.acMag, 10);
+    });
+  });
 });
 
 describe("svgGeometry", () => {

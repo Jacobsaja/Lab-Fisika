@@ -245,3 +245,80 @@ export const circularMotionModel: SimulationModel<CircularMotionParams, Circular
   init: () => ({ t: 0 }),
   step: (state, dt) => ({ t: state.t + dt }),
 };
+
+// ─── Dynamic Vectors (Tahap J) ────────────────────────────────────────────────
+
+export interface CircularMotionVectorState {
+  /** Radius in meters */
+  r: number;
+  /** Angular velocity in rad/s (signed: positive = counter-clockwise, negative = clockwise) */
+  omega: number;
+  /** Current angle in radians */
+  theta: number;
+  /** Particle/carriage mass in kg (default: 0.2 kg = 200 g) */
+  mass?: number;
+}
+
+export interface CircularMotionVectors {
+  /** Tangential velocity vector components (m/s) in world coordinates */
+  v: Vector2;
+  /** Tangential speed magnitude (m/s) */
+  speed: number;
+  /** Centripetal acceleration vector components (m/s²) pointing toward center */
+  ac: Vector2;
+  /** Centripetal acceleration magnitude (m/s²) */
+  acMag: number;
+  /** Centripetal force vector components (N) pointing toward center */
+  Fc: Vector2;
+  /** Centripetal force magnitude (N) */
+  FcMag: number;
+  /** Radius (m) */
+  r: number;
+  /** Mass (kg) */
+  mass: number;
+}
+
+/**
+ * Pure physics function to compute dynamic vectors for Uniform Circular Motion (GMB).
+ *
+ * - Tangential velocity: v = (-omega * r * sin(theta), omega * r * cos(theta))
+ *   Direction reverses when omega is negative.
+ * - Centripetal acceleration: ac = -omega^2 * r * (cos(theta), sin(theta))
+ *   Magnitude |ac| = v^2 / r = omega^2 * r, strictly perpendicular to v (v · ac = 0),
+ *   always directed toward the rotation center (0, 0).
+ * - Centripetal force: Fc = mass * ac, magnitude |Fc| = mass * |ac|
+ */
+export function getCircularMotionVectors(state: CircularMotionVectorState): CircularMotionVectors {
+  const { r, omega, theta } = state;
+  assertRadius(r);
+  assertFinite(omega, "omega");
+  assertFinite(theta, "theta");
+  const mass = state.mass && state.mass > 0 ? state.mass : 0.2; // default 0.2 kg
+
+  // 1. Tangential velocity vector
+  const vx = -omega * r * Math.sin(theta);
+  const vy = omega * r * Math.cos(theta);
+  const speed = Math.abs(omega) * r;
+
+  // 2. Centripetal acceleration vector (pointing toward origin (0,0))
+  const k = omega * omega * r;
+  const acx = -k * Math.cos(theta);
+  const acy = -k * Math.sin(theta);
+  const acMag = k;
+
+  // 3. Centripetal force vector: Fc = m * ac
+  const Fcx = mass * acx;
+  const Fcy = mass * acy;
+  const FcMag = mass * acMag;
+
+  return {
+    v: { x: vx, y: vy },
+    speed,
+    ac: { x: acx, y: acy },
+    acMag,
+    Fc: { x: Fcx, y: Fcy },
+    FcMag,
+    r,
+    mass,
+  };
+}

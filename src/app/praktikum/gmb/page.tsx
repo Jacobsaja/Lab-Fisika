@@ -227,6 +227,7 @@ export default function GMBPage() {
               mode="practicum"
               isDataStep={ctx.state.currentStep === "SIMULATION"}
               recordedDataCount={ctx.state.recordedData.length}
+              isVectorLocked={ctx.state.recordedData.length === 0 && (ctx.hintsRevealedCount ?? 0) < 3}
               onRecord={ctx.addDataRow}
             />
           </div>

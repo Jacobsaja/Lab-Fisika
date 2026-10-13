@@ -5,6 +5,7 @@ import { CircularMotionSnapshot } from "@/physics/circularMotion";
 import { worldToSvg, worldDeltaToSvg, arcPath, clampVectorLength, ViewTransform } from "./svgGeometry";
 import { VectorArrow } from "./VectorArrow";
 import { useMetalGradientIds, SvgMetalGradients } from "./visual/SvgMetalGradients";
+import { VectorOverlay, VectorItem } from "./visual/VectorOverlay";
 
 export const UCM_COLORS = {
   path: "rgba(56, 189, 248, 0.35)",
@@ -16,7 +17,7 @@ export const UCM_COLORS = {
   reference: "#34D399",
 } as const;
 
-interface UniformCircularMotionViewProps {
+export interface UniformCircularMotionViewProps {
   snapshot: CircularMotionSnapshot;
   /** Radius (m) of the current motion */
   r: number;
@@ -30,6 +31,11 @@ interface UniformCircularMotionViewProps {
   showAcceleration?: boolean;
   showAngleArc?: boolean;
   showReferenceMark?: boolean;
+  /** Physical vector overlay items (Tahap J) */
+  vectorItems?: VectorItem[];
+  userVectorScale?: number;
+  showVectorValues?: boolean;
+  isVectorLocked?: boolean;
   /** Pixels per (m/s) for the velocity arrow */
   velocityScale?: number;
   /** Pixels per (m/s²) for the acceleration arrow */
@@ -56,6 +62,10 @@ export function UniformCircularMotionView({
   showAcceleration = true,
   showAngleArc = true,
   showReferenceMark = true,
+  vectorItems,
+  userVectorScale = 1.0,
+  showVectorValues = true,
+  isVectorLocked = false,
   velocityScale = 40,
   accelerationScale = 10,
   className = "",
@@ -583,24 +593,35 @@ export function UniformCircularMotionView({
         </g>
       )}
 
-      {/* 9. Tangential Velocity & Centripetal Acceleration Vectors */}
-      {showAcceleration && (
-        <VectorArrow
-          from={particle}
-          delta={aDelta}
-          color={UCM_COLORS.acceleration}
-          label="a"
-          labelSubscript="c"
+      {/* 9. Tangential Velocity, Centripetal Acceleration & Force (Tahap J: VectorOverlay) */}
+      {!isVectorLocked && vectorItems && vectorItems.length > 0 ? (
+        <VectorOverlay
+          vectors={vectorItems}
+          userScale={userVectorScale}
+          showValues={showVectorValues}
+          maxArrowLength={140}
         />
-      )}
-      {showVelocity && (
-        <VectorArrow
-          from={particle}
-          delta={vDelta}
-          color={UCM_COLORS.velocity}
-          label="v"
-        />
-      )}
+      ) : !isVectorLocked && !vectorItems ? (
+        <>
+          {showAcceleration && (
+            <VectorArrow
+              from={particle}
+              delta={aDelta}
+              color={UCM_COLORS.acceleration}
+              label="a"
+              labelSubscript="c"
+            />
+          )}
+          {showVelocity && (
+            <VectorArrow
+              from={particle}
+              delta={vDelta}
+              color={UCM_COLORS.velocity}
+              label="v"
+            />
+          )}
+        </>
+      ) : null}
 
       {/* 10. Sliding Sensor Mass Carriage (Beban Sensor Luncur) */}
       <g transform={`translate(${particle.x}, ${particle.y})`}>
