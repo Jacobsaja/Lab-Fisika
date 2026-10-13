@@ -186,15 +186,16 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
     const dialTicks = useMemo(() => {
       const ticks: React.ReactNode[] = [];
       const dialR = 170;
+      const roundCoord = (val: number) => Math.round(val * 100) / 100;
       for (let deg = -120; deg <= 120; deg += 5) {
         const isFifteen = deg % 15 === 0;
         const isThirty = deg % 30 === 0;
         const len = isThirty ? 14 : isFifteen ? 9 : 5;
         const rad = ((deg - 90) * Math.PI) / 180;
-        const x1 = (dialR - len) * Math.cos(rad);
-        const y1 = (dialR - len) * Math.sin(rad);
-        const x2 = dialR * Math.cos(rad);
-        const y2 = dialR * Math.sin(rad);
+        const x1 = roundCoord((dialR - len) * Math.cos(rad));
+        const y1 = roundCoord((dialR - len) * Math.sin(rad));
+        const x2 = roundCoord(dialR * Math.cos(rad));
+        const y2 = roundCoord(dialR * Math.sin(rad));
         
         ticks.push(
           <line
@@ -209,8 +210,8 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
         );
 
         if (isThirty) {
-          const tx = (dialR - 24) * Math.cos(rad);
-          const ty = (dialR - 24) * Math.sin(rad);
+          const tx = roundCoord((dialR - 24) * Math.cos(rad));
+          const ty = roundCoord((dialR - 24) * Math.sin(rad));
           ticks.push(
             <text
               key={`dlbl-${deg}`}

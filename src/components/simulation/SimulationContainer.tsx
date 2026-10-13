@@ -53,7 +53,7 @@ export function SimulationContainer({
       </div>
 
       {/* Main Simulation Area */}
-      <div className="flex-1 relative bg-black/20 overflow-hidden rounded-xl mx-4 border border-white/5 shadow-inner">
+      <div className="flex-1 min-h-[380px] relative bg-black/20 overflow-hidden rounded-xl mx-4 border border-white/5 shadow-inner">
         {children}
       </div>
 

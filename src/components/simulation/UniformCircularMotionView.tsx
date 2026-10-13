@@ -151,6 +151,8 @@ export function UniformCircularMotionView({
     const rOuter = 226;
     const rText = 237;
 
+    const roundCoord = (val: number) => Math.round(val * 100) / 100;
+
     for (let deg = 0; deg < 360; deg += 5) {
       const rad = (deg * Math.PI) / 180;
       const cos = Math.cos(rad);
@@ -162,10 +164,10 @@ export function UniformCircularMotionView({
       ticks.push(
         <line
           key={`deg-${deg}`}
-          x1={center.x + rIn * cos}
-          y1={center.y - rIn * sin}
-          x2={center.x + rOuter * cos}
-          y2={center.y - rOuter * sin}
+          x1={roundCoord(center.x + rIn * cos)}
+          y1={roundCoord(center.y - rIn * sin)}
+          x2={roundCoord(center.x + rOuter * cos)}
+          y2={roundCoord(center.y - rOuter * sin)}
           stroke={isMajor ? "#94a3b8" : isMedium ? "#475569" : "#334155"}
           strokeWidth={isMajor ? 1.5 : 1}
         />
@@ -175,8 +177,8 @@ export function UniformCircularMotionView({
         ticks.push(
           <text
             key={`deg-txt-${deg}`}
-            x={center.x + rText * cos}
-            y={center.y - rText * sin + 3.5}
+            x={roundCoord(center.x + rText * cos)}
+            y={roundCoord(center.y - rText * sin + 3.5)}
             fill="#94a3b8"
             fontSize="9"
             fontFamily="monospace"

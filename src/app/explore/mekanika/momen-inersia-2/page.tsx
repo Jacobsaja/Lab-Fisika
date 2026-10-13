@@ -82,25 +82,25 @@ export default function MomenInersia2ExplorePage() {
         {/* Left Column: Controls */}
         <div className="lg:col-span-4 space-y-6">
           
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-200 p-4 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-slate-500" />
-              <h2 className="font-semibold text-slate-700">Benda Tegar</h2>
+          <div className="bg-slate-900/90 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+            <div className="bg-slate-800/50 border-b border-slate-800/80 p-4 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-cyan-400" />
+              <h2 className="font-semibold text-slate-200">Benda Tegar</h2>
             </div>
             
             <div className="p-5 space-y-5">
               <div>
-                <label className="text-sm font-medium text-slate-700 block mb-2">Bentuk Benda</label>
-                <div className="flex bg-slate-100 p-1 rounded-lg">
+                <label className="text-sm font-medium text-slate-300 block mb-2">Bentuk Benda</label>
+                <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
                   <button
                     onClick={() => setShape("solid-sphere")}
-                    className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-all ${shape === "solid-sphere" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${shape === "solid-sphere" ? "bg-cyan-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"}`}
                   >
                     Bola Pejal
                   </button>
                   <button
                     onClick={() => setShape("solid-cylinder")}
-                    className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-all ${shape === "solid-cylinder" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                    className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all ${shape === "solid-cylinder" ? "bg-cyan-600 text-white shadow-sm" : "text-slate-400 hover:text-slate-200"}`}
                   >
                     Silinder Pejal
                   </button>
@@ -109,48 +109,48 @@ export default function MomenInersia2ExplorePage() {
 
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-sm font-medium text-slate-700">Massa (m)</label>
-                  <span className="text-sm text-slate-500 font-mono">{massKg.toFixed(2)} kg</span>
+                  <label className="text-sm font-medium text-slate-300">Massa (m)</label>
+                  <span className="text-sm text-cyan-400 font-mono">{massKg.toFixed(2)} kg</span>
                 </div>
                 <input 
                   type="range" min="0.1" max="5.0" step="0.1"
                   value={massKg} onChange={(e) => setMassKg(parseFloat(e.target.value))}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-cyan-500"
                 />
               </div>
 
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-sm font-medium text-slate-700">Jari-jari (R)</label>
-                  <span className="text-sm text-slate-500 font-mono">{radiusM.toFixed(2)} m</span>
+                  <label className="text-sm font-medium text-slate-300">Jari-jari (R)</label>
+                  <span className="text-sm text-cyan-400 font-mono">{radiusM.toFixed(2)} m</span>
                 </div>
                 <input 
                   type="range" min="0.01" max="0.30" step="0.01"
                   value={radiusM} onChange={(e) => setRadiusM(parseFloat(e.target.value))}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-cyan-500"
                 />
               </div>
               
               <div>
                 <div className="flex justify-between mb-1">
-                  <label className="text-sm font-medium text-slate-700">Simpangan Awal (θ₀)</label>
-                  <span className="text-sm text-slate-500 font-mono">{initialAngle}°</span>
+                  <label className="text-sm font-medium text-slate-300">Simpangan Awal (θ₀)</label>
+                  <span className="text-sm text-cyan-400 font-mono">{initialAngle}°</span>
                 </div>
                 <input 
                   type="range" min="10" max="150" step="5"
                   value={initialAngle} onChange={(e) => setInitialAngle(parseFloat(e.target.value))}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-cyan-500"
                 />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-200 p-4 flex items-center gap-2">
-              <Info className="w-5 h-5 text-blue-500" />
-              <h2 className="font-semibold text-slate-700">Coba Ini!</h2>
+          <div className="bg-slate-900/90 rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+            <div className="bg-slate-800/50 border-b border-slate-800/80 p-4 flex items-center gap-2">
+              <Info className="w-5 h-5 text-cyan-400" />
+              <h2 className="font-semibold text-slate-200">Coba Ini!</h2>
             </div>
-            <div className="p-5 text-sm text-slate-600 space-y-3">
+            <div className="p-5 text-sm text-slate-300 space-y-3">
               <p>👉 <strong>Ganti bola dengan silinder yang massa dan jari-jarinya sama.</strong> Mana yang periodenya lebih besar? Mengapa?</p>
               <p>👉 <strong>Gandakan jari-jari.</strong> Berapa kali periode kuadrat berubah?</p>
             </div>
@@ -160,7 +160,7 @@ export default function MomenInersia2ExplorePage() {
         {/* Right Column: Visualization & Graph */}
         <div className="lg:col-span-8 flex flex-col gap-6">
           
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="bg-slate-900/90 rounded-2xl shadow-xl border border-slate-800 p-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
               <div className="flex gap-2">
                 <button
@@ -176,29 +176,29 @@ export default function MomenInersia2ExplorePage() {
                 </button>
                 <button
                   onClick={handleReset}
-                  className="px-4 py-2.5 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center gap-2"
+                  className="px-4 py-2.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all flex items-center gap-2 border border-slate-700"
                 >
                   <RotateCcw className="w-4 h-4" /> Reset
                 </button>
               </div>
 
               <div className="flex gap-4">
-                <div className="bg-slate-900 text-emerald-400 font-mono px-4 py-2 rounded-lg text-lg border border-slate-700 shadow-inner flex flex-col items-center min-w-[100px]">
+                <div className="bg-slate-950 text-emerald-400 font-mono px-4 py-2 rounded-lg text-lg border border-slate-800 shadow-inner flex flex-col items-center min-w-[100px]">
                   <span className="text-[10px] text-slate-400 leading-none mb-1 font-sans font-bold">WAKTU (s)</span>
                   {simTime.toFixed(2)}
                 </div>
-                <div className="bg-slate-900 text-blue-400 font-mono px-4 py-2 rounded-lg text-lg border border-slate-700 shadow-inner flex flex-col items-center min-w-[100px]">
+                <div className="bg-slate-950 text-cyan-400 font-mono px-4 py-2 rounded-lg text-lg border border-slate-800 shadow-inner flex flex-col items-center min-w-[100px]">
                   <span className="text-[10px] text-slate-400 leading-none mb-1 font-sans font-bold">SUDUT (°)</span>
                   {liveState.thetaDeg.toFixed(1)}
                 </div>
-                <div className="bg-slate-900 text-purple-400 font-mono px-4 py-2 rounded-lg text-lg border border-slate-700 shadow-inner flex flex-col items-center min-w-[100px]">
+                <div className="bg-slate-950 text-purple-400 font-mono px-4 py-2 rounded-lg text-lg border border-slate-800 shadow-inner flex flex-col items-center min-w-[100px]">
                   <span className="text-[10px] text-slate-400 leading-none mb-1 font-sans font-bold">ω (rad/s)</span>
                   {liveState.omegaRad.toFixed(2)}
                 </div>
               </div>
             </div>
 
-            <div className="h-[400px] w-full flex items-center justify-center relative rounded-xl border border-slate-200 bg-slate-50 overflow-hidden mb-6">
+            <div className="h-[400px] w-full flex items-center justify-center relative rounded-xl border border-slate-800 bg-[#060a14] overflow-hidden mb-6">
               <TorsionalOscillator 
                 key={resetKey}
                 ref={appRef}
@@ -214,53 +214,53 @@ export default function MomenInersia2ExplorePage() {
                 onCycleComplete={handleCycleComplete}
                 className="scale-90 shadow-none border-none bg-transparent" 
               />
-              <div className="absolute top-4 right-4 bg-white/80 p-3 rounded-lg border border-slate-200 shadow-sm text-sm">
-                 <div className="font-bold text-slate-700 border-b pb-1 mb-1">Momen Inersia (I_teori)</div>
-                 <div className="font-mono text-blue-600">{bodyInertia.toPrecision(4)} kg·m²</div>
+              <div className="absolute top-4 right-4 bg-slate-900/90 p-3 rounded-lg border border-slate-700 shadow-lg text-sm">
+                 <div className="font-bold text-slate-200 border-b border-slate-800 pb-1 mb-1">Momen Inersia (I_teori)</div>
+                 <div className="font-mono text-cyan-400">{bodyInertia.toPrecision(4)} kg·m²</div>
               </div>
             </div>
             
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-               <div className="bg-slate-50/50 border border-slate-100 rounded-lg p-4">
+               <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Calculator className="w-4 h-4 text-slate-500" />
-                  <h3 className="font-semibold text-slate-700 text-sm">Periode Alat (T₀)</h3>
+                  <Calculator className="w-4 h-4 text-slate-400" />
+                  <h3 className="font-semibold text-slate-300 text-sm">Periode Alat (T₀)</h3>
                 </div>
-                <div className="text-xl font-mono text-slate-600">
+                <div className="text-xl font-mono text-slate-400">
                   {T0_pred.toFixed(3)} <span className="text-sm font-sans text-slate-500">s</span>
                 </div>
               </div>
 
-              <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4">
+              <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Calculator className="w-4 h-4 text-blue-500" />
-                  <h3 className="font-semibold text-slate-700 text-sm">Periode Prediksi (T)</h3>
+                  <Calculator className="w-4 h-4 text-cyan-400" />
+                  <h3 className="font-semibold text-slate-300 text-sm">Periode Prediksi (T)</h3>
                 </div>
-                <div className="text-xl font-mono text-blue-600">
+                <div className="text-xl font-mono text-cyan-400">
                   {T_pred.toFixed(3)} <span className="text-sm font-sans text-slate-500">s</span>
                 </div>
               </div>
               
-              <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-4">
+              <div className="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  <h3 className="font-semibold text-slate-700 text-sm">Periode Terukur (T)</h3>
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <h3 className="font-semibold text-slate-300 text-sm">Periode Terukur (T)</h3>
                 </div>
-                <div className="text-xl font-mono text-emerald-600">
+                <div className="text-xl font-mono text-emerald-400">
                   {measuredPeriod ? (
                     <>{measuredPeriod.toFixed(3)} <span className="text-sm font-sans text-slate-500">s</span></>
                   ) : (
-                    <span className="text-slate-400 text-sm">Menunggu 1 getaran...</span>
+                    <span className="text-slate-500 text-sm">Menunggu 1 getaran...</span>
                   )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-[400px]">
+          <div className="bg-slate-900/90 rounded-2xl shadow-xl border border-slate-800 p-6 flex flex-col h-[400px]">
              <div className="mb-4 flex justify-between items-center">
-                <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-                   <Activity className="w-5 h-5 text-indigo-500" />
+                <h3 className="font-semibold text-slate-200 flex items-center gap-2">
+                   <Activity className="w-5 h-5 text-indigo-400" />
                    Grafik Simpangan (θ) thd Waktu (t)
                 </h3>
              </div>
@@ -275,7 +275,7 @@ export default function MomenInersia2ExplorePage() {
                     color="#6366f1"
                   />
                ) : (
-                  <div className="w-full h-full flex items-center justify-center border-2 border-dashed border-slate-200 rounded-lg text-slate-400 bg-slate-50">
+                  <div className="w-full h-full flex items-center justify-center border-2 border-dashed border-slate-800 rounded-lg text-slate-500 bg-slate-950/40">
                     Jalankan simulasi untuk melihat grafik
                   </div>
                )}

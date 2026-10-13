@@ -312,10 +312,10 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
                 {/* Radial 30° Graduation Ticks around perimeter */}
                 {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => {
                   const rad = (deg * Math.PI) / 180;
-                  const x1 = 200 + 88 * Math.cos(rad);
-                  const y1 = 200 + 88 * Math.sin(rad);
-                  const x2 = 200 + 96 * Math.cos(rad);
-                  const y2 = 200 + 96 * Math.sin(rad);
+                  const x1 = Math.round((200 + 88 * Math.cos(rad)) * 100) / 100;
+                  const y1 = Math.round((200 + 88 * Math.sin(rad)) * 100) / 100;
+                  const x2 = Math.round((200 + 96 * Math.cos(rad)) * 100) / 100;
+                  const y2 = Math.round((200 + 96 * Math.sin(rad)) * 100) / 100;
                   return (
                     <line
                       key={deg}

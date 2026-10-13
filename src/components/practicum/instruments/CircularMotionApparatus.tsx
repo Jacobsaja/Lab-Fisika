@@ -97,7 +97,7 @@ export function CircularMotionApparatus({
   return (
     <div className="w-full min-h-full flex flex-col 2xl:flex-row gap-6 p-4 sm:p-6">
       {/* Simulation */}
-      <div className="flex-1 min-w-0 h-[min(72vh,640px)] min-h-[420px]">
+      <div className="flex-1 min-w-0 min-h-[480px] flex flex-col">
         <SimulationContainer
           title={mode === "explore" ? "Eksplorasi Gerak Melingkar (Meja Putar Presisi)" : "Alat Gerak Melingkar Beraturan"}
           time={sim.time}

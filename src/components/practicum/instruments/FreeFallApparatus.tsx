@@ -318,7 +318,7 @@ export function FreeFallApparatus({
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row w-full relative min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row w-full relative min-h-0">
         {/* ── LEFT SECTION: SVG EXPERIMENT APPARATUS ── */}
         <div className="flex-1 h-full min-h-0 flex justify-center items-center p-2 sm:p-4 touch-none select-none relative">
           <svg
@@ -407,7 +407,7 @@ export function FreeFallApparatus({
         </div>
 
         {/* ── RIGHT SECTION: ELECTRONIC SCALER COUNTER & MORSE ACTUATOR ── */}
-        <div className="w-full md:w-72 bg-slate-900/90 border-t md:border-t-0 md:border-l border-cyan-500/20 p-5 sm:p-6 flex flex-col justify-between shrink-0 relative shadow-inner z-10 backdrop-blur-md">
+        <div className="w-full lg:w-72 bg-slate-900/90 border-t lg:border-t-0 lg:border-l border-cyan-500/20 p-5 sm:p-6 flex flex-col justify-between shrink-0 relative shadow-inner z-10 backdrop-blur-md">
           
           {/* Top: Precision Digital Scaler Counter */}
           <div className="flex flex-col gap-4">

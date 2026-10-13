@@ -84,8 +84,8 @@ export function Caliper({
   return (
     <div className={`flex flex-col gap-4 w-full ${className}`}>
       {/* ── HEADER ROW ─── */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
           <span className="text-xs font-bold font-mono tracking-wider text-slate-200 uppercase">
             Jangka Sorong Presisi · NST {nstMm} mm
@@ -95,7 +95,7 @@ export function Caliper({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setZoom((z) => Math.min(3, parseFloat((z + 0.5).toFixed(1))))}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold hover:bg-cyan-900/50 transition-colors active:scale-95 shadow-sm"

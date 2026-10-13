@@ -47,7 +47,7 @@ export default function PAPExplorePage() {
       category="Pengukuran"
       description="Eksplorasi penggunaan alat ukur dasar (Jangka Sorong & Neraca O'haus). Pelajari ketelitian alat, ketidakpastian tunggal, serta aturan angka penting secara bebas."
     >
-      <div className="flex flex-col gap-6 p-4 sm:p-6 w-full">
+      <div className="flex flex-col gap-6 p-4 sm:p-6 w-full max-w-full overflow-x-hidden">
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-6">
           <div className="flex-1 bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
@@ -104,14 +104,14 @@ export default function PAPExplorePage() {
         </div>
 
         {/* Instrument Rendering */}
-        <div className="bg-[#0a0f1c] rounded-xl border border-white/10 p-6 flex flex-col items-center overflow-hidden">
+        <div className="bg-[#0a0f1c] rounded-xl border border-white/10 p-3 sm:p-6 flex flex-col items-center overflow-hidden w-full">
           <div className="w-full flex justify-end mb-4">
             <button onClick={() => setShowTrueValue(!showTrueValue)} className="text-xs flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full text-white/60 transition-colors">
               {showTrueValue ? "Sembunyikan" : "Tampilkan"} Nilai Sebenarnya
             </button>
           </div>
           
-          <div className="w-full max-w-3xl">
+          <div className="w-full max-w-full overflow-x-auto">
             {instrument === "caliper" ? (
               <Caliper mode="explore" objectWidthMm={trueValue} objectName={name} measurementMode={mode as any} nstMm={nst} onReadingChange={setCurrentReading} />
             ) : (
@@ -134,8 +134,8 @@ export default function PAPExplorePage() {
             <h3 className="font-bold text-white/90 flex items-center gap-2"><Calculator className="w-4 h-4"/> Analisis Angka Penting</h3>
             <p className="text-xs text-white/50 leading-relaxed">Ketik sembarang angka untuk melihat aturan angka penting yang berlaku, atau ambil langsung dari pembacaan alat.</p>
             
-            <div className="flex gap-2">
-              <input type="text" value={sigFigInput} onChange={e => setSigFigInput(e.target.value)} placeholder="Contoh: 0.0500" className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input type="text" value={sigFigInput} onChange={e => setSigFigInput(e.target.value)} placeholder="Contoh: 0.0500" className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white font-mono focus:outline-none focus:border-blue-500" />
               <button onClick={() => setSigFigInput(currentReading.toString())} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap">
                 Ambil dari Alat
               </button>
