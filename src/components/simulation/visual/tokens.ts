@@ -68,14 +68,14 @@ export const SCIENTIFIC_THEME = {
     fuchsia: "#d946ef",    // Total momentum vector (System Σp)
   },
 
-  // Semantic Vector Category Palettes (Consistent with graph series)
+  // Semantic Vector Category Palettes (Aligned with Batch E graph series)
   vectors: {
-    position: "#06b6d4",       // Cyan (Posisi)
+    position: "#38bdf8",       // Sky Blue (Posisi)
     velocity: "#10b981",       // Emerald (Kecepatan)
-    acceleration: "#8b5cf6",   // Violet (Percepatan)
+    acceleration: "#c084fc",   // Violet (Percepatan)
     force: "#f59e0b",          // Amber (Gaya)
-    momentum: "#6366f1",       // Electric Indigo (Momentum kereta pA & pB)
-    momentumTotal: "#d946ef",  // Vivid Fuchsia (Momentum total sistem Σp)
+    momentum: "#2563eb",       // Cobalt Blue (Momentum kereta pA & pB)
+    momentumTotal: "#ec4899",  // Vibrant Pink (Momentum total sistem Σp)
   },
 
   // Text & Scale Labels

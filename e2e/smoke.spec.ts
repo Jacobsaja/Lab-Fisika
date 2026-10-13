@@ -159,7 +159,7 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
           // 5. Simulation Full Cycle Execution (Play/Mulai -> Wait 2.5s -> Reset)
           // Find start/play/launch buttons
           const playButton = page.locator(
-            'button:has-text("Play"), button:has-text("Mulai"), button:has-text("Dorong"), button:has-text("Lepas"), button:has-text("Simpangkan"), button:has-text("Jalankan"), button:has-text("PLAY")'
+            'button:has-text("Play"), button:has-text("PLAY"), button:has-text("Mulai"), button:has-text("Dorong"), button:has-text("Lepas"), button:has-text("Simpangkan"), button:has-text("Jalankan"), button:has-text("Putar"), button:has-text("PUTAR")'
           ).first();
 
           if (await playButton.isVisible({ timeout: 1500 }).catch(() => false)) {
@@ -171,7 +171,7 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
 
               // Click Reset / Atur Ulang if present
               const resetButton = page.locator(
-                'button:has-text("Reset"), button:has-text("Atur Ulang"), button:has-text("Atur ulang"), button:has-text("FUNCTION"), button:has-text("Ulang")'
+                'button:has-text("Reset"), button:has-text("RESET"), button:has-text("Atur Ulang"), button:has-text("Atur ulang"), button:has-text("FUNCTION"), button:has-text("Ulang")'
               ).first();
               if (await resetButton.isVisible({ timeout: 1500 }).catch(() => false)) {
                 await resetButton.click().catch(() => {});

@@ -123,7 +123,7 @@ export function VectorControls({
           onClick={() => handleToggle("showMomentum")}
           className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
             state.showMomentum
-              ? "bg-indigo-950/70 border-indigo-500 text-indigo-200 shadow-[0_0_10px_rgba(99,102,241,0.2)]"
+              ? "bg-blue-950/70 border-blue-500 text-blue-200 shadow-[0_0_10px_rgba(37,99,235,0.2)]"
               : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
           }`}
           title="Tampilkan vektor momentum kereta (pA, pB)"
@@ -138,7 +138,7 @@ export function VectorControls({
           <div
             className={`w-4 h-4 rounded flex items-center justify-center border ${
               state.showMomentum
-                ? "bg-indigo-600 border-indigo-400 text-white"
+                ? "bg-blue-600 border-blue-400 text-white"
                 : "border-slate-700 bg-slate-900"
             }`}
           >
@@ -152,7 +152,7 @@ export function VectorControls({
           onClick={() => handleToggle("showTotalMomentum")}
           className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
             state.showTotalMomentum
-              ? "bg-fuchsia-950/70 border-fuchsia-500 text-fuchsia-200 shadow-[0_0_10px_rgba(217,70,239,0.2)]"
+              ? "bg-pink-950/70 border-pink-500 text-pink-200 shadow-[0_0_10px_rgba(236,72,153,0.2)]"
               : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
           }`}
           title="Tampilkan vektor momentum total sistem (p_total)"
@@ -167,7 +167,7 @@ export function VectorControls({
           <div
             className={`w-4 h-4 rounded flex items-center justify-center border ${
               state.showTotalMomentum
-                ? "bg-fuchsia-600 border-fuchsia-400 text-white"
+                ? "bg-pink-600 border-pink-400 text-white"
                 : "border-slate-700 bg-slate-900"
             }`}
           >
