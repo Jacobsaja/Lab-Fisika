@@ -134,10 +134,14 @@ export function FreeFallApparatus({
     }
   };
 
-  const handleMorseRelease = useCallback(() => {
-    if (!isMorsePressed) return;
+  // ── Ball Drop Trigger ──
+  const triggerDrop = useCallback(() => {
+    if (isFalling) return;
     setIsMorsePressed(false);
     setIsFalling(true);
+    setDisplayedTime(0);
+    setFinalTime(null);
+    if (reqRef.current) cancelAnimationFrame(reqRef.current);
 
     isAutoScrollingRef.current = true;
     const targetViewportY = Math.max(80, Math.min(window.innerHeight * 0.28, 250));
@@ -195,7 +199,12 @@ export function FreeFallApparatus({
     };
 
     reqRef.current = requestAnimationFrame(animate);
-  }, [isMorsePressed, magnetY, gLocal, mode, onTimeChange, pixelsToMeters]);
+  }, [isFalling, magnetY, gLocal, mode, onTimeChange, pixelsToMeters]);
+
+  const handleMorseRelease = useCallback(() => {
+    if (!isMorsePressed) return;
+    triggerDrop();
+  }, [isMorsePressed, triggerDrop]);
 
   // Clean up RAF on unmount & cancel camera tracking on user scroll
   useEffect(() => {
@@ -523,16 +532,20 @@ export function FreeFallApparatus({
           {/* Bottom: Quick Release & Tactical Morse Key Push Switch */}
           <div className="mt-6 md:mt-0 flex flex-col items-center gap-3">
             <button
-              onClick={() => {
-                handleMorsePress();
-                setTimeout(() => {
-                  handleMorseRelease();
-                }, 100);
-              }}
+              data-testid="btn-play"
+              onClick={triggerDrop}
               disabled={isFalling || isMorsePressed}
               className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs tracking-wider rounded-lg shadow-md disabled:opacity-40 transition-all uppercase flex items-center justify-center gap-2"
             >
               LEPAS BOLA (QUICK DROP)
+            </button>
+            <button
+              data-testid="btn-reset"
+              onClick={handleMorsePress}
+              disabled={isFalling}
+              className="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs tracking-wider rounded-lg border border-slate-700 disabled:opacity-40 transition-all uppercase flex items-center justify-center gap-2"
+            >
+              RESET BOLA
             </button>
             <div className="flex items-center gap-2 text-slate-300 text-xs font-bold tracking-wider uppercase mb-1">
               <Radio className="w-3.5 h-3.5 text-cyan-400" />

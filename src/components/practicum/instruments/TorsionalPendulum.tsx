@@ -449,28 +449,42 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
           <div className="flex gap-3 z-10 mt-2">
             {!isPulled && !isOscillating && (
               <button 
+                data-testid="btn-pull"
                 onClick={handlePull}
                 className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono text-xs font-bold rounded-xl shadow-lg border border-cyan-400/30 transition-all active:scale-95"
               >
                 Simpangkan ({initialAngleDeg}°)
               </button>
             )}
-            {isPulled && !isOscillating && (
-              <button 
-                onClick={handleRelease}
-                className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-mono text-xs font-bold rounded-xl shadow-lg border border-emerald-400/30 transition-all active:scale-95 animate-pulse"
-              >
-                Lepas & Mulai Timer
-              </button>
-            )}
-            {isOscillating && (
-              <button 
-                disabled
-                className="px-5 py-2 bg-slate-800 text-slate-400 font-mono text-xs font-bold rounded-xl cursor-not-allowed border border-slate-700"
-              >
-                Sedang Berosilasi...
-              </button>
-            )}
+            <button 
+              data-testid="btn-play"
+              onClick={() => {
+                if (!isPulled && !isOscillating) {
+                  handlePull();
+                  setTimeout(() => {
+                    handleRelease();
+                  }, 80);
+                } else {
+                  handleRelease();
+                }
+              }}
+              disabled={isOscillating}
+              className={`px-5 py-2 font-mono text-xs font-bold rounded-xl shadow-lg border transition-all active:scale-95 ${
+                isOscillating 
+                  ? "bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed" 
+                  : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-emerald-400/30 animate-pulse"
+              }`}
+            >
+              {isOscillating ? "Sedang Berosilasi..." : "Lepas & Mulai Timer"}
+            </button>
+            <button
+              data-testid="btn-reset"
+              onClick={handleReset}
+              disabled={isOscillating}
+              className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs font-bold rounded-xl border border-slate-700 transition-all disabled:opacity-50"
+            >
+              Reset
+            </button>
           </div>
         )}
       </div>

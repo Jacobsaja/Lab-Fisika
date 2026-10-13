@@ -185,6 +185,7 @@ function RollingPracticumSimulation({ state, setRecordedData, addDataRow, hintsR
             <div className="flex gap-3 mt-5">
               <button
                 id="rolling-play-button"
+                data-testid="btn-play"
                 onClick={() => appRef.current?.start()}
                 disabled={isFalling}
                 className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
@@ -193,6 +194,7 @@ function RollingPracticumSimulation({ state, setRecordedData, addDataRow, hintsR
               </button>
               <button
                 id="rolling-reset-button"
+                data-testid="btn-reset"
                 onClick={() => appRef.current?.reset()}
                 disabled={isFalling}
                 className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"

@@ -148,10 +148,11 @@ export default function RollingExplorePage() {
             </div>
 
             <div className="flex justify-end gap-3 mt-2">
-              <button onClick={handleReset} className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors flex items-center gap-2">
+              <button data-testid="btn-reset" onClick={handleReset} className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors flex items-center gap-2">
                 <RotateCcw className="w-4 h-4"/> RESET
               </button>
               <button 
+                data-testid="btn-play"
                 onClick={() => isFalling ? appRef.current?.pause() : appRef.current?.start()}
                 className={`px-8 py-2.5 ${isFalling ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center min-w-[140px]`}
               >

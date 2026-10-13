@@ -34,13 +34,13 @@ export default function TorsionalOscillationExplorePage() {
         {/* Controls Panel */}
         <div className="w-full md:w-[350px] flex flex-col gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-800 overflow-y-auto">
           <div className="flex gap-4 mb-4">
-            <button onClick={() => pendulumRef.current?.start()} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all">
+            <button data-testid="btn-play" onClick={() => pendulumRef.current?.start()} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all">
               <Play className="w-5 h-5" /> Play
             </button>
-            <button onClick={() => pendulumRef.current?.pause()} className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white p-3 rounded-xl font-bold transition-all">
+            <button data-testid="btn-pause" onClick={() => pendulumRef.current?.pause()} className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white p-3 rounded-xl font-bold transition-all">
               <Square className="w-5 h-5" /> Pause
             </button>
-            <button onClick={() => pendulumRef.current?.reset()} className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-xl font-bold transition-all">
+            <button data-testid="btn-reset" onClick={() => pendulumRef.current?.reset()} className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-xl font-bold transition-all">
               <RotateCcw className="w-5 h-5" /> Reset
             </button>
           </div>

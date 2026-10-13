@@ -130,6 +130,7 @@ export default function AtwoodExplorePage() {
                 Atur jarak lepas massa (cincin B) dan landasan (C) dengan menggesernya langsung pada alat ukur di bawah.
               </p>
               <button 
+                data-testid="btn-play"
                 onClick={() => appRef.current?.startDrop()}
                 disabled={isFalling}
                 className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shrink-0"
@@ -172,7 +173,7 @@ export default function AtwoodExplorePage() {
               <h3 className="font-bold text-white/90 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-emerald-400"/> Telemetri Live
               </h3>
-              <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-lg text-xs font-semibold transition-colors">
+              <button data-testid="btn-reset" onClick={handleReset} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 rounded-lg text-xs font-semibold transition-colors">
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset Run
               </button>

@@ -62,6 +62,7 @@ export function SimulationContainer({
         <div className="flex items-center gap-2">
           {isPlaying ? (
             <button
+              data-testid="btn-pause"
               onClick={onPause}
               className="btn-primary rounded-full w-12 h-12 p-0 flex items-center justify-center shadow-md shadow-blue-500/20"
               aria-label="Jeda Simulasi"
@@ -70,6 +71,7 @@ export function SimulationContainer({
             </button>
           ) : (
             <button
+              data-testid="btn-play"
               onClick={onPlay}
               className="btn-primary rounded-full w-12 h-12 p-0 flex items-center justify-center shadow-md shadow-blue-500/20"
               aria-label="Mulai Simulasi"
@@ -79,6 +81,7 @@ export function SimulationContainer({
           )}
           
           <button
+            data-testid="btn-reset"
             onClick={onReset}
             className="btn-ghost rounded-full w-10 h-10 p-0 flex items-center justify-center ml-2"
             aria-label="Reset Simulasi"

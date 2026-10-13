@@ -237,6 +237,7 @@ function GLBBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
         </button>
         <ArrowRight className="text-slate-600 self-center" size={16} />
         <button 
+          data-testid="tab-glbb-m3"
           onClick={() => setActiveTab("MODUL_2_1_M3")} 
           className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
             activeTab === "MODUL_2_1_M3" ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.6)]' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'

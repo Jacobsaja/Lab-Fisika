@@ -105,6 +105,7 @@ export default function MomenInersiaPart1Page() {
           BAGIAN A (Pegas)
         </button>
         <button
+          data-testid="tab-mi1-b"
           onClick={() => setActiveTab("B")}
           className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all ${
             activeTab === "B" ? "bg-emerald-600 text-white shadow" : "text-white/50 hover:bg-white/10"

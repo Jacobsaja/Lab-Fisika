@@ -386,6 +386,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
               Sebelumnya
             </button>
             <button 
+              data-testid="practicum-next-step"
               onClick={handleNextStep}
               disabled={stepIndex === STEPS.length - 1 || nextDisabled}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(37,99,235,0.3)]"

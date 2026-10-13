@@ -37,6 +37,28 @@ export const ALL_AUDIT_ROUTES = [
   ...practicumRoutes,
 ];
 
+export const ROUTES_WITH_SIMULATION = new Set([
+  // Explore (8)
+  "/explore/mekanika/gmb",
+  "/explore/mekanika/gjb",
+  "/explore/mekanika/atwood",
+  "/explore/mekanika/menggelinding",
+  "/explore/mekanika/momen-inersia",
+  "/explore/mekanika/momen-inersia-2",
+  "/explore/mekanika/osilasi-torsional",
+  "/explore/mekanika/hkm",
+  // Practicum (9)
+  "/praktikum/gjb",
+  "/praktikum/atwood-glbb",
+  "/praktikum/atwood-glb",
+  "/praktikum/gmb",
+  "/praktikum/menggelinding",
+  "/praktikum/momen-inersia-1",
+  "/praktikum/momen-inersia-2",
+  "/praktikum/osilasi-torsional",
+  "/praktikum/hkm",
+]);
+
 const VIEWPORTS = [
   { width: 375, height: 812, name: "375px" },
   { width: 768, height: 1024, name: "768px" },
@@ -156,27 +178,96 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
           // 4. White Background Check (Zero plain white canvas backgrounds)
           await checkNoWhiteCanvas(page, route.path);
 
-          // 5. Simulation Full Cycle Execution (Play/Mulai -> Wait 2.5s -> Reset)
-          // Find start/play/launch buttons
-          const playButton = page.locator(
-            'button:has-text("Play"), button:has-text("PLAY"), button:has-text("Mulai"), button:has-text("Dorong"), button:has-text("Lepas"), button:has-text("Simpangkan"), button:has-text("Jalankan"), button:has-text("Putar"), button:has-text("PUTAR")'
-          ).first();
-
-          if (await playButton.isVisible({ timeout: 1500 }).catch(() => false)) {
-            const isEnabled = await playButton.isEnabled().catch(() => false);
-            if (isEnabled) {
-              await playButton.click().catch(() => {});
-              // Wait 2.5 seconds during simulation cycle
-              await page.waitForTimeout(2500);
-
-              // Click Reset / Atur Ulang if present
-              const resetButton = page.locator(
-                'button:has-text("Reset"), button:has-text("RESET"), button:has-text("Atur Ulang"), button:has-text("Atur ulang"), button:has-text("FUNCTION"), button:has-text("Ulang")'
-              ).first();
-              if (await resetButton.isVisible({ timeout: 1500 }).catch(() => false)) {
-                await resetButton.click().catch(() => {});
+          // 5. Simulation Full Cycle Execution (Play -> Wait 2s -> Check state change -> Reset)
+          if (ROUTES_WITH_SIMULATION.has(route.path)) {
+            // Skip practicum intro/setup steps to reach simulation apparatus
+            for (let step = 0; step < 3; step++) {
+              const playBtn = page.locator('[data-testid="btn-play"]');
+              if ((await playBtn.count()) > 0 && (await playBtn.first().isVisible({ timeout: 500 }).catch(() => false))) {
+                break;
+              }
+              const nextStepBtn = page.locator('[data-testid="practicum-next-step"]');
+              if ((await nextStepBtn.count()) > 0 && (await nextStepBtn.first().isVisible({ timeout: 500 }).catch(() => false))) {
+                const isEnabled = await nextStepBtn.first().isEnabled().catch(() => false);
+                if (isEnabled) {
+                  await nextStepBtn.first().click().catch(() => {});
+                  await page.waitForTimeout(400);
+                } else {
+                  break;
+                }
+              } else {
+                break;
               }
             }
+
+            // Switch to simulation tab if necessary
+            if (route.path === "/praktikum/atwood-glbb") {
+              const tabBtn = page.locator('[data-testid="tab-glbb-m3"]');
+              if (await tabBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await tabBtn.click().catch(() => {});
+                await page.waitForTimeout(400);
+              }
+            } else if (route.path === "/praktikum/momen-inersia-1") {
+              const tabBtn = page.locator('[data-testid="tab-mi1-b"]');
+              if (await tabBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await tabBtn.click().catch(() => {});
+                await page.waitForTimeout(400);
+              }
+            } else if (route.path === "/praktikum/momen-inersia-2") {
+              const tabBtn = page.locator('[data-testid="tab-mi2-b"]');
+              if (await tabBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await tabBtn.click().catch(() => {});
+                await page.waitForTimeout(400);
+              }
+            }
+
+            // Find Play Button
+            const playButton = page.locator('[data-testid="btn-play"]').first();
+            await expect(
+              playButton,
+              `Tombol Mulai [data-testid="btn-play"] wajib ditemukan pada rute ${route.path} (${vp.name})`
+            ).toBeVisible({ timeout: 5000 });
+
+            // Sample state before Play
+            const stateBefore = await page.evaluate(() => {
+              const displays = Array.from(document.querySelectorAll("[class*='DigitalDisplay'], [class*='font-mono'], text, span"))
+                .map((el) => el.textContent?.trim() || "")
+                .filter((t) => /\d+\.\d+/.test(t) || t.includes(":") || t.includes("s") || t.includes("AKTIF") || t.includes("SIAP"));
+              const svgAttrs = Array.from(document.querySelectorAll("svg g[transform], svg circle, svg rect[transform]"))
+                .slice(0, 20)
+                .map((el) => el.getAttribute("transform") || `${el.getAttribute("cx")},${el.getAttribute("cy")}`);
+              return { displays: displays.join("|"), svgAttrs: svgAttrs.join(";") };
+            });
+
+            // Click Play
+            await playButton.click();
+            await page.waitForTimeout(2000);
+
+            // Sample state after 2 seconds
+            const stateAfter = await page.evaluate(() => {
+              const displays = Array.from(document.querySelectorAll("[class*='DigitalDisplay'], [class*='font-mono'], text, span"))
+                .map((el) => el.textContent?.trim() || "")
+                .filter((t) => /\d+\.\d+/.test(t) || t.includes(":") || t.includes("s") || t.includes("AKTIF") || t.includes("SIAP"));
+              const svgAttrs = Array.from(document.querySelectorAll("svg g[transform], svg circle, svg rect[transform]"))
+                .slice(0, 20)
+                .map((el) => el.getAttribute("transform") || `${el.getAttribute("cx")},${el.getAttribute("cy")}`);
+              return { displays: displays.join("|"), svgAttrs: svgAttrs.join(";") };
+            });
+
+            const stateChanged = (stateBefore.displays !== stateAfter.displays) || (stateBefore.svgAttrs !== stateAfter.svgAttrs);
+            expect(
+              stateChanged,
+              `Simulasi pada rute ${route.path} (${vp.name}) tidak menunjukkan perubahan state yang teramati setelah Play diklik.`
+            ).toBe(true);
+
+            // Find and Click Reset Button
+            const resetButton = page.locator('[data-testid="btn-reset"]').first();
+            await expect(
+              resetButton,
+              `Tombol Reset [data-testid="btn-reset"] wajib ditemukan pada rute ${route.path} (${vp.name})`
+            ).toBeVisible({ timeout: 4000 });
+            await resetButton.click();
+            await page.waitForTimeout(500);
           }
 
           // Verify console remains 100% clean after running simulation

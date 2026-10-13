@@ -442,6 +442,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
             {mode === "practicum" && (
               <div className="absolute bottom-5 left-5 flex gap-2.5 z-10">
                 <button
+                  data-testid="btn-pull"
                   onClick={handlePull}
                   disabled={isOscillating || isPulled}
                   className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-mono text-xs font-bold rounded-lg shadow-lg border border-cyan-400/30 transition-all active:scale-95"
@@ -449,8 +450,18 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
                   Simpangkan 90°
                 </button>
                 <button
-                  onClick={handleRelease}
-                  disabled={!isPulled || isOscillating}
+                  data-testid="btn-play"
+                  onClick={() => {
+                    if (!isPulled && !isOscillating) {
+                      handlePull();
+                      setTimeout(() => {
+                        handleRelease();
+                      }, 80);
+                    } else {
+                      handleRelease();
+                    }
+                  }}
+                  disabled={isOscillating}
                   className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white font-mono text-xs font-bold rounded-lg shadow-lg border border-emerald-400/30 transition-all active:scale-95"
                 >
                   Lepas (Mulai)
@@ -500,6 +511,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
               {/* Laboratory Control Pushbuttons */}
               <div className="flex justify-between mt-2 gap-2">
                 <button 
+                  data-testid="btn-reset"
                   onClick={handleReset}
                   disabled={isOscillating}
                   className="flex-1 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 disabled:opacity-40 text-slate-200 text-[10px] font-mono font-bold py-2 rounded border border-slate-700 hover:border-cyan-500/50 transition-all shadow-md"

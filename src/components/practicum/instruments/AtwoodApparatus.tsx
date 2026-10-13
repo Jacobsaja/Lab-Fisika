@@ -1298,6 +1298,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
             {/* Actuation Buttons */}
             <div className="flex flex-col gap-2.5">
               <button 
+                data-testid="btn-play"
                 onClick={startDrop} 
                 disabled={clampRetracted || isAnimating} 
                 className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs tracking-wider rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.35)] disabled:opacity-40 disabled:cursor-not-allowed transition-all uppercase flex items-center justify-center gap-2"
@@ -1306,6 +1307,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
                 LEPAS KLEM (P)
               </button>
               <button 
+                data-testid="btn-reset"
                 onClick={resetApparatus} 
                 disabled={isAnimating} 
                 className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs tracking-wider rounded-lg border border-slate-700 disabled:opacity-40 transition-colors uppercase"

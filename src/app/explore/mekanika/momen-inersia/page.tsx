@@ -142,6 +142,7 @@ export default function MomenInersiaExplorePage() {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
               <div className="flex gap-2">
                 <button
+                  data-testid="btn-play"
                   onClick={() => isOscillating ? appRef.current?.pause() : appRef.current?.start()}
                   className={`px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-all text-white flex items-center gap-2 ${
                     isOscillating 
@@ -153,6 +154,7 @@ export default function MomenInersiaExplorePage() {
                   {isOscillating ? 'Jeda' : 'Mulai (Lepas)'}
                 </button>
                 <button
+                  data-testid="btn-reset"
                   onClick={handleReset}
                   className="px-4 py-2.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition-all flex items-center gap-2 border border-slate-700"
                 >

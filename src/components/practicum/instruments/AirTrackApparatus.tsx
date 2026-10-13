@@ -588,6 +588,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
 
             {/* Launch Cart Button */}
             <button
+              data-testid="btn-play"
               onClick={handleLaunch}
               disabled={isSimulating}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-bold border transition-all ${
@@ -602,6 +603,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
 
             {/* Reset Button */}
             <button
+              data-testid="btn-reset"
               onClick={handleReset}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition-all"
             >
