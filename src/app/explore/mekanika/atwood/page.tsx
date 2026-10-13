@@ -239,6 +239,10 @@ export default function AtwoodExplorePage() {
               additionalMassConfig="m3"
               a_true={a1_pred}
               a_phase2={a2_pred}
+              m1={m1}
+              m2={m2}
+              mAdd={mAdd}
+              g={g}
               hideControls={true}
               onTimeChange={handleTimeChange}
               onPosChange={handlePosChange}

@@ -215,3 +215,102 @@ export function calculateAtwoodGLBRegression(data: AtwoodGLBDataRow[]): AtwoodGL
     points
   };
 }
+
+// -------------------------------------------------------------
+// FASE VECTOR OVERLAY - GAYA & PERCEPATAN PESAWAT ATWOOD (KATROL IDEAL)
+// -------------------------------------------------------------
+
+export interface AtwoodVectors {
+  w1: number; // N (Gaya berat m1, arah ke bawah)
+  w2: number; // N (Gaya berat m2, arah ke bawah)
+  wAdd: number; // N (Gaya berat keping tambahan mAdd bila ada, arah ke bawah)
+  wRightTotal: number; // N (Total berat di sisi kanan)
+  T: number; // N (Gaya tegangan tali katrol ideal, sama di kedua sisi)
+  a: number; // m/s² (Besar percepatan translasi sistem)
+  a1: number; // m/s² (Percepatan m1: positif = ke atas, negatif = ke bawah)
+  a2: number; // m/s² (Percepatan m2: positif = ke bawah, negatif = ke atas)
+  netForceLeft: number; // N (T - w1)
+  netForceRight: number; // N (wRightTotal - T)
+}
+
+/**
+ * Pure function that computes force and acceleration vectors for Atwood apparatus.
+ * Assumes ideal massless pulley and light inextensible string (T1 = T2 = T).
+ */
+export function getAtwoodVectors(params: {
+  m1: number; // kg
+  m2: number; // kg
+  mAdd?: number; // kg (default 0)
+  g?: number; // m/s² (default 9.8)
+  phase?: "GLBB" | "GLB" | "DIAM";
+}): AtwoodVectors {
+  const g = params.g ?? 9.8;
+  const m1 = Math.max(0, params.m1);
+  const m2 = Math.max(0, params.m2);
+  const mAdd = params.phase === "GLB" ? 0 : Math.max(0, params.mAdd ?? 0);
+  const mRight = m2 + mAdd;
+  const mTotal = m1 + mRight;
+
+  const w1 = m1 * g;
+  const w2 = m2 * g;
+  const wAdd = mAdd * g;
+  const wRightTotal = mRight * g;
+
+  if (mTotal <= 0) {
+    return {
+      w1: 0,
+      w2: 0,
+      wAdd: 0,
+      wRightTotal: 0,
+      T: 0,
+      a: 0,
+      a1: 0,
+      a2: 0,
+      netForceLeft: 0,
+      netForceRight: 0,
+    };
+  }
+
+  // Jika fase GLB (keping telah lepas di Ring B) dan m1 == m2: percepatan nol
+  if (params.phase === "GLB" || Math.abs(mRight - m1) < 1e-9) {
+    const T = (m1 * mRight * 2 * g) / (m1 + mRight);
+    return {
+      w1,
+      w2,
+      wAdd: 0,
+      wRightTotal: w2,
+      T,
+      a: 0,
+      a1: 0,
+      a2: 0,
+      netForceLeft: 0,
+      netForceRight: 0,
+    };
+  }
+
+  // Percepatan sistem ideal: a = (mRight - m1) * g / (m1 + mRight)
+  const aRaw = ((mRight - m1) * g) / mTotal;
+  const aMag = Math.abs(aRaw);
+
+  // Tegangan tali katrol ideal: T = (2 * m1 * mRight * g) / (m1 + mRight)
+  const T = (2 * m1 * mRight * g) / mTotal;
+
+  // Percepatan per sisi (tanda arah):
+  // a1: gerak massa kiri (positif ke atas)
+  // a2: gerak massa kanan (positif ke bawah)
+  const a1 = aRaw;
+  const a2 = aRaw;
+
+  return {
+    w1,
+    w2,
+    wAdd,
+    wRightTotal,
+    T,
+    a: aMag,
+    a1,
+    a2,
+    netForceLeft: T - w1,
+    netForceRight: wRightTotal - T,
+  };
+}

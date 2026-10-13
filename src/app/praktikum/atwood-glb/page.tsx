@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { PracticumShell } from "@/components/practicum/PracticumShell";
+import { PracticumShell, PracticumShellContext } from "@/components/practicum/PracticumShell";
 import { PracticumConfig } from "@/types/practicum";
 import { AtwoodApparatus } from "@/components/practicum/instruments/AtwoodApparatus";
 import { usePracticumSession } from "@/hooks/usePracticumSession";
@@ -55,8 +55,15 @@ const CONFIG: PracticumConfig = {
   }
 };
 
-function GLBOrchestrator() {
+function GLBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
   const { state } = usePracticumSession(CONFIG.id);
+
+  // Vektor kualitatif terkunci sampai mahasiswa mengisi tabel data atau membuka petunjuk level 3
+  const rowCount = ctx?.state.recordedData.length ?? state.recordedData.length;
+  const hintsCount = ctx?.hintsRevealedCount ?? 0;
+  const isVectorLocked = rowCount === 0 && hintsCount < 3;
+  const vectorLockMessage = "Vektor kualitatif terkunci. Silakan catat minimal 1 data percobaan pada tabel atau buka Petunjuk Level 3 untuk membukanya.";
+
   // Generate ground truths secara persisten per sesi menggunakan useState
   const [gLocal] = useState(() => 9.75 + Math.random() * 0.1);
   
@@ -166,6 +173,12 @@ function GLBOrchestrator() {
             additionalMassConfig="m3_m4" 
             a_true={a2_true} 
             v_true={v_true} 
+            m1={m1}
+            m2={m2}
+            mAdd={m3 + m4}
+            g={gLocal}
+            isVectorLocked={isVectorLocked}
+            vectorLockMessage={vectorLockMessage}
           />
 
         </div>
@@ -192,7 +205,7 @@ export default function AtwoodGLBPage() {
   return (
     <PracticumShell 
       config={CONFIG} 
-      simulationComponent={<GLBOrchestrator />}
+      simulationComponent={(ctx) => <GLBOrchestrator ctx={ctx} />}
       isNextDisabled={isNextDisabled}
     />
   );

@@ -1,15 +1,27 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
-import { calculateFallTime, calculateGLBTime } from "@/physics/atwood";
+import { calculateFallTime, calculateGLBTime, getAtwoodVectors } from "@/physics/atwood";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
   SvgGridBackground,
   SvgPulley,
   SvgCalloutBadge,
+  VectorOverlay,
+  VectorControls,
+  VectorCategoryConfig,
+  VectorItem,
   SCIENTIFIC_THEME,
 } from "@/components/simulation/visual";
+
+export interface AtwoodVectorState {
+  showWeight: boolean;
+  showTension: boolean;
+  showAcceleration: boolean;
+  arrowScale: number;
+  showValues: boolean;
+}
 
 export interface AtwoodApparatusProps {
   mode: "GLBB" | "GLB" | "explore";
@@ -17,10 +29,20 @@ export interface AtwoodApparatusProps {
   a_true: number;       // Theoretical acceleration for phase A-B
   v_true?: number;      // Theoretical velocity for phase B-C
   a_phase2?: number;    // Theoretical acceleration for phase B-C (explore)
+  m1?: number;          // Mass 1 (kg or g)
+  m2?: number;          // Mass 2 (kg or g)
+  mAdd?: number;        // Additional mass (kg or g)
+  g?: number;           // Gravity (m/s²)
   className?: string;
   hideControls?: boolean;
   onTimeChange?: (t: number, isRunning: boolean, isReset: boolean) => void;
   onPosChange?: (sB: number, sC: number) => void;
+  // Vector overlay & controls props
+  vectorControls?: AtwoodVectorState;
+  onVectorControlsChange?: (state: AtwoodVectorState) => void;
+  isVectorLocked?: boolean;
+  vectorLockMessage?: string;
+  hideVectorControls?: boolean;
 }
 
 // Coordinate & Physical Simulation Constants
@@ -54,10 +76,19 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   a_true, 
   v_true, 
   a_phase2 = 0,
+  m1: propM1,
+  m2: propM2,
+  mAdd: propMAdd,
+  g: propG,
   className = "",
   hideControls = false,
   onTimeChange,
-  onPosChange
+  onPosChange,
+  vectorControls: controlledVectorControls,
+  onVectorControlsChange,
+  isVectorLocked = false,
+  vectorLockMessage,
+  hideVectorControls = false,
 }, ref) => {
   const gradientIds = useMetalGradientIds("atwood");
   const svgRef = useRef<SVGSVGElement>(null);
@@ -66,8 +97,201 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const m1GroupRef = useRef<SVGGElement>(null);
   const m2GroupRef = useRef<SVGGElement>(null);
   const mTambahanGroupRef = useRef<SVGGElement>(null);
+  const m1VectorGroupRef = useRef<SVGGElement>(null);
+  const m2VectorGroupRef = useRef<SVGGElement>(null);
   const ropeLRef = useRef<SVGLineElement>(null);
   const ropeRRef = useRef<SVGLineElement>(null);
+
+  // Phase tracking for vector rendering
+  const [currentPhase, setCurrentPhase] = useState<"GLBB" | "GLB">("GLBB");
+
+  const isQualitative = mode !== "explore";
+
+  // Vector Controls State
+  const [internalVectorControls, setInternalVectorControls] = useState<AtwoodVectorState>({
+    showWeight: true,
+    showTension: true,
+    showAcceleration: true,
+    arrowScale: 1.0,
+    showValues: !isQualitative,
+  });
+
+  const activeVectorControls = controlledVectorControls ?? internalVectorControls;
+
+  const handleToggleCategory = (id: string) => {
+    if (isVectorLocked) return;
+    const updated = { ...activeVectorControls };
+    if (id === "weight") updated.showWeight = !updated.showWeight;
+    if (id === "tension") updated.showTension = !updated.showTension;
+    if (id === "acceleration") updated.showAcceleration = !updated.showAcceleration;
+    
+    if (onVectorControlsChange) {
+      onVectorControlsChange(updated);
+    } else {
+      setInternalVectorControls(updated);
+    }
+  };
+
+  const handleScaleChange = (scale: number) => {
+    if (isVectorLocked) return;
+    const updated = { ...activeVectorControls, arrowScale: scale };
+    if (onVectorControlsChange) {
+      onVectorControlsChange(updated);
+    } else {
+      setInternalVectorControls(updated);
+    }
+  };
+
+  const handleToggleShowValues = () => {
+    if (isVectorLocked || isQualitative) return;
+    const updated = { ...activeVectorControls, showValues: !activeVectorControls.showValues };
+    if (onVectorControlsChange) {
+      onVectorControlsChange(updated);
+    } else {
+      setInternalVectorControls(updated);
+    }
+  };
+
+  // Convert masses to kg
+  const effectiveM1 = propM1 !== undefined ? (propM1 > 5 ? propM1 / 1000 : propM1) : 0.100;
+  const effectiveM2 = propM2 !== undefined ? (propM2 > 5 ? propM2 / 1000 : propM2) : 0.100;
+  const defaultMAdd = additionalMassConfig === "m3" ? 0.015 : additionalMassConfig === "m3_m4" ? 0.030 : 0;
+  const effectiveMAdd = propMAdd !== undefined ? (propMAdd > 5 ? propMAdd / 1000 : propMAdd) : defaultMAdd;
+  const gVal = propG ?? 9.8;
+
+  // Pure physics vector calculation
+  const atwoodVectors = useMemo(() => {
+    return getAtwoodVectors({
+      m1: effectiveM1,
+      m2: effectiveM2,
+      mAdd: effectiveMAdd,
+      g: gVal,
+      phase: currentPhase,
+    });
+  }, [effectiveM1, effectiveM2, effectiveMAdd, gVal, currentPhase]);
+
+  const vectorCategories: VectorCategoryConfig[] = [
+    {
+      id: "weight",
+      label: "Gaya Berat",
+      color: SCIENTIFIC_THEME.vectors.force,
+      checked: activeVectorControls.showWeight,
+      title: "Tampilkan vektor gaya berat (w₁, w₂, w₃)",
+    },
+    {
+      id: "tension",
+      label: "Tegangan Tali",
+      color: "#06b6d4",
+      checked: activeVectorControls.showTension,
+      title: "Tampilkan vektor tegangan tali (T₁, T₂)",
+    },
+    {
+      id: "acceleration",
+      label: "Percepatan",
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      checked: activeVectorControls.showAcceleration,
+      title: "Tampilkan vektor percepatan translasi (a₁, a₂)",
+    },
+  ];
+
+  const showValuesInOverlay = !isQualitative && activeVectorControls.showValues;
+  const forceScale = 50;
+  const accelScale = 60;
+
+  const m2Vectors: VectorItem[] = [];
+  if (activeVectorControls.showWeight && atwoodVectors.w2 > 0) {
+    m2Vectors.push({
+      id: "w2",
+      category: "weight",
+      label: "w₂",
+      origin: { x: STR_L_X - 35, y: Y_A + M_H / 2 },
+      components: { dx: 0, dy: atwoodVectors.w2 },
+      color: SCIENTIFIC_THEME.vectors.force,
+      scale: forceScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.w2.toFixed(2)} N`,
+    });
+  }
+  if (activeVectorControls.showWeight && currentPhase === "GLBB" && atwoodVectors.wAdd > 0) {
+    m2Vectors.push({
+      id: "wAdd",
+      category: "weight",
+      label: "w₃",
+      origin: { x: STR_L_X - 55, y: Y_A - M3_H / 2 },
+      components: { dx: 0, dy: atwoodVectors.wAdd },
+      color: SCIENTIFIC_THEME.vectors.force,
+      scale: forceScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.wAdd.toFixed(2)} N`,
+    });
+  }
+  if (activeVectorControls.showTension && atwoodVectors.T > 0) {
+    m2Vectors.push({
+      id: "T2",
+      category: "tension",
+      label: "T₂",
+      origin: { x: STR_L_X - 35, y: Y_A + M_H / 2 },
+      components: { dx: 0, dy: -atwoodVectors.T },
+      color: "#06b6d4",
+      scale: forceScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.T.toFixed(2)} N`,
+    });
+  }
+  if (activeVectorControls.showAcceleration && atwoodVectors.a > 1e-4) {
+    m2Vectors.push({
+      id: "a2",
+      category: "acceleration",
+      label: "a₂",
+      origin: { x: STR_L_X - 65, y: Y_A + M_H / 2 },
+      components: { dx: 0, dy: atwoodVectors.a2 },
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      scale: accelScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.a.toFixed(2)} m/s²`,
+    });
+  }
+
+  const m1Vectors: VectorItem[] = [];
+  if (activeVectorControls.showWeight && atwoodVectors.w1 > 0) {
+    m1Vectors.push({
+      id: "w1",
+      category: "weight",
+      label: "w₁",
+      origin: { x: STR_R_X + 35, y: Y_M1_INITIAL + M_H / 2 },
+      components: { dx: 0, dy: atwoodVectors.w1 },
+      color: SCIENTIFIC_THEME.vectors.force,
+      scale: forceScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.w1.toFixed(2)} N`,
+    });
+  }
+  if (activeVectorControls.showTension && atwoodVectors.T > 0) {
+    m1Vectors.push({
+      id: "T1",
+      category: "tension",
+      label: "T₁",
+      origin: { x: STR_R_X + 35, y: Y_M1_INITIAL + M_H / 2 },
+      components: { dx: 0, dy: -atwoodVectors.T },
+      color: "#06b6d4",
+      scale: forceScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.T.toFixed(2)} N`,
+    });
+  }
+  if (activeVectorControls.showAcceleration && atwoodVectors.a > 1e-4) {
+    m1Vectors.push({
+      id: "a1",
+      category: "acceleration",
+      label: "a₁",
+      origin: { x: STR_R_X + 65, y: Y_M1_INITIAL + M_H / 2 },
+      components: { dx: 0, dy: -atwoodVectors.a1 },
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      scale: accelScale,
+      showValue: showValuesInOverlay,
+      valueText: `${atwoodVectors.a.toFixed(2)} m/s²`,
+    });
+  }
   
   // Instrument physical positions (in simulation pixels)
   const [posB, setPosB] = useState(mode === "GLB" ? Y_A + 200 : Y_A + 400); 
@@ -308,6 +532,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
         // Photogate B trigger
         if (!passedBRef.current) {
           passedBRef.current = true;
+          setCurrentPhase("GLB");
           if (mode === "GLB") {
             startStopwatch();
           } else if (mode === "GLBB") {
@@ -351,6 +576,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       if (m2GroupRef.current) m2GroupRef.current.setAttribute("transform", `translate(0, ${currentM2Y - Y_A})`);
       if (m1GroupRef.current) m1GroupRef.current.setAttribute("transform", `translate(0, ${currentM1Y - Y_M1_INITIAL})`);
       if (mTambahanGroupRef.current) mTambahanGroupRef.current.setAttribute("transform", `translate(0, ${currentMTambahanY - Y_A})`);
+      if (m2VectorGroupRef.current) m2VectorGroupRef.current.setAttribute("transform", `translate(0, ${currentM2Y - Y_A})`);
+      if (m1VectorGroupRef.current) m1VectorGroupRef.current.setAttribute("transform", `translate(0, ${currentM1Y - Y_M1_INITIAL})`);
       
       if (ropeLRef.current) ropeLRef.current.setAttribute("y2", String(currentM2Y));
       if (ropeRRef.current) ropeRRef.current.setAttribute("y2", String(currentM1Y));
@@ -374,6 +601,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     setIsAnimating(false);
     setClampRetracted(false);
     isAutoScrollingRef.current = false;
+    setCurrentPhase("GLBB");
     
     setM2Y(Y_A);
     setMTambahanY(Y_A);
@@ -382,6 +610,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     if (m2GroupRef.current) m2GroupRef.current.setAttribute("transform", "translate(0, 0)");
     if (m1GroupRef.current) m1GroupRef.current.setAttribute("transform", "translate(0, 0)");
     if (mTambahanGroupRef.current) mTambahanGroupRef.current.setAttribute("transform", "translate(0, 0)");
+    if (m2VectorGroupRef.current) m2VectorGroupRef.current.setAttribute("transform", "translate(0, 0)");
+    if (m1VectorGroupRef.current) m1VectorGroupRef.current.setAttribute("transform", "translate(0, 0)");
     if (ropeLRef.current) ropeLRef.current.setAttribute("y2", String(Y_A));
     if (ropeRRef.current) ropeRRef.current.setAttribute("y2", String(Y_M1_INITIAL));
 
@@ -1005,7 +1235,46 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
             )}
           </g>
 
+          {/* Physical Vector Overlays (Zero filters, 60 FPS translated via DOM refs) */}
+          {!isVectorLocked && (
+            <>
+              <g ref={m2VectorGroupRef}>
+                <VectorOverlay
+                  vectors={m2Vectors}
+                  userScale={activeVectorControls.arrowScale}
+                  maxArrowLength={140}
+                  showValues={showValuesInOverlay}
+                />
+              </g>
+              <g ref={m1VectorGroupRef}>
+                <VectorOverlay
+                  vectors={m1Vectors}
+                  userScale={activeVectorControls.arrowScale}
+                  maxArrowLength={140}
+                  showValues={showValuesInOverlay}
+                />
+              </g>
+            </>
+          )}
+
         </svg>
+
+        {/* Vector Controls Panel */}
+        {!hideVectorControls && (
+          <div className="w-full max-w-[560px] mt-3 mb-2">
+            <VectorControls
+              categories={vectorCategories}
+              onToggleCategory={handleToggleCategory}
+              arrowScale={activeVectorControls.arrowScale}
+              onScaleChange={handleScaleChange}
+              showValues={activeVectorControls.showValues}
+              onToggleShowValues={handleToggleShowValues}
+              isQualitative={isQualitative}
+              isLocked={isVectorLocked}
+              lockMessage={vectorLockMessage}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── RIGHT SECTION: SCIENTIFIC CONTROL PANEL & PHOTOGATE TIMER ── */}
