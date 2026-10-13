@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { calculateFallTime } from "@/physics/freefall";
+import { calculateFallTime, getFreeFallVectors } from "@/physics/freefall";
 import { Activity, Radio } from "lucide-react";
 import {
   useMetalGradientIds,
@@ -12,6 +12,10 @@ import {
   SvgMetalBall,
   DigitalDisplayCard,
   SCIENTIFIC_THEME,
+  VectorOverlay,
+  VectorItem,
+  VectorControls,
+  VectorCategoryConfig,
 } from "@/components/simulation/visual";
 
 // ── Physical Scale & Simulation Coordinates ──────────────────────────
@@ -34,6 +38,7 @@ export interface FreeFallApparatusProps {
   onTimeChange?: (t: number, isFalling: boolean, reset: boolean) => void;
   scaleMaxMeters?: number;
   controlledHeight?: number; // In meters
+  isVectorLocked?: boolean;
 }
 
 export function FreeFallApparatus({ 
@@ -43,7 +48,8 @@ export function FreeFallApparatus({
   onHeightChange, 
   onTimeChange,
   scaleMaxMeters = 1.2,
-  controlledHeight
+  controlledHeight,
+  isVectorLocked = false,
 }: FreeFallApparatusProps) {
   const gradientIds = useMetalGradientIds("freefall");
   const svgRef = useRef<SVGSVGElement>(null);
@@ -62,6 +68,108 @@ export function FreeFallApparatus({
   const [ballY, setBallY] = useState(250 + BALL_VISUAL_OFFSET);
   const [displayedTime, setDisplayedTime] = useState<number>(0);
   const [finalTime, setFinalTime] = useState<number | null>(null);
+
+  // Callback refs to strictly obey AGENTS.md rule
+  const onHeightChangeRef = useRef(onHeightChange);
+  onHeightChangeRef.current = onHeightChange;
+
+  const onTimeChangeRef = useRef(onTimeChange);
+  onTimeChangeRef.current = onTimeChange;
+
+  // ── Vector Overlay State (Tahap J) ──
+  const [vectorState, setVectorState] = useState({
+    showWeight: true,
+    showVelocity: true,
+    showAcceleration: true,
+    arrowScale: 1.0,
+    showValues: true,
+  });
+
+  const isLockedEffective = mode === "practicum" ? isVectorLocked : false;
+  const lockMessage = "Vektor kualitatif terkunci. Silakan catat minimal 1 data percobaan pada tabel atau buka Petunjuk Level 3 untuk membukanya.";
+
+  const liveVectors = useMemo(() => {
+    return getFreeFallVectors({
+      t: displayedTime,
+      g: gLocal,
+      mass: 0.05,
+      isFalling,
+    });
+  }, [displayedTime, gLocal, isFalling]);
+
+  const vectorCategories: VectorCategoryConfig[] = [
+    {
+      id: "weight",
+      label: "Gaya Berat",
+      color: SCIENTIFIC_THEME.vectors.gravity,
+      checked: vectorState.showWeight,
+      title: "Tampilkan gaya berat (w = mg)",
+    },
+    {
+      id: "velocity",
+      label: "Kecepatan",
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      checked: vectorState.showVelocity,
+      title: "Tampilkan kecepatan sesaat (v = gt)",
+    },
+    {
+      id: "acceleration",
+      label: "Percepatan",
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      checked: vectorState.showAcceleration,
+      title: "Tampilkan percepatan gravitasi (a = g)",
+    },
+  ];
+
+  const handleToggleCategory = (catId: string) => {
+    if (isLockedEffective) return;
+    if (catId === "weight") setVectorState((s) => ({ ...s, showWeight: !s.showWeight }));
+    else if (catId === "velocity") setVectorState((s) => ({ ...s, showVelocity: !s.showVelocity }));
+    else if (catId === "acceleration") setVectorState((s) => ({ ...s, showAcceleration: !s.showAcceleration }));
+  };
+
+  const showValuesInOverlay = mode === "explore" && vectorState.showValues;
+
+  const vectorItems: VectorItem[] = [];
+  if (vectorState.showWeight) {
+    vectorItems.push({
+      id: "w",
+      category: "weight",
+      label: "w",
+      origin: { x: CENTER_X + 55, y: ballY },
+      components: { dx: 0, dy: liveVectors.w },
+      color: SCIENTIFIC_THEME.vectors.gravity,
+      scale: 120,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.w.toFixed(2)} N`,
+    });
+  }
+  if (vectorState.showVelocity && liveVectors.v > 1e-4) {
+    vectorItems.push({
+      id: "v",
+      category: "velocity",
+      label: "v",
+      origin: { x: CENTER_X + 90, y: ballY },
+      components: { dx: 0, dy: liveVectors.v },
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      scale: 25,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.v.toFixed(2)} m/s`,
+    });
+  }
+  if (vectorState.showAcceleration) {
+    vectorItems.push({
+      id: "a",
+      category: "acceleration",
+      label: "a",
+      origin: { x: CENTER_X + 125, y: ballY },
+      components: { dx: 0, dy: liveVectors.a },
+      color: SCIENTIFIC_THEME.vectors.acceleration,
+      scale: 10,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.a.toFixed(2)} m/s²`,
+    });
+  }
 
   // Sync controlledHeight -> magnetY
   useEffect(() => {
@@ -100,7 +208,7 @@ export function FreeFallApparatus({
     if (newY > GROUND_Y - 80) newY = GROUND_Y - 80;
 
     setMagnetY(newY);
-    if (onHeightChange) onHeightChange(pixelsToMeters(newY));
+    onHeightChangeRef.current?.(pixelsToMeters(newY));
     
     if (!isFalling && !isMorsePressed) {
       setBallY(newY + BALL_VISUAL_OFFSET);
@@ -122,7 +230,7 @@ export function FreeFallApparatus({
     setBallY(magnetY + BALL_VISUAL_OFFSET); // Ball adheres to electromagnet
     setDisplayedTime(0);
     setFinalTime(null);
-    if (onTimeChange) onTimeChange(0, false, true);
+    onTimeChangeRef.current?.(0, false, true);
     if (reqRef.current) cancelAnimationFrame(reqRef.current);
 
     // Initial focus on the armed sphere
@@ -175,7 +283,7 @@ export function FreeFallApparatus({
         setDisplayedTime(actualTime);
         setFinalTime(actualTime);
         setIsFalling(false);
-        if (onTimeChange) onTimeChange(actualTime, false, false);
+        onTimeChangeRef.current?.(actualTime, false, false);
       } else {
         // Quadratic trajectory (progress²) replicating constant acceleration
         const currentY = ballStartY + (ballEndY - ballStartY) * progress * progress;
@@ -183,7 +291,7 @@ export function FreeFallApparatus({
         
         const currTime = actualTime * progress;
         setDisplayedTime(currTime);
-        if (onTimeChange) onTimeChange(currTime, true, false);
+        onTimeChangeRef.current?.(currTime, true, false);
 
         // Dynamic 60 FPS Camera Tracking Shot
         if (isAutoScrollingRef.current && ballRef.current && idealYRef.current !== null) {
@@ -478,13 +586,23 @@ export function FreeFallApparatus({
               r={12}
               fillId={gradientIds.ballChrome}
             />
+
+            {/* ── 5. PHYSICAL VECTOR OVERLAY (TAHAP J) ── */}
+            {!isLockedEffective && (
+              <VectorOverlay
+                vectors={vectorItems}
+                userScale={vectorState.arrowScale}
+                showValues={showValuesInOverlay}
+                maxArrowLength={140}
+              />
+            )}
           </svg>
         </div>
 
         {/* ── RIGHT SECTION: ELECTRONIC SCALER COUNTER & MORSE ACTUATOR ── */}
         <div className="w-full lg:w-80 bg-slate-900/90 border-t lg:border-t-0 lg:border-l border-cyan-500/20 p-5 sm:p-6 flex flex-col justify-between shrink-0 relative shadow-inner z-10 backdrop-blur-md">
           
-          {/* Top: Precision Digital Scaler Counter */}
+          {/* Top: Precision Digital Scaler Counter & Vector Controls */}
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <DigitalDisplayCard
@@ -527,6 +645,20 @@ export function FreeFallApparatus({
                 </div>
               </div>
             )}
+
+            {/* ── Vector Controls (Tahap J) ── */}
+            <VectorControls
+              categories={vectorCategories}
+              onToggleCategory={handleToggleCategory}
+              arrowScale={vectorState.arrowScale}
+              onScaleChange={(scale) => setVectorState((s) => ({ ...s, arrowScale: scale }))}
+              showValues={vectorState.showValues}
+              onToggleShowValues={() => setVectorState((s) => ({ ...s, showValues: !s.showValues }))}
+              isQualitative={mode === "practicum"}
+              isLocked={isLockedEffective}
+              lockMessage={lockMessage}
+              className="mt-1"
+            />
           </div>
 
           {/* Bottom: Quick Release & Tactical Morse Key Push Switch */}

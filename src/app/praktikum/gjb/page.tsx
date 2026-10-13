@@ -95,20 +95,29 @@ export default function GJBPage() {
   return (
     <PracticumShell 
       config={CONFIG} 
-      simulationComponent={
-        <div className="w-full h-full flex justify-center items-center p-8">
-          <div className="w-full max-w-4xl max-h-[80vh]">
-            <FreeFallApparatus gLocal={gLocal} />
+      simulationComponent={(ctx) => {
+        const rows = ctx.state.recordedData.length;
+        const hintsCount = ctx.hintsRevealedCount ?? 0;
+        const isVectorLocked = rows === 0 && hintsCount < 3;
+        const isDataStepActive = ctx.state.currentStep === "SIMULATION";
+        const hasEnoughDataActive = rows >= 25;
+
+        return (
+          <div className="w-full h-full flex justify-center items-center p-8">
+            <FreeFallApparatus
+              gLocal={gLocal}
+              isVectorLocked={isVectorLocked}
+            />
+            
+            {isDataStepActive && !hasEnoughDataActive && (
+              <div className="absolute top-4 right-4 bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-lg max-w-xs shadow-lg animate-pulse">
+                <p className="text-yellow-400 text-xs font-bold mb-1">DATA BELUM LENGKAP</p>
+                <p className="text-white/70 text-xs">Anda baru mengumpulkan {rows}/25 data. Tombol Selanjutnya terkunci.</p>
+              </div>
+            )}
           </div>
-          
-          {isDataStep && !hasEnoughData && (
-             <div className="absolute top-4 right-4 bg-yellow-500/10 border border-yellow-500/30 p-3 rounded-lg max-w-xs shadow-lg animate-pulse">
-               <p className="text-yellow-400 text-xs font-bold mb-1">DATA BELUM LENGKAP</p>
-               <p className="text-white/70 text-xs">Anda baru mengumpulkan {rowCount}/25 data. Tombol Selanjutnya terkunci.</p>
-             </div>
-          )}
-        </div>
-      }
+        );
+      }}
       isNextDisabled={isNextDisabled}
     />
   );

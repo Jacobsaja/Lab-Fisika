@@ -93,3 +93,50 @@ export function getVelocity(t: number, g: number, v0: number = 0): number {
 export function getDisplacement(t: number, g: number, v0: number = 0): number {
   return v0 * t + 0.5 * g * t * t;
 }
+
+export interface FreeFallVectorState {
+  /** Waktu jatuh yang telah berjalan (detik) */
+  t: number;
+  /** Percepatan gravitasi lokal (m/s²) */
+  g: number;
+  /** Massa bola baja (kg), default 0.05 kg (50 g) */
+  mass?: number;
+  /** Apakah benda sedang dalam status jatuh bebas */
+  isFalling?: boolean;
+}
+
+export interface FreeFallVectors {
+  /** Gaya berat w = m * g (N), konstan mengarah ke bawah */
+  w: number;
+  /** Kecepatan sesaat v = g * t (m/s), mengarah ke bawah (0 pada t = 0) */
+  v: number;
+  /** Percepatan gravitasi a = g (m/s²), konstan mengarah ke bawah */
+  a: number;
+  /** Pengali arah koordinat vertikal (+1 ke bawah) */
+  directionY: number;
+}
+
+/**
+ * Fungsi murni untuk menghitung vektor fisika gerak jatuh bebas (GJB).
+ * Model vakum murni tanpa hambatan udara:
+ * - Percepatan a = g (konstan)
+ * - Kecepatan v = g * t (nol saat t = 0)
+ * - Gaya berat w = m * g (konstan)
+ * - Semua vektor mengarah vertikal ke bawah (+y pada canvas SVG)
+ */
+export function getFreeFallVectors(state: FreeFallVectorState): FreeFallVectors {
+  const g = state.g > 0 ? state.g : 9.81;
+  const mass = state.mass && state.mass > 0 ? state.mass : 0.05;
+  const t = Math.max(0, state.t);
+
+  const w = mass * g;
+  const v = g * t;
+  const a = g;
+
+  return {
+    w,
+    v,
+    a,
+    directionY: 1, // Menunjuk ke bawah (arah sumbu +y SVG)
+  };
+}

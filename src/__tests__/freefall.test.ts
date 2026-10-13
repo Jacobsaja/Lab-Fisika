@@ -107,4 +107,49 @@ describe("Gerak Jatuh Bebas (GJB) Physics Module", () => {
       expect(getDisplacement(2, 9.8, 5)).toBe(29.6);
     });
   });
+
+  describe("getFreeFallVectors (Tahap J)", () => {
+    const { getFreeFallVectors } = require("../physics/freefall");
+
+    it("memastikan percepatan a = g konstan saat tanpa hambatan udara", () => {
+      const g = 9.81;
+      const vec0 = getFreeFallVectors({ t: 0, g });
+      const vec1 = getFreeFallVectors({ t: 0.5, g });
+      const vec2 = getFreeFallVectors({ t: 1.0, g });
+
+      expect(vec0.a).toBe(g);
+      expect(vec1.a).toBe(g);
+      expect(vec2.a).toBe(g);
+    });
+
+    it("memastikan kecepatan v = g * t dan bernilai nol pada t = 0", () => {
+      const g = 9.80;
+      const vec0 = getFreeFallVectors({ t: 0, g });
+      expect(vec0.v).toBe(0);
+
+      const t1 = 0.45;
+      const vec1 = getFreeFallVectors({ t: t1, g });
+      expect(vec1.v).toBeCloseTo(g * t1, 5);
+
+      const t2 = 1.2;
+      const vec2 = getFreeFallVectors({ t: t2, g });
+      expect(vec2.v).toBeCloseTo(g * t2, 5);
+    });
+
+    it("memastikan semua vektor mengarah vertikal ke bawah (directionY = +1)", () => {
+      const vec = getFreeFallVectors({ t: 0.3, g: 9.79, mass: 0.05 });
+      expect(vec.directionY).toBe(1);
+      // Pada koordinat SVG, dy positif berarti mengarah ke bawah
+      expect(vec.w).toBeGreaterThan(0);
+      expect(vec.v).toBeGreaterThan(0);
+      expect(vec.a).toBeGreaterThan(0);
+    });
+
+    it("menghitung gaya berat w = m * g konstan", () => {
+      const mass = 0.05; // 50 g
+      const g = 9.81;
+      const vec = getFreeFallVectors({ t: 0.8, g, mass });
+      expect(vec.w).toBeCloseTo(mass * g, 5);
+    });
+  });
 });
