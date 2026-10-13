@@ -223,6 +223,8 @@ export function Caliper({
 
                 {/* High-Contrast White Scale Plate for Main Scale */}
                 <rect
+                  data-scale-plate="true"
+                  data-testid="scale-plate"
                   x={BEAM_X0 - 15}
                   y={BEAM_Y - 50}
                   width={maxMm * PPM + 30}
@@ -547,6 +549,8 @@ export function Caliper({
 
                 {/* Ultra High-Contrast Vernier White Scale Strip */}
                 <rect
+                  data-scale-plate="true"
+                  data-testid="scale-plate"
                   x={0}
                   y={BEAM_Y - 2}
                   width={N_DIV * VERNIER_SPACING * PPM}

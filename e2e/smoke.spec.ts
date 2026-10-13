@@ -66,29 +66,21 @@ const VIEWPORTS = [
 ];
 
 // Helper to check for illegal plain white backgrounds (rgb(255, 255, 255))
-// Exemptions: Caliper and Ohaus scale plates / vernier markings
+// Exemptions: strictly elements explicitly marked with data-scale-plate or data-testid="scale-plate"
 async function checkNoWhiteCanvas(page: Page, routePath: string) {
-  const whiteElements = await page.evaluate((currentPath) => {
-    const isPAP = currentPath.includes("pap");
-    const elements = Array.from(document.querySelectorAll("svg, canvas, div[class*='apparatus'], div[class*='container'], section"));
+  const whiteElements = await page.evaluate(() => {
+    const elements = Array.from(document.querySelectorAll("svg, canvas, div[class*='apparatus'], div[class*='container'], section, rect"));
     const offending: string[] = [];
 
     for (const el of elements) {
-      // Exemption for intentional light scale plates in Caliper and Ohaus
-      if (isPAP) {
-        const text = el.textContent || "";
-        const id = el.id || "";
-        const className = typeof el.className === "string" ? el.className : "";
-        if (
-          className.includes("scale") ||
-          className.includes("vernier") ||
-          id.includes("beam") ||
-          id.includes("plate") ||
-          text.includes("cm") ||
-          text.includes("g")
-        ) {
-          continue;
-        }
+      // Exemption strictly for explicit scale plate elements
+      if (
+        el.getAttribute("data-scale-plate") === "true" ||
+        el.getAttribute("data-testid") === "scale-plate" ||
+        el.closest("[data-scale-plate='true']") ||
+        el.closest("[data-testid='scale-plate']")
+      ) {
+        continue;
       }
 
       const style = window.getComputedStyle(el);
@@ -101,7 +93,7 @@ async function checkNoWhiteCanvas(page: Page, routePath: string) {
       }
     }
     return offending;
-  }, routePath);
+  });
 
   expect(
     whiteElements,

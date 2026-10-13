@@ -220,7 +220,7 @@ export function OhausBalance({ valueGrams, className = "", onReadingChange }: Oh
             <rect x={X0 - 25} y={ARM_Y.top - 20} width={W + 50} height={42} fill="#1e293b" stroke="#334155" strokeWidth="1" rx="6" />
 
             {/* High-Contrast White Scale Plate */}
-            <rect x={X0 - 15} y={ARM_Y.top - 14} width={W + 30} height={30} fill={`url(#ohaus-plate-grad-${instanceId})`} stroke="#cbd5e1" strokeWidth="0.8" rx="3" />
+            <rect data-scale-plate="true" data-testid="scale-plate" x={X0 - 15} y={ARM_Y.top - 14} width={W + 30} height={30} fill={`url(#ohaus-plate-grad-${instanceId})`} stroke="#cbd5e1" strokeWidth="0.8" rx="3" />
 
             {/* Guide Rail Groove */}
             <line x1={X0} y1={ARM_Y.top} x2={X1} y2={ARM_Y.top} stroke="#64748b" strokeWidth="1.5" />
@@ -289,7 +289,7 @@ export function OhausBalance({ valueGrams, className = "", onReadingChange }: Oh
             <rect x={X0 - 25} y={ARM_Y.middle - 22} width={W + 50} height={46} fill="#1e293b" stroke="#334155" strokeWidth="1" rx="6" />
 
             {/* High-Contrast White Scale Plate */}
-            <rect x={X0 - 15} y={ARM_Y.middle - 16} width={W + 30} height={34} fill={`url(#ohaus-plate-grad-${instanceId})`} stroke="#cbd5e1" strokeWidth="0.8" rx="3" />
+            <rect data-scale-plate="true" data-testid="scale-plate" x={X0 - 15} y={ARM_Y.middle - 16} width={W + 30} height={34} fill={`url(#ohaus-plate-grad-${instanceId})`} stroke="#cbd5e1" strokeWidth="0.8" rx="3" />
 
             {/* Guide Rail Groove */}
             <line x1={X0} y1={ARM_Y.middle} x2={X1} y2={ARM_Y.middle} stroke="#64748b" strokeWidth="1.5" />
@@ -358,7 +358,7 @@ export function OhausBalance({ valueGrams, className = "", onReadingChange }: Oh
             <rect x={X0 - 25} y={ARM_Y.bottom - 20} width={W + 50} height={44} fill="#1e293b" stroke="#334155" strokeWidth="1" rx="6" />
 
             {/* High-Contrast White Scale Plate */}
-            <rect x={X0 - 15} y={ARM_Y.bottom - 14} width={W + 30} height={32} fill={`url(#ohaus-plate-grad-${instanceId})`} stroke="#cbd5e1" strokeWidth="0.8" rx="3" />
+            <rect data-scale-plate="true" data-testid="scale-plate" x={X0 - 15} y={ARM_Y.bottom - 14} width={W + 30} height={32} fill={`url(#ohaus-plate-grad-${instanceId})`} stroke="#cbd5e1" strokeWidth="0.8" rx="3" />
 
             {/* Scale Label Badge */}
             <text x={X0 - 20} y={ARM_Y.bottom + 5} fill="#38bdf8" fontSize="10" fontFamily="'JetBrains Mono', monospace" fontWeight="bold" textAnchor="end">
@@ -461,6 +461,8 @@ export function OhausBalance({ valueGrams, className = "", onReadingChange }: Oh
 
             {/* Precision Zero Mark Indicator Scale Plate (White Satin) */}
             <rect
+              data-scale-plate="true"
+              data-testid="scale-plate"
               x="850"
               y="145"
               width="24"
