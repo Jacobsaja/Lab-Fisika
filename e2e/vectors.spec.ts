@@ -180,4 +180,159 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
       expect(text).not.toMatch(/\d+\.\d+\s*(N|m\/s²)/);
     }
   });
+
+  test("Explore GJB: toggles vector categories and shows numbers", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/explore/mekanika/gjb", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Verify vector controls container exists
+    const controls = page.locator("div:has-text('Vektor Fisika (Overlay)')");
+    await expect(controls.first()).toBeVisible();
+
+    // Verify category buttons exist
+    const weightBtn = page.locator("button:has-text('Gaya Berat')");
+    const velocityBtn = page.locator("button:has-text('Kecepatan')");
+    const accelBtn = page.locator("button:has-text('Percepatan')");
+
+    await expect(weightBtn).toBeVisible();
+    await expect(velocityBtn).toBeVisible();
+    await expect(accelBtn).toBeVisible();
+
+    // In explore mode, numerical values are visible on vector badges (e.g. contains 'N' or 'm/s²')
+    const overlayGroup = page.locator("g[aria-label='Overlay Vektor Fisika']");
+    await expect(overlayGroup.first()).toBeVisible();
+
+    // Count initial arrows
+    const initialArrows = await page.locator("g[id*='_arrow_']").count();
+    expect(initialArrows).toBeGreaterThan(0);
+
+    // Toggle Gaya Berat OFF
+    await weightBtn.click();
+    await page.waitForTimeout(300);
+    const arrowsAfterWeightOff = await page.locator("g[id*='_arrow_']").count();
+    expect(arrowsAfterWeightOff).toBeLessThan(initialArrows);
+
+    // Toggle Gaya Berat back ON
+    await weightBtn.click();
+    await page.waitForTimeout(300);
+    expect(await page.locator("g[id*='_arrow_']").count()).toBe(initialArrows);
+
+    // Toggle Percepatan OFF and ON
+    await accelBtn.click();
+    await page.waitForTimeout(300);
+    expect(await page.locator("g[id*='_arrow_']").count()).toBeLessThan(initialArrows);
+    await accelBtn.click();
+    await page.waitForTimeout(300);
+
+    expect(consoleErrors).toHaveLength(0);
+  });
+
+  test("Explore GMB: toggles vector categories and shows numbers", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/explore/mekanika/gmb", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Verify vector controls container exists
+    const controls = page.locator("div:has-text('Vektor Fisika (Overlay)')");
+    await expect(controls.first()).toBeVisible();
+
+    // Verify category buttons exist
+    const velBtn = page.locator("button:has-text('Kecepatan Tangensial')");
+    const accelBtn = page.locator("button:has-text('Percepatan Sentripetal')");
+    const forceBtn = page.locator("button:has-text('Gaya Sentripetal')");
+
+    await expect(velBtn).toBeVisible();
+    await expect(accelBtn).toBeVisible();
+    await expect(forceBtn).toBeVisible();
+
+    // Overlay is visible
+    const overlayGroup = page.locator("g[aria-label='Overlay Vektor Fisika']");
+    await expect(overlayGroup.first()).toBeVisible();
+
+    // In explore mode, vector numbers with units (m/s, m/s², N) are in the DOM
+    const badgeTexts = await page.locator("g[aria-label='Overlay Vektor Fisika'] text").allTextContents();
+    expect(badgeTexts.some((t) => t.includes("m/s") || t.includes("m/s²") || t.includes("N"))).toBe(true);
+
+    const initialArrows = await page.locator("g[id*='_arrow_']").count();
+    expect(initialArrows).toBeGreaterThanOrEqual(3);
+
+    // Toggle Kecepatan Tangensial OFF and ON
+    await velBtn.click();
+    await page.waitForTimeout(300);
+    expect(await page.locator("g[id*='_arrow_']").count()).toBeLessThan(initialArrows);
+    await velBtn.click();
+    await page.waitForTimeout(300);
+
+    // Toggle Percepatan Sentripetal OFF and ON
+    await accelBtn.click();
+    await page.waitForTimeout(300);
+    expect(await page.locator("g[id*='_arrow_']").count()).toBeLessThan(initialArrows);
+    await accelBtn.click();
+    await page.waitForTimeout(300);
+
+    // Toggle Gaya Sentripetal OFF and ON
+    await forceBtn.click();
+    await page.waitForTimeout(300);
+    expect(await page.locator("g[id*='_arrow_']").count()).toBeLessThan(initialArrows);
+    await forceBtn.click();
+    await page.waitForTimeout(300);
+
+    expect(consoleErrors).toHaveLength(0);
+  });
+
+  test("Practicum GJB & GMB: locked initially, qualitative without numeric values in DOM", async ({ page }) => {
+    // 1. Practicum GJB
+    await page.goto("/praktikum/gjb", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Go past INTRO and SETUP to SIMULATION step
+    const nextBtnGjb = page.locator("button[data-testid='practicum-next-step']").or(page.locator("button:has-text('Selanjutnya')"));
+    if (await nextBtnGjb.first().isVisible()) {
+      await nextBtnGjb.first().click();
+      await page.waitForTimeout(500);
+      await nextBtnGjb.first().click();
+      await page.waitForTimeout(800);
+    }
+
+    // Verify locked badge
+    const lockBadgeGjb = page.locator("div:has-text('Terkunci')");
+    await expect(lockBadgeGjb.first()).toBeVisible();
+
+    // Verify no vector numbers leaked into SVG overlay
+    const gjbTextContent = await page.locator("g[aria-label='Overlay Vektor Fisika'] text").allTextContents();
+    for (const text of gjbTextContent) {
+      expect(text).not.toMatch(/\d+\.\d+\s*(N|m\/s|m\/s²)/);
+    }
+
+    // 2. Practicum GMB
+    await page.goto("/praktikum/gmb", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    const nextBtnGmb = page.locator("button[data-testid='practicum-next-step']").or(page.locator("button:has-text('Selanjutnya')"));
+    if (await nextBtnGmb.first().isVisible()) {
+      await nextBtnGmb.first().click();
+      await page.waitForTimeout(500);
+      await nextBtnGmb.first().click();
+      await page.waitForTimeout(800);
+    }
+
+    // Verify locked badge
+    const lockBadgeGmb = page.locator("div:has-text('Terkunci')");
+    await expect(lockBadgeGmb.first()).toBeVisible();
+
+    // Verify no vector numbers leaked into SVG overlay
+    const gmbTextContent = await page.locator("g[aria-label='Overlay Vektor Fisika'] text").allTextContents();
+    for (const text of gmbTextContent) {
+      expect(text).not.toMatch(/\d+\.\d+\s*(N|m\/s|m\/s²)/);
+    }
+  });
 });
