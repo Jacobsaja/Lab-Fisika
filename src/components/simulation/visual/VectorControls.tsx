@@ -17,6 +17,7 @@ export interface VectorCategoryConfig {
   label: string;
   color: string;
   checked: boolean;
+  dashed?: boolean;
   title?: string;
 }
 
@@ -164,7 +165,9 @@ export function VectorControls({
             >
               <div className="flex items-center gap-2 truncate">
                 <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                    cat.dashed ? "border border-dashed border-white/80" : ""
+                  }`}
                   style={{ backgroundColor: cat.color }}
                 />
                 <span className="truncate">{cat.label}</span>
@@ -246,22 +249,22 @@ export function VectorControls({
               onClick={() => handleToggle("showTotalMomentum")}
               className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
                 state.showTotalMomentum
-                  ? "bg-pink-950/70 border-pink-500 text-pink-200 shadow-[0_0_10px_rgba(236,72,153,0.2)]"
+                  ? "bg-blue-950/70 border-blue-500 text-blue-200 shadow-[0_0_10px_rgba(37,99,235,0.2)]"
                   : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
               }`}
-              title="Tampilkan vektor momentum total sistem (p_total)"
+              title="Tampilkan vektor momentum total sistem (Σp, garis putus-putus)"
             >
               <div className="flex items-center gap-2">
                 <span
-                  className="w-2.5 h-2.5 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full border border-dashed border-white/80"
                   style={{ backgroundColor: SCIENTIFIC_THEME.vectors.momentumTotal }}
                 />
-                <span>Momentum total</span>
+                <span>Momentum total (Σp)</span>
               </div>
               <div
                 className={`w-4 h-4 rounded flex items-center justify-center border ${
                   state.showTotalMomentum
-                    ? "bg-pink-600 border-pink-400 text-white"
+                    ? "bg-blue-600 border-blue-400 text-white"
                     : "border-slate-700 bg-slate-900"
                 }`}
               >

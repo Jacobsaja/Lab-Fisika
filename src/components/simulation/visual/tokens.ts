@@ -68,14 +68,19 @@ export const SCIENTIFIC_THEME = {
     fuchsia: "#d946ef",    // Total momentum vector (System Σp)
   },
 
-  // Semantic Vector Category Palettes (Aligned with Batch E graph series)
+  // Semantic Vector Category Palettes (Strict delta-Hue >= 30° between all adjacent categories)
   vectors: {
-    position: "#38bdf8",       // Sky Blue (Posisi)
-    velocity: "#10b981",       // Emerald (Kecepatan)
-    acceleration: "#c084fc",   // Violet (Percepatan)
-    force: "#f59e0b",          // Amber (Gaya)
-    momentum: "#2563eb",       // Cobalt Blue (Momentum kereta pA & pB)
-    momentumTotal: "#ec4899",  // Vibrant Pink (Momentum total sistem Σp)
+    position: "#06b6d4",       // Cyan (Hue 188°) - Posisi
+    velocity: "#22c55e",       // Green (Hue 142°) - Kecepatan
+    acceleration: "#9333ea",   // Purple (Hue 272°) - Percepatan
+    gravity: "#f59e0b",        // Amber (Hue 38°) - Gaya Berat / Gravitasi
+    force: "#f59e0b",          // Amber (Hue 38°) - Gaya Berat / Luar umum
+    friction: "#dc2626",       // Crimson Red (Hue 0°) - Gaya Gesek
+    tensionNormal: "#ec4899",  // Pink/Magenta (Hue 330°) - Tegangan Tali & Gaya Normal
+    tension: "#ec4899",        // Pink/Magenta (Hue 330°) - Alias Tegangan Tali
+    normal: "#ec4899",         // Pink/Magenta (Hue 330°) - Alias Gaya Normal
+    momentum: "#2563eb",       // Royal Blue (Hue 221°) - Momentum (pA, pB, Σp)
+    momentumTotal: "#2563eb",  // Royal Blue (Hue 221°) - Momentum total sistem (dibedakan via garis putus-putus)
   },
 
   // Text & Scale Labels

@@ -20,6 +20,9 @@ export interface VectorItem {
   valueText?: string;
   /** Specific custom scale for this vector item (pixels per physical unit) */
   scale?: number;
+  /** Whether the vector line should be dashed (for intra-category distinction) */
+  dashed?: boolean;
+  strokeDasharray?: string;
 }
 
 export interface VectorOverlayProps {
@@ -101,6 +104,8 @@ export function VectorOverlay({
               strokeWidth={3}
               headSize={9}
               disableFilter={true}
+              dashed={vec.dashed}
+              strokeDasharray={vec.strokeDasharray}
               id={`${baseId}_arrow_${vec.id || index}`}
             />
 

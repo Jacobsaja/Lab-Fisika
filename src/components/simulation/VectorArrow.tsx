@@ -15,6 +15,8 @@ interface VectorArrowProps {
   strokeWidth?: number;
   headSize?: number;
   disableFilter?: boolean;
+  dashed?: boolean;
+  strokeDasharray?: string;
   id?: string;
 }
 
@@ -31,6 +33,8 @@ export function VectorArrow({
   strokeWidth = 3,
   headSize = 10,
   disableFilter = false,
+  dashed = false,
+  strokeDasharray,
   id,
 }: VectorArrowProps) {
   const length = Math.hypot(delta.x, delta.y);
@@ -55,6 +59,7 @@ export function VectorArrow({
         y2={base.y}
         stroke={color}
         strokeWidth={strokeWidth}
+        strokeDasharray={strokeDasharray ?? (dashed ? "5 3" : undefined)}
         strokeLinecap="round"
         style={disableFilter ? undefined : { filter: `drop-shadow(0 0 4px ${color})` }}
       />

@@ -534,6 +534,8 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
       components: { dx: liveVectors.pTotal, dy: 0 },
       scale: 1300,
       color: SCIENTIFIC_THEME.vectors.momentumTotal,
+      dashed: true,
+      strokeDasharray: "5 3",
       showValue: showValuesInOverlay,
       valueText: `${liveVectors.pTotal.toFixed(4)} kg·m/s`,
     });
