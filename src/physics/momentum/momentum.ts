@@ -29,8 +29,35 @@ import {
   Collision1DResult,
   ModulCaseParams,
   ModulCaseTheory,
-  ModulTrialData
+  ModulTrialData,
+  HkmVectorState,
+  HkmVectors,
 } from "./types";
+
+export type { HkmVectorState, HkmVectors };
+
+/**
+ * Calculates instantaneous 1D vectors for velocities and momentums.
+ * Pure function: deterministic, sign-preserving (positive = rightward, negative = leftward).
+ */
+export function getHkmVectors(state: HkmVectorState): HkmVectors {
+  const vA = Number.isFinite(state.vA) ? state.vA : 0;
+  const vB = Number.isFinite(state.vB) ? state.vB : 0;
+  const mA = Math.max(0, state.mA || 0);
+  const mB = Math.max(0, state.mB || 0);
+
+  const pA = momentum(mA, vA);
+  const pB = momentum(mB, vB);
+  const pTotal = pA + pB;
+
+  return {
+    vA,
+    vB,
+    pA,
+    pB,
+    pTotal,
+  };
+}
 
 /**
  * Calculates linear momentum p = m * v.

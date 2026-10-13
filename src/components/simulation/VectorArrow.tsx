@@ -14,13 +14,25 @@ interface VectorArrowProps {
   labelSubscript?: string;
   strokeWidth?: number;
   headSize?: number;
+  disableFilter?: boolean;
+  id?: string;
 }
 
 /**
  * Self-contained SVG vector arrow (no <marker> ids, so multiple instances
  * never collide). Renders nothing for zero-length vectors.
  */
-export function VectorArrow({ from, delta, color, label, labelSubscript, strokeWidth = 3, headSize = 10 }: VectorArrowProps) {
+export function VectorArrow({
+  from,
+  delta,
+  color,
+  label,
+  labelSubscript,
+  strokeWidth = 3,
+  headSize = 10,
+  disableFilter = false,
+  id,
+}: VectorArrowProps) {
   const length = Math.hypot(delta.x, delta.y);
   if (length < 1) return null;
 
@@ -35,7 +47,7 @@ export function VectorArrow({ from, delta, color, label, labelSubscript, strokeW
   const labelPos = { x: tip.x + ux * 14, y: tip.y + uy * 14 };
 
   return (
-    <g pointerEvents="none">
+    <g id={id} pointerEvents="none">
       <line
         x1={from.x}
         y1={from.y}
@@ -44,7 +56,7 @@ export function VectorArrow({ from, delta, color, label, labelSubscript, strokeW
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
-        style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+        style={disableFilter ? undefined : { filter: `drop-shadow(0 0 4px ${color})` }}
       />
       <polygon
         points={`${tip.x},${tip.y} ${base.x + px},${base.y + py} ${base.x - px},${base.y - py}`}

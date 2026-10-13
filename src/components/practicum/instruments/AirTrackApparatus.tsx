@@ -2,12 +2,21 @@
 
 import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef, useId } from "react";
 import { TimerCounter } from "./TimerCounter";
-import { useMetalGradientIds, SvgMetalGradients } from "@/components/simulation/visual";
+import {
+  useMetalGradientIds,
+  SvgMetalGradients,
+  VectorOverlay,
+  VectorControls,
+  VectorControlsState,
+  VectorItem,
+  SCIENTIFIC_THEME,
+} from "@/components/simulation/visual";
 import {
   solve1DCollision,
   restitutionCoefficient,
   momentum,
   velocityFromGate,
+  getHkmVectors,
 } from "@/physics/momentum/momentum";
 import { ModulCase } from "@/physics/momentum/types";
 import { Play, RotateCcw, Wind } from "lucide-react";
@@ -40,6 +49,12 @@ export interface AirTrackApparatusProps {
   launchSpeed?: number; // m/s, default 0.4
   // Callbacks
   onCollisionComplete?: (data: CollisionCompleteData) => void;
+  // Vector overlay & controls props
+  vectorControls?: VectorControlsState;
+  onVectorControlsChange?: (state: VectorControlsState) => void;
+  isVectorLocked?: boolean;
+  vectorLockMessage?: string;
+  hideVectorControls?: boolean;
   className?: string;
 }
 
@@ -85,14 +100,39 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   customRestitution,
   launchSpeed = 0.42,
   onCollisionComplete,
+  vectorControls,
+  onVectorControlsChange,
+  isVectorLocked = false,
+  vectorLockMessage,
+  hideVectorControls = false,
   className = "",
 }, ref) => {
   const instanceId = useId().replace(/[:]/g, "_");
   const gradientIds = useMetalGradientIds(`airtrack_${instanceId}`);
 
-  // Permanent rule: isolate callback prop with useRef
+  // Permanent rule: isolate callback props with useRef
   const onCollisionCompleteRef = useRef(onCollisionComplete);
   onCollisionCompleteRef.current = onCollisionComplete;
+  const onVectorControlsChangeRef = useRef(onVectorControlsChange);
+  onVectorControlsChangeRef.current = onVectorControlsChange;
+
+  const [localVectorControls, setLocalVectorControls] = useState<VectorControlsState>({
+    showVelocity: true,
+    showMomentum: true,
+    showTotalMomentum: true,
+    arrowScale: 1.0,
+    showValues: mode === "explore",
+  });
+
+  const activeVectorControls = vectorControls ?? localVectorControls;
+
+  const handleVectorControlsChange = useCallback((newState: VectorControlsState) => {
+    if (onVectorControlsChangeRef.current) {
+      onVectorControlsChangeRef.current(newState);
+    } else {
+      setLocalVectorControls(newState);
+    }
+  }, []);
 
   // Determine actual masses based on props or activeCase
   const aHasWeight =
@@ -131,6 +171,15 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   // Visual state for React re-render
   const [renderPosA, setRenderPosA] = useState(CART_A_INIT_M);
   const [renderPosB, setRenderPosB] = useState(CART_B_INIT_M);
+  const [renderVelA, setRenderVelA] = useState(launchSpeed);
+  const [renderVelB, setRenderVelB] = useState(0);
+
+  useEffect(() => {
+    if (!isSimulating && posARef.current === CART_A_INIT_M) {
+      setRenderVelA(launchSpeed);
+      setRenderVelB(0);
+    }
+  }, [launchSpeed, isSimulating]);
 
   // Photogate trigger tracking
   const [gate1Active, setGate1Active] = useState(false);
@@ -177,6 +226,8 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
 
     setRenderPosA(CART_A_INIT_M);
     setRenderPosB(CART_B_INIT_M);
+    setRenderVelA(launchSpeed);
+    setRenderVelB(0);
 
     setP11(null);
     setP21(null);
@@ -189,7 +240,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
     p21CalculatedRef.current = null;
     p22CalculatedRef.current = null;
     callbackFiredRef.current = false;
-  }, []);
+  }, [launchSpeed]);
 
   // ── Launch function ──
   const handleLaunch = useCallback(() => {
@@ -199,6 +250,8 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
     // Start cart A moving rightward
     velARef.current = launchSpeed;
     velBRef.current = 0;
+    setRenderVelA(launchSpeed);
+    setRenderVelB(0);
     setIsSimulating(true);
     lastTimeRef.current = performance.now();
   }, [isSimulating, handleReset, launchSpeed]);
@@ -364,13 +417,17 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
         }
       }
 
-      // Update render positions
+      // Update render positions and velocities
       setRenderPosA(xA);
       setRenderPosB(xB);
+      setRenderVelA(vA);
+      setRenderVelB(vB);
 
       // Stop condition: both carts stopped or at end
       if ((Math.abs(vA) < 1e-4 && Math.abs(vB) < 1e-4) && localCollided) {
         setIsSimulating(false);
+        setRenderVelA(0);
+        setRenderVelB(0);
         return;
       }
 
@@ -394,6 +451,93 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   // Render variables in SVG space
   const cartAX = TRACK_X1 + renderPosA * PX_PER_M;
   const cartBX = TRACK_X1 + renderPosB * PX_PER_M;
+
+  // Physical vectors computation via pure engine
+  const liveVectors = getHkmVectors({
+    mA: effectiveMA,
+    mB: effectiveMB,
+    vA: renderVelA,
+    vB: renderVelB,
+  });
+
+  const centerA = cartAX + CART_LEN_PX / 2;
+  const centerB = cartBX + CART_LEN_PX / 2;
+  const totalMass = effectiveMA + effectiveMB;
+  const xCM = totalMass > 0 ? (effectiveMA * centerA + effectiveMB * centerB) / totalMass : centerA;
+
+  const isQualitative = mode === "practicum";
+  const showValuesInOverlay = !isQualitative && activeVectorControls.showValues;
+
+  const vectorItems: VectorItem[] = [];
+
+  // 1. Velocity A & B (Level 1: Y = 142)
+  if (activeVectorControls.showVelocity) {
+    vectorItems.push({
+      id: "vA",
+      category: "velocity",
+      label: "vA",
+      origin: { x: centerA, y: 142 },
+      components: { dx: liveVectors.vA, dy: 0 },
+      scale: 200,
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.vA.toFixed(2)} m/s`,
+    });
+
+    vectorItems.push({
+      id: "vB",
+      category: "velocity",
+      label: "vB",
+      origin: { x: centerB, y: 142 },
+      components: { dx: liveVectors.vB, dy: 0 },
+      scale: 200,
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.vB.toFixed(2)} m/s`,
+    });
+  }
+
+  // 2. Momentum A & B (Level 2: Y = 115)
+  if (activeVectorControls.showMomentum) {
+    vectorItems.push({
+      id: "pA",
+      category: "momentum",
+      label: "pA",
+      origin: { x: centerA, y: 115 },
+      components: { dx: liveVectors.pA, dy: 0 },
+      scale: 1300,
+      color: SCIENTIFIC_THEME.vectors.momentum,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.pA.toFixed(4)} kg·m/s`,
+    });
+
+    vectorItems.push({
+      id: "pB",
+      category: "momentum",
+      label: "pB",
+      origin: { x: centerB, y: 115 },
+      components: { dx: liveVectors.pB, dy: 0 },
+      scale: 1300,
+      color: SCIENTIFIC_THEME.vectors.momentum,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.pB.toFixed(4)} kg·m/s`,
+    });
+  }
+
+  // 3. Momentum Total (Level 3: Y = 80)
+  if (activeVectorControls.showTotalMomentum) {
+    vectorItems.push({
+      id: "pTotal",
+      category: "momentumTotal",
+      label: "Σp",
+      origin: { x: xCM, y: 80 },
+      components: { dx: liveVectors.pTotal, dy: 0 },
+      scale: 1300,
+      color: SCIENTIFIC_THEME.vectors.momentumTotal,
+      showValue: showValuesInOverlay,
+      valueText: `${liveVectors.pTotal.toFixed(4)} kg·m/s`,
+    });
+  }
 
   return (
     <div className={`flex flex-col gap-4 w-full select-none ${className}`}>
@@ -756,9 +900,30 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
               <line x1="10" y1="9" x2="24" y2="9" stroke="#94a3b8" strokeWidth="3" />
               <path d="M 12 5 L 14 13 L 16 5 L 18 13 L 20 5 L 22 9" fill="none" stroke="#e2e8f0" strokeWidth="2" />
             </g>
+
+            {/* Physical Vector Overlay */}
+            {!isVectorLocked && (
+              <VectorOverlay
+                vectors={vectorItems}
+                userScale={activeVectorControls.arrowScale}
+                maxArrowLength={160}
+                showValues={showValuesInOverlay}
+              />
+            )}
           </svg>
         </div>
       </div>
+
+      {/* Vector Controls Panel */}
+      {!hideVectorControls && (
+        <VectorControls
+          state={activeVectorControls}
+          onChange={handleVectorControlsChange}
+          isQualitative={isQualitative}
+          isLocked={isVectorLocked}
+          lockMessage={vectorLockMessage}
+        />
+      )}
 
       {/* Synchronized Digital Timer Counter */}
       <TimerCounter

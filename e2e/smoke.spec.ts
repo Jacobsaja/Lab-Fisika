@@ -226,3 +226,113 @@ test.describe("BrushableLineGraph Drag Consistency Across Viewports", () => {
     expect(results[1].rangePct).toBeCloseTo(0.5, 2);
   });
 });
+
+// ── 4. Dedicated Verification for Vector Overlay (Pilot HKM) ──
+test.describe("Vector Overlay (Pilot HKM) — Explore & Practicum", () => {
+  test("Explore HKM: toggle tiap kategori vektor dan pastikan elemen muncul/hilang tanpa error console", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/explore/mekanika/hkm", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Verify initial vector elements exist
+    const vecA = page.locator("[id*='_vector_vA']");
+    const vecPA = page.locator("[id*='_vector_pA']");
+    const vecPTotal = page.locator("[id*='_vector_pTotal']");
+
+    await expect(vecA).toBeVisible();
+    await expect(vecPA).toBeVisible();
+    await expect(vecPTotal).toBeVisible();
+
+    // Toggle Kecepatan OFF
+    const btnKecepatan = page.locator("button:has-text('Kecepatan')");
+    await btnKecepatan.click();
+    await page.waitForTimeout(200);
+    await expect(vecA).toHaveCount(0);
+
+    // Toggle Kecepatan back ON
+    await btnKecepatan.click();
+    await page.waitForTimeout(200);
+    await expect(vecA).toBeVisible();
+
+    // Toggle Momentum OFF
+    const btnMomentum = page.locator("button:has-text('Momentum')").first();
+    await btnMomentum.click();
+    await page.waitForTimeout(200);
+    await expect(vecPA).toHaveCount(0);
+
+    // Toggle Momentum back ON
+    await btnMomentum.click();
+    await page.waitForTimeout(200);
+    await expect(vecPA).toBeVisible();
+
+    // Toggle Momentum total OFF
+    const btnMomentumTotal = page.locator("button:has-text('Momentum total')");
+    await btnMomentumTotal.click();
+    await page.waitForTimeout(200);
+    await expect(vecPTotal).toHaveCount(0);
+
+    // Toggle Momentum total back ON
+    await btnMomentumTotal.click();
+    await page.waitForTimeout(200);
+    await expect(vecPTotal).toBeVisible();
+
+    // Ensure slider updates without errors
+    const scaleSlider = page.locator("input[aria-label='Skala panah']");
+    await scaleSlider.fill("1.5");
+    await page.waitForTimeout(200);
+
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("Practicum HKM: vektor terkunci sebelum tabel terisi dan tidak ada angka saat dibuka (kualitatif)", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/praktikum/hkm", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Initially locked banner visible
+    const lockBanner = page.locator("text=Vektor kualitatif terkunci");
+    await expect(lockBanner).toBeVisible();
+
+    // No vector elements rendered while locked
+    const overlayGroup = page.locator("g[aria-label='Overlay Vektor Fisika']");
+    await expect(overlayGroup).toHaveCount(0);
+
+    // Unlock by recording 1 data trial in active case
+    const recordBtn = page.locator("button:has-text('Catat Data Trial 1')");
+    await expect(recordBtn).toBeVisible();
+    await recordBtn.click();
+    await page.waitForTimeout(500);
+
+    // Lock banner disappears and vector overlay is now rendered
+    await expect(lockBanner).toHaveCount(0);
+    await expect(overlayGroup).toBeVisible();
+
+    // Inspect all text nodes inside overlayGroup: strictly qualitative, NO numbers
+    const overlayTexts = await overlayGroup.locator("text").allTextContents();
+    expect(overlayTexts.length).toBeGreaterThan(0);
+    for (const text of overlayTexts) {
+      if (text && text.trim().length > 0) {
+        // Check for numbers / physical units leak (e.g. 0.40, m/s, kg·m/s)
+        expect(text).not.toMatch(/\d/);
+        expect(text).not.toMatch(/m\/s/i);
+        expect(text).not.toMatch(/kg·m\/s/i);
+      }
+    }
+
+    expect(consoleErrors).toEqual([]);
+  });
+});

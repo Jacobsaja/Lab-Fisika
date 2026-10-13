@@ -421,6 +421,8 @@ export default function HKMPage() {
                 activeCase={activeCase}
                 baseMass={BASE_MASS}
                 addedMass={ADDED_MASS}
+                isVectorLocked={currentCaseTrials.length === 0 && (ctx.hintsRevealedCount ?? 0) < 3}
+                vectorLockMessage="Vektor kualitatif terkunci. Silakan catat minimal 1 data percobaan pada Kasus ini atau buka Petunjuk Level 3 untuk membukanya."
               />
             </div>
 

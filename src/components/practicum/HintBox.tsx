@@ -7,13 +7,14 @@ interface HintBoxProps {
   /** Ordered list of hint strings, revealed one at a time */
   hints: string[];
   className?: string;
+  onHintRevealed?: (count: number) => void;
 }
 
 /**
  * Progressive hint reveal: shows one hint at a time.
  * The user must explicitly request the next hint.
  */
-export function HintBox({ hints, className = "" }: HintBoxProps) {
+export function HintBox({ hints, className = "", onHintRevealed }: HintBoxProps) {
   const [revealedCount, setRevealedCount] = useState(0);
 
   if (hints.length === 0) return null;
@@ -109,7 +110,13 @@ export function HintBox({ hints, className = "" }: HintBoxProps) {
       {/* Reveal button */}
       {canRevealMore ? (
         <button
-          onClick={() => setRevealedCount((c) => c + 1)}
+          onClick={() =>
+            setRevealedCount((c) => {
+              const next = c + 1;
+              onHintRevealed?.(next);
+              return next;
+            })
+          }
           style={{
             alignSelf: "flex-start",
             display: "inline-flex",

@@ -6,3 +6,5 @@ export * from "./SvgRuler";
 export * from "./SvgCalloutBadge";
 export * from "./SvgHardware";
 export * from "./DigitalDisplay";
+export * from "./VectorOverlay";
+export * from "./VectorControls";

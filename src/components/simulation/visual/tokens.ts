@@ -64,6 +64,18 @@ export const SCIENTIFIC_THEME = {
     red: "#ef4444",        // Active IR beam / Acceleration vector
     rose: "#f43f5e",       // Critical indicator
     purple: "#8b5cf6",     // Inertia / Energy / Phase 2
+    indigo: "#6366f1",     // Momentum vector (Body A & B)
+    fuchsia: "#d946ef",    // Total momentum vector (System Σp)
+  },
+
+  // Semantic Vector Category Palettes (Consistent with graph series)
+  vectors: {
+    position: "#06b6d4",       // Cyan (Posisi)
+    velocity: "#10b981",       // Emerald (Kecepatan)
+    acceleration: "#8b5cf6",   // Violet (Percepatan)
+    force: "#f59e0b",          // Amber (Gaya)
+    momentum: "#6366f1",       // Electric Indigo (Momentum kereta pA & pB)
+    momentumTotal: "#d946ef",  // Vivid Fuchsia (Momentum total sistem Σp)
   },
 
   // Text & Scale Labels

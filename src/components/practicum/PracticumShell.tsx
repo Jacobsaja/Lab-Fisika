@@ -24,6 +24,8 @@ export interface PracticumShellContext {
   setRecordedData: (rows: Record<string, string | number>[]) => void;
   /** Increments every time the user presses the shell's Reset button. */
   resetCount: number;
+  /** Number of hints revealed so far via HintBox. */
+  hintsRevealedCount: number;
 }
 
 interface PracticumShellProps {
@@ -32,6 +34,8 @@ interface PracticumShellProps {
   simulationComponent: React.ReactNode | ((ctx: PracticumShellContext) => React.ReactNode);
   /** A static flag, or a predicate evaluated against the live session state. */
   isNextDisabled?: boolean | ((state: PracticumState) => boolean);
+  /** Optional callback fired when a progressive hint is revealed */
+  onHintRevealed?: (count: number) => void;
 }
 
 const BASE_STEPS: { id: PracticumStep; label: string }[] = [
@@ -42,11 +46,12 @@ const BASE_STEPS: { id: PracticumStep; label: string }[] = [
   { id: "REVIEW", label: "Tinjau Hasil" },
 ];
 
-export function PracticumShell({ config, simulationComponent, isNextDisabled = false }: PracticumShellProps) {
+export function PracticumShell({ config, simulationComponent, isNextDisabled = false, onHintRevealed }: PracticumShellProps) {
   const { state, setStep, updateElapsedMs, addDataRow, setRecordedData, setAnswer, completePracticum, resetSession } = usePracticumSession(config.id);
   const [mounted, setMounted] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [resetCount, setResetCount] = useState(0);
+  const [revealedHintsCount, setRevealedHintsCount] = useState(0);
 
   // Determine active steps based on config
   const STEPS = React.useMemo(() => {
@@ -359,7 +364,16 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
             )}
 
             {/* Progressive hints (fixed slot so revealed hints persist across steps) */}
-            {showHints && <HintBox key={resetCount} hints={config.hints!} />}
+            {showHints && (
+              <HintBox
+                key={resetCount}
+                hints={config.hints!}
+                onHintRevealed={(count) => {
+                  setRevealedHintsCount(count);
+                  onHintRevealed?.(count);
+                }}
+              />
+            )}
           </div>
 
           {/* Nav Buttons */}
@@ -388,7 +402,13 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
             {/* The simulation component is rendered in normal flow so vertical scroll works */}
             <div className="min-h-full w-full pointer-events-auto">
               {typeof simulationComponent === "function"
-                ? simulationComponent({ state, addDataRow, setRecordedData, resetCount })
+                ? simulationComponent({
+                    state,
+                    addDataRow,
+                    setRecordedData,
+                    resetCount,
+                    hintsRevealedCount: revealedHintsCount,
+                  })
                 : simulationComponent}
             </div>
             

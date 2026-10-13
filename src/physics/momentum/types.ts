@@ -22,6 +22,21 @@ export interface Collision1DResult {
   restitution: number; // coefficient of restitution e
 }
 
+export interface HkmVectorState {
+  mA: number; // Mass of Cart A in kg
+  mB: number; // Mass of Cart B in kg
+  vA: number; // Instantaneous velocity of Cart A in m/s
+  vB: number; // Instantaneous velocity of Cart B in m/s
+}
+
+export interface HkmVectors {
+  vA: number; // Velocity of Cart A in m/s (signed 1D)
+  vB: number; // Velocity of Cart B in m/s (signed 1D)
+  pA: number; // Linear momentum of Cart A in kg·m/s (signed 1D)
+  pB: number; // Linear momentum of Cart B in kg·m/s (signed 1D)
+  pTotal: number; // Total linear momentum in kg·m/s (signed 1D: pA + pB)
+}
+
 export type ModulCase = "A" | "B" | "C" | "D";
 
 export interface ModulCaseParams {
