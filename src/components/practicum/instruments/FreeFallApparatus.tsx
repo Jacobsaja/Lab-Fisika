@@ -15,10 +15,12 @@ import {
 } from "@/components/simulation/visual";
 
 // ── Physical Scale & Simulation Coordinates ──────────────────────────
-// 1 mm = 1 px. 1 m = 1000 px.
 const TIANG_TOP_Y = 50;   // Top of the vertical mast in SVG
-const GROUND_Y = 1250;    // Base of mast / contact plate level
-// Total mast span: 1250 − 50 = 1200 px = 1.2 m
+const GROUND_Y = 1550;    // Base of mast / contact plate level (lengthened to 1500px span)
+const TOTAL_SPAN = GROUND_Y - TIANG_TOP_Y; // 1500 px
+const VIEW_W = 440;
+const VIEW_H = 1680;
+const CENTER_X = 220;
 
 // Visual offset: ball sits just underneath the electromagnet pole tip.
 // Physical height h is strictly measured from magnetY (zero calibration bias).
@@ -50,7 +52,7 @@ export function FreeFallApparatus({
   const isAutoScrollingRef = useRef(false);
   const idealYRef = useRef<number | null>(null);
 
-  const PX_PER_METER = 1200 / scaleMaxMeters;
+  const PX_PER_METER = TOTAL_SPAN / scaleMaxMeters;
 
   // ── State ──
   const [magnetY, setMagnetY] = useState(250);       // SVG Y coordinate of electromagnet
@@ -92,10 +94,10 @@ export function FreeFallApparatus({
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
 
-    // Magnet height travel range: h min ≈ 0.2 m (svgY=1050), h max ≈ 1.1 m (svgY=150)
+    // Magnet height travel range across the lengthened track
     let newY = svgP.y;
-    if (newY < 150) newY = 150;
-    if (newY > 1050) newY = 1050;
+    if (newY < TIANG_TOP_Y + 40) newY = TIANG_TOP_Y + 40;
+    if (newY > GROUND_Y - 80) newY = GROUND_Y - 80;
 
     setMagnetY(newY);
     if (onHeightChange) onHeightChange(pixelsToMeters(newY));
@@ -218,78 +220,140 @@ export function FreeFallApparatus({
     };
   }, []);
 
-  // ── High-Contrast Engraved Millimeter Scale Ticks ──
+  // ── High-Contrast Engraved Scale Ticks ──
   const scaleTicks = useMemo(() => {
     const ticks: React.ReactNode[] = [];
-    const maxMm = scaleMaxMeters * 1000;
-    const step = scaleMaxMeters > 2 ? 10 : 1; 
+    const isLargeScale = scaleMaxMeters > 2;
 
-    for (let mm = 0; mm <= maxMm; mm += step) {
-      const y = GROUND_Y - (mm / 1000) * PX_PER_METER;
+    if (isLargeScale) {
+      // Metric scale in meters (Explore Mode, up to scaleMaxMeters)
+      const maxMeters = Math.ceil(scaleMaxMeters);
+      for (let m = 0; m <= maxMeters; m += 0.1) {
+        const roundedM = Math.round(m * 10) / 10;
+        const y = GROUND_Y - roundedM * PX_PER_METER;
+        if (y < TIANG_TOP_Y - 5 || y > GROUND_Y + 5) continue;
 
-      const isTenCm = mm % 100 === 0;
-      const isFiveCm = !isTenCm && mm % 50 === 0;
-      const isCm = !isTenCm && !isFiveCm && mm % 10 === 0;
-      const isFiveMm = !isTenCm && !isFiveCm && !isCm && mm % 5 === 0;
+        const isWholeMeter = Math.round(roundedM) === roundedM;
+        const isHalfMeter = !isWholeMeter && Math.round(roundedM * 2) === roundedM * 2;
 
-      if (!isTenCm && !isFiveCm && !isCm && !isFiveMm && step === 1 && mm % 2 !== 0) continue;
+        let tickLen: number;
+        let sw: number;
+        let color: string;
 
-      let tickLen: number;
-      let sw: number;
-      let color: string;
+        if (isWholeMeter) {
+          tickLen = 24;
+          sw = 2;
+          color = SCIENTIFIC_THEME.typography.scaleTickMajor;
+        } else if (isHalfMeter) {
+          tickLen = 16;
+          sw = 1.4;
+          color = "#cbd5e1";
+        } else {
+          tickLen = 9;
+          sw = 0.9;
+          color = SCIENTIFIC_THEME.typography.scaleTick;
+        }
 
-      if (isTenCm) {
-        tickLen = 22;
-        sw = 1.8;
-        color = SCIENTIFIC_THEME.typography.scaleTickMajor;
-      } else if (isFiveCm) {
-        tickLen = 15;
-        sw = 1.4;
-        color = "#cbd5e1";
-      } else if (isCm) {
-        tickLen = 10;
-        sw = 1;
-        color = SCIENTIFIC_THEME.typography.scaleTick;
-      } else if (isFiveMm) {
-        tickLen = 6;
-        sw = 0.8;
-        color = "#64748b";
-      } else {
-        tickLen = 3;
-        sw = 0.5;
-        color = "#475569";
-      }
-
-      ticks.push(
-        <line
-          key={mm}
-          x1={0}
-          y1={y}
-          x2={tickLen}
-          y2={y}
-          stroke={color}
-          strokeWidth={sw}
-        />
-      );
-
-      // Label every 10 cm
-      if (isTenCm && mm > 0) {
         ticks.push(
-          <text
-            key={`lbl-${mm}`}
-            x={-7}
-            y={y + 4.5}
-            fontSize="12"
-            fontFamily={SCIENTIFIC_THEME.typography.fontMono}
-            fill={SCIENTIFIC_THEME.typography.scaleTextMajor}
-            textAnchor="end"
-            fontWeight="600"
-          >
-            {mm / 10}
-          </text>
+          <line
+            key={`m-${roundedM}`}
+            x1={0}
+            y1={y}
+            x2={tickLen}
+            y2={y}
+            stroke={color}
+            strokeWidth={sw}
+          />
         );
+
+        if (isWholeMeter && roundedM > 0) {
+          ticks.push(
+            <text
+              key={`lbl-${roundedM}`}
+              x={-8}
+              y={y + 5}
+              fontSize="13"
+              fontFamily={SCIENTIFIC_THEME.typography.fontMono}
+              fill={SCIENTIFIC_THEME.typography.scaleTextMajor}
+              textAnchor="end"
+              fontWeight="bold"
+            >
+              {roundedM}
+            </text>
+          );
+        }
+      }
+    } else {
+      // Centimeter/Millimeter scale (Practicum Mode, up to 120 cm)
+      const maxMm = scaleMaxMeters * 1000;
+      for (let mm = 0; mm <= maxMm; mm += 1) {
+        const y = GROUND_Y - (mm / 1000) * PX_PER_METER;
+        if (y < TIANG_TOP_Y - 5 || y > GROUND_Y + 5) continue;
+
+        const isTenCm = mm % 100 === 0;
+        const isFiveCm = !isTenCm && mm % 50 === 0;
+        const isCm = !isTenCm && !isFiveCm && mm % 10 === 0;
+        const isFiveMm = !isTenCm && !isFiveCm && !isCm && mm % 5 === 0;
+
+        if (!isTenCm && !isFiveCm && !isCm && !isFiveMm && mm % 2 !== 0) continue;
+
+        let tickLen: number;
+        let sw: number;
+        let color: string;
+
+        if (isTenCm) {
+          tickLen = 22;
+          sw = 1.8;
+          color = SCIENTIFIC_THEME.typography.scaleTickMajor;
+        } else if (isFiveCm) {
+          tickLen = 15;
+          sw = 1.4;
+          color = "#cbd5e1";
+        } else if (isCm) {
+          tickLen = 10;
+          sw = 1;
+          color = SCIENTIFIC_THEME.typography.scaleTick;
+        } else if (isFiveMm) {
+          tickLen = 6;
+          sw = 0.8;
+          color = "#64748b";
+        } else {
+          tickLen = 3;
+          sw = 0.5;
+          color = "#475569";
+        }
+
+        ticks.push(
+          <line
+            key={`mm-${mm}`}
+            x1={0}
+            y1={y}
+            x2={tickLen}
+            y2={y}
+            stroke={color}
+            strokeWidth={sw}
+          />
+        );
+
+        if (isTenCm && mm > 0) {
+          ticks.push(
+            <text
+              key={`lbl-${mm}`}
+              x={-7}
+              y={y + 4.5}
+              fontSize="12"
+              fontFamily={SCIENTIFIC_THEME.typography.fontMono}
+              fill={SCIENTIFIC_THEME.typography.scaleTextMajor}
+              textAnchor="end"
+              fontWeight="600"
+            >
+              {mm / 10}
+            </text>
+          );
+        }
       }
     }
+
     return ticks;
   }, [scaleMaxMeters, PX_PER_METER]);
 
@@ -310,7 +374,9 @@ export function FreeFallApparatus({
         </div>
         <div className="flex items-center gap-2">
           <span className="px-2 py-0.5 rounded border border-cyan-500/30 bg-cyan-950/40 text-cyan-300 font-bold">
-            h = {(currentHeightMeters * 100).toFixed(1)} cm
+            h = {scaleMaxMeters > 2 
+              ? `${currentHeightMeters.toFixed(2)} m` 
+              : `${(currentHeightMeters * 100).toFixed(1)} cm`}
           </span>
           <span className="px-2 py-0.5 rounded border border-slate-800 bg-slate-900/60 text-slate-300 font-mono">
             g = {gLocal.toFixed(2)} m/s²
@@ -323,69 +389,69 @@ export function FreeFallApparatus({
         <div className="flex-1 h-full min-h-0 flex justify-center items-center p-2 sm:p-4 touch-none select-none relative">
           <svg
             ref={svgRef}
-            viewBox="0 0 400 1350"
-            className="w-full max-w-[420px] h-auto max-h-[85vh] md:max-h-full drop-shadow-2xl"
+            viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+            className="w-full max-w-[560px] h-auto drop-shadow-2xl"
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
-            style={{ aspectRatio: "400 / 1350" }}
+            style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}` }}
           >
             {/* Instance-unique SVG Metal Gradients */}
             <SvgMetalGradients ids={gradientIds} />
 
             {/* Precision Coordinate Grid */}
-            <SvgGridBackground width={400} height={1350} gridSize={30} opacity={0.3} />
+            <SvgGridBackground width={VIEW_W} height={VIEW_H} gridSize={30} opacity={0.3} />
 
             {/* ── 1. STRUCTURAL VERTICAL MAST ── */}
             {/* Mast Outer Frame Channel */}
             <rect
-              x="182"
+              x={CENTER_X - 22}
               y={TIANG_TOP_Y}
-              width="36"
+              width="44"
               height={GROUND_Y - TIANG_TOP_Y}
-              rx="2"
+              rx="3"
               fill={`url(#${gradientIds.chassisDark})`}
               stroke="#1e293b"
               strokeWidth="1.5"
             />
             {/* Stainless Steel Center Guide Rail */}
             <rect
-              x="187"
+              x={CENTER_X - 16}
               y={TIANG_TOP_Y}
-              width="26"
+              width="32"
               height={GROUND_Y - TIANG_TOP_Y}
               fill={`url(#${gradientIds.steelVertical})`}
               opacity="0.9"
             />
 
-            {/* Precision Engraved Millimeter Scale Ruler */}
-            <g transform="translate(187, 0)">{scaleTicks}</g>
+            {/* Precision Engraved Scale Ruler */}
+            <g transform={`translate(${CENTER_X - 16}, 0)`}>{scaleTicks}</g>
 
-            {/* Scale Unit Badge (cm) */}
+            {/* Scale Unit Badge (m atau cm) */}
             <text
-              x="142"
+              x={CENTER_X - 48}
               y={GROUND_Y + 45}
-              fontSize="11"
+              fontSize="12"
               fontFamily={SCIENTIFIC_THEME.typography.fontMono}
               fill={SCIENTIFIC_THEME.typography.labelMuted}
               textAnchor="middle"
               fontWeight="bold"
             >
-              (cm)
+              {scaleMaxMeters > 2 ? "(m)" : "(cm)"}
             </text>
 
             {/* ── 2. BASE GROUNDING & BRASS CONTACT PLATE ── */}
             <SvgContactPlate
-              x={200}
+              x={CENTER_X}
               y={GROUND_Y}
-              width={130}
+              width={160}
               brassFillId={gradientIds.brass}
               chassisFillId={gradientIds.chassisDark}
             />
 
             {/* ── 3. ADJUSTABLE ELECTROMAGNET RELEASE ── */}
             <SvgElectromagnet
-              x={213}
+              x={CENTER_X + 13}
               y={magnetY}
               armed={isMorsePressed}
               coilFillId={gradientIds.copper}
@@ -398,16 +464,16 @@ export function FreeFallApparatus({
             {/* ── 4. PRECISION FALLING METAL SPHERE (ZERO FILTERS) ── */}
             <SvgMetalBall
               ref={ballRef}
-              cx={200}
+              cx={CENTER_X}
               cy={ballY}
-              r={10}
+              r={12}
               fillId={gradientIds.ballChrome}
             />
           </svg>
         </div>
 
         {/* ── RIGHT SECTION: ELECTRONIC SCALER COUNTER & MORSE ACTUATOR ── */}
-        <div className="w-full lg:w-72 bg-slate-900/90 border-t lg:border-t-0 lg:border-l border-cyan-500/20 p-5 sm:p-6 flex flex-col justify-between shrink-0 relative shadow-inner z-10 backdrop-blur-md">
+        <div className="w-full lg:w-80 bg-slate-900/90 border-t lg:border-t-0 lg:border-l border-cyan-500/20 p-5 sm:p-6 flex flex-col justify-between shrink-0 relative shadow-inner z-10 backdrop-blur-md">
           
           {/* Top: Precision Digital Scaler Counter */}
           <div className="flex flex-col gap-4">
@@ -445,15 +511,29 @@ export function FreeFallApparatus({
                     KETINGGIAN (h)
                   </p>
                   <p className="text-sm font-mono text-cyan-300 font-bold">
-                    {(currentHeightMeters * 100).toFixed(1)} cm
+                    {scaleMaxMeters > 2 
+                      ? `${currentHeightMeters.toFixed(2)} m` 
+                      : `${(currentHeightMeters * 100).toFixed(1)} cm`}
                   </p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Bottom: Tactical Morse Key Push Switch */}
+          {/* Bottom: Quick Release & Tactical Morse Key Push Switch */}
           <div className="mt-6 md:mt-0 flex flex-col items-center gap-3">
+            <button
+              onClick={() => {
+                handleMorsePress();
+                setTimeout(() => {
+                  handleMorseRelease();
+                }, 100);
+              }}
+              disabled={isFalling || isMorsePressed}
+              className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs tracking-wider rounded-lg shadow-md disabled:opacity-40 transition-all uppercase flex items-center justify-center gap-2"
+            >
+              LEPAS BOLA (QUICK DROP)
+            </button>
             <div className="flex items-center gap-2 text-slate-300 text-xs font-bold tracking-wider uppercase mb-1">
               <Radio className="w-3.5 h-3.5 text-cyan-400" />
               SAKLAR PELEPAS (MORSE KEY)

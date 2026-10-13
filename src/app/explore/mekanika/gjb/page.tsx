@@ -160,7 +160,7 @@ export default function GJBExplorePage() {
 
         {/* Apparatus */}
         <div className="bg-[#0a0f1c] rounded-xl border border-white/10 p-4 sm:p-6 flex flex-col items-center">
-          <div className="w-full max-w-4xl flex justify-center">
+          <div className="w-full max-w-6xl flex justify-center">
             <FreeFallApparatus 
               key={resetKey}
               mode="explore" 
