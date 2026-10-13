@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
-import { calculateFallTime, calculateGLBTime, getAtwoodVectors } from "@/physics/atwood";
+import { calculateFallTime, calculateGLBTime, getAtwoodVectors, getAtwoodVelocityAt } from "@/physics/atwood";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
@@ -19,9 +19,61 @@ export interface AtwoodVectorState {
   showWeight: boolean;
   showTension: boolean;
   showAcceleration: boolean;
+  showVelocity?: boolean;
   arrowScale: number;
   showValues: boolean;
 }
+
+// ── Live velocity arrow (isolated re-render, driven imperatively from rAF loop) ──
+interface LiveVelocityArrowHandle {
+  setSpeed: (v: number) => void;
+}
+
+interface LiveVelocityArrowProps {
+  id: string;
+  label: string;
+  originX: number;
+  originY: number;
+  /** +1 = panah ke bawah, -1 = panah ke atas */
+  direction: 1 | -1;
+  userScale: number;
+  showValues: boolean;
+}
+
+const VELOCITY_SCALE = 70; // px per (m/s)
+
+const LiveVelocityArrow = React.memo(
+  forwardRef<LiveVelocityArrowHandle, LiveVelocityArrowProps>(function LiveVelocityArrow(
+    { id, label, originX, originY, direction, userScale, showValues },
+    ref
+  ) {
+    const [speed, setSpeedState] = useState(0);
+    useImperativeHandle(ref, () => ({
+      setSpeed: (v: number) => setSpeedState(Math.round(v * 1000) / 1000),
+    }), []);
+
+    if (speed < 1e-3) return null;
+    const item: VectorItem = {
+      id,
+      category: "velocity",
+      label,
+      origin: { x: originX, y: originY },
+      components: { dx: 0, dy: direction * speed },
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      scale: VELOCITY_SCALE,
+      showValue: showValues,
+      valueText: showValues ? `${speed.toFixed(2)} m/s` : undefined,
+    };
+    return (
+      <VectorOverlay
+        vectors={[item]}
+        userScale={userScale}
+        maxArrowLength={140}
+        showValues={showValues}
+      />
+    );
+  })
+);
 
 export interface AtwoodApparatusProps {
   mode: "GLBB" | "GLB" | "explore";
@@ -101,6 +153,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const m2VectorGroupRef = useRef<SVGGElement>(null);
   const ropeLRef = useRef<SVGLineElement>(null);
   const ropeRRef = useRef<SVGLineElement>(null);
+  const v1ArrowRef = useRef<LiveVelocityArrowHandle>(null);
+  const v2ArrowRef = useRef<LiveVelocityArrowHandle>(null);
 
   // Phase tracking for vector rendering
   const [currentPhase, setCurrentPhase] = useState<"GLBB" | "GLB">("GLBB");
@@ -112,6 +166,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     showWeight: true,
     showTension: true,
     showAcceleration: true,
+    showVelocity: true,
     arrowScale: 1.0,
     showValues: !isQualitative,
   });
@@ -124,6 +179,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     if (id === "weight") updated.showWeight = !updated.showWeight;
     if (id === "tension") updated.showTension = !updated.showTension;
     if (id === "acceleration") updated.showAcceleration = !updated.showAcceleration;
+    if (id === "velocity") updated.showVelocity = !(updated.showVelocity ?? true);
     
     if (onVectorControlsChange) {
       onVectorControlsChange(updated);
@@ -192,7 +248,15 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       checked: activeVectorControls.showAcceleration,
       title: "Tampilkan vektor percepatan translasi (a₁, a₂)",
     },
+    {
+      id: "velocity",
+      label: "Kecepatan",
+      color: SCIENTIFIC_THEME.vectors.velocity,
+      checked: activeVectorControls.showVelocity ?? true,
+      title: "Tampilkan vektor kecepatan translasi (v₁ ke atas, v₂ ke bawah)",
+    },
   ];
+  const showVelocityVectors = activeVectorControls.showVelocity ?? true;
 
   const showValuesInOverlay = !isQualitative && activeVectorControls.showValues;
   const forceScale = 50;
@@ -572,6 +636,18 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
         setIsAnimating(false);
       }
 
+      // Kecepatan translasi dari engine fisika murni (Physics -> data -> renderer)
+      const vel = getAtwoodVelocityAt({
+        t: elapsed,
+        tB: t_AB,
+        a1: a_anim,
+        vB: v_anim,
+        a2: mode === "explore" ? a2_anim : 0,
+        tEnd: t_AB + t_BC,
+      });
+      v1ArrowRef.current?.setSpeed(vel.v1Up);
+      v2ArrowRef.current?.setSpeed(vel.v2Down);
+
       // Direct DOM mutations: zero React state re-renders for steady 60 FPS
       if (m2GroupRef.current) m2GroupRef.current.setAttribute("transform", `translate(0, ${currentM2Y - Y_A})`);
       if (m1GroupRef.current) m1GroupRef.current.setAttribute("transform", `translate(0, ${currentM1Y - Y_M1_INITIAL})`);
@@ -614,6 +690,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     if (m1VectorGroupRef.current) m1VectorGroupRef.current.setAttribute("transform", "translate(0, 0)");
     if (ropeLRef.current) ropeLRef.current.setAttribute("y2", String(Y_A));
     if (ropeRRef.current) ropeRRef.current.setAttribute("y2", String(Y_M1_INITIAL));
+    v1ArrowRef.current?.setSpeed(0);
+    v2ArrowRef.current?.setSpeed(0);
 
     if (animReqRef.current) cancelAnimationFrame(animReqRef.current);
 
@@ -1244,6 +1322,18 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
                   maxArrowLength={140}
                   showValues={showValuesInOverlay}
                 />
+                {showVelocityVectors && (
+                  <LiveVelocityArrow
+                    ref={v2ArrowRef}
+                    id="v2"
+                    label="v₂"
+                    originX={STR_L_X - 130}
+                    originY={Y_A + M_H / 2}
+                    direction={1}
+                    userScale={activeVectorControls.arrowScale}
+                    showValues={showValuesInOverlay}
+                  />
+                )}
               </g>
               <g ref={m1VectorGroupRef}>
                 <VectorOverlay
@@ -1252,6 +1342,18 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
                   maxArrowLength={140}
                   showValues={showValuesInOverlay}
                 />
+                {showVelocityVectors && (
+                  <LiveVelocityArrow
+                    ref={v1ArrowRef}
+                    id="v1"
+                    label="v₁"
+                    originX={STR_R_X + 110}
+                    originY={Y_M1_INITIAL + M_H / 2}
+                    direction={-1}
+                    userScale={activeVectorControls.arrowScale}
+                    showValues={showValuesInOverlay}
+                  />
+                )}
               </g>
             </>
           )}

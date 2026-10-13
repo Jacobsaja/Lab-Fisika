@@ -314,3 +314,57 @@ export function getAtwoodVectors(params: {
     netForceRight: wRightTotal - T,
   };
 }
+
+// -------------------------------------------------------------
+// FASE VECTOR OVERLAY - KECEPATAN TRANSLASI PESAWAT ATWOOD
+// -------------------------------------------------------------
+
+export interface AtwoodVelocityState {
+  /** Besar kecepatan sistem (m/s), selalu >= 0 */
+  v: number;
+  /** Kecepatan m1 (beban yang naik): positif = ke atas */
+  v1Up: number;
+  /** Kecepatan m2 (beban yang turun): positif = ke bawah */
+  v2Down: number;
+  phase: "DIAM" | "GLBB" | "GLB" | "SELESAI";
+}
+
+/**
+ * Pure function: kecepatan translasi sistem Atwood pada waktu t.
+ * Fase 1 (0 ≤ t ≤ tB): v = a1·t  (GLBB, keping tambahan masih terbawa)
+ * Fase 2 (tB < t < tEnd): v = vB + a2·(t − tB)  (GLB bila a2 = 0)
+ * Setelah tEnd (beban menyentuh landasan): v = 0.
+ * Tali tak mulur → |v1| = |v2| = v (m1 naik, m2 turun).
+ */
+export function getAtwoodVelocityAt(params: {
+  t: number;
+  tB: number;
+  a1: number;
+  vB?: number;
+  a2?: number;
+  tEnd?: number;
+}): AtwoodVelocityState {
+  const { t, tB, a1 } = params;
+  const a2 = params.a2 ?? 0;
+  const vB = params.vB ?? a1 * tB;
+
+  let v: number;
+  let phase: AtwoodVelocityState["phase"];
+
+  if (!(t > 0) || a1 <= 0) {
+    v = 0;
+    phase = "DIAM";
+  } else if (t <= tB) {
+    v = a1 * t;
+    phase = "GLBB";
+  } else if (params.tEnd !== undefined && t >= params.tEnd) {
+    v = 0;
+    phase = "SELESAI";
+  } else {
+    v = vB + a2 * (t - tB);
+    phase = Math.abs(a2) < 1e-12 ? "GLB" : "GLBB";
+  }
+
+  v = Number.isFinite(v) ? Math.max(0, v) : 0;
+  return { v, v1Up: v, v2Down: v, phase };
+}

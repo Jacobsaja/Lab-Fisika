@@ -73,6 +73,46 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     expect(consoleErrors).toHaveLength(0);
   });
 
+  test("Explore Atwood: vektor kecepatan v₁/v₂ muncul saat bergerak, bertahan di fase GLB, dan bisa dimatikan", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/explore/mekanika/atwood", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    const velBtn = page.locator("button", { hasText: "Kecepatan" }).first();
+    await expect(velBtn).toBeVisible();
+
+    const v1 = page.locator("g[id$='_arrow_v1']");
+    const v2 = page.locator("g[id$='_arrow_v2']");
+    const a1 = page.locator("g[id$='_arrow_a1']");
+
+    // Diam: v = 0 → tidak ada panah kecepatan
+    expect(await v1.count()).toBe(0);
+    expect(await v2.count()).toBe(0);
+
+    await page.locator("[data-testid='btn-play']").first().click();
+
+    // Fase GLBB: panah kecepatan muncul
+    await expect.poll(async () => (await v1.count()) + (await v2.count()), { timeout: 3000 }).toBe(2);
+
+    // Fase GLB (setelah keping lepas di B, m1 = m2): a = 0 tetapi v tetap tampil
+    await expect.poll(async () => await a1.count(), { timeout: 4000, intervals: [50] }).toBe(0);
+    expect(await v1.count()).toBe(1);
+    expect(await v2.count()).toBe(1);
+
+    // Toggle kategori Kecepatan OFF
+    await velBtn.click();
+    await page.waitForTimeout(100);
+    expect(await v1.count()).toBe(0);
+    expect(await v2.count()).toBe(0);
+
+    expect(consoleErrors).toHaveLength(0);
+  });
+
   test("Explore Menggelinding: toggles categories, 'Uraikan berat', and shows numbers", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
