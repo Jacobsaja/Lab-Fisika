@@ -48,22 +48,22 @@ export interface AtwoodApparatusProps {
 // Coordinate & Physical Simulation Constants
 // Documented scale: 1 meter = 1000 px, 1 cm = 10 px, 1 mm = 1 px
 const PX_PER_METER = 1000;
-const VIEW_W = 600;
-const VIEW_H = 1350;
+const VIEW_W = 760;
+const VIEW_H = 1680;
 
-const COL_X = 300;
+const COL_X = 380;
 const PULLEY_Y = 150;
 const PULLEY_R = 60;
-const STR_L_X = COL_X - PULLEY_R; // 240
-const STR_R_X = COL_X + PULLEY_R; // 360
+const STR_L_X = COL_X - PULLEY_R; // 320
+const STR_R_X = COL_X + PULLEY_R; // 440
 
 const M_W = 38;  // Width of main weights m1 and m2
 const M_H = 44;  // Height of main weights m1 and m2
 const M3_W = 62; // Width of slotted disks (m3, m4) - wider than ring aperture to catch on Ring B
 const M3_H = 14; // Height of each slotted disk
 
-const Y_A = 350; // Initial release level (Point A)
-const Y_M1_INITIAL = 1150; // Initial resting level for m1 held by Clamp P
+const Y_A = 280; // Initial release level (Point A)
+const Y_M1_INITIAL = 1450; // Initial resting level for m1 held by Clamp P (lengthened to 1170px travel span)
 
 export interface AtwoodApparatusRef {
   startDrop: () => void;
@@ -204,7 +204,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "w2",
       category: "weight",
       label: "w₂",
-      origin: { x: STR_L_X - 35, y: Y_A + M_H / 2 },
+      origin: { x: STR_L_X - 40, y: Y_A + M_H / 2 },
       components: { dx: 0, dy: atwoodVectors.w2 },
       color: SCIENTIFIC_THEME.vectors.force,
       scale: forceScale,
@@ -217,7 +217,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "wAdd",
       category: "weight",
       label: "w₃",
-      origin: { x: STR_L_X - 55, y: Y_A - M3_H / 2 },
+      origin: { x: STR_L_X - 65, y: Y_A - M3_H / 2 },
       components: { dx: 0, dy: atwoodVectors.wAdd },
       color: SCIENTIFIC_THEME.vectors.force,
       scale: forceScale,
@@ -230,7 +230,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "T2",
       category: "tension",
       label: "T₂",
-      origin: { x: STR_L_X - 35, y: Y_A + M_H / 2 },
+      origin: { x: STR_L_X - 40, y: Y_A + M_H / 2 },
       components: { dx: 0, dy: -atwoodVectors.T },
       color: "#06b6d4",
       scale: forceScale,
@@ -243,7 +243,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "a2",
       category: "acceleration",
       label: "a₂",
-      origin: { x: STR_L_X - 65, y: Y_A + M_H / 2 },
+      origin: { x: STR_L_X - 95, y: Y_A + M_H / 2 },
       components: { dx: 0, dy: atwoodVectors.a2 },
       color: SCIENTIFIC_THEME.vectors.acceleration,
       scale: accelScale,
@@ -258,7 +258,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "w1",
       category: "weight",
       label: "w₁",
-      origin: { x: STR_R_X + 35, y: Y_M1_INITIAL + M_H / 2 },
+      origin: { x: STR_R_X + 40, y: Y_M1_INITIAL + M_H / 2 },
       components: { dx: 0, dy: atwoodVectors.w1 },
       color: SCIENTIFIC_THEME.vectors.force,
       scale: forceScale,
@@ -271,7 +271,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "T1",
       category: "tension",
       label: "T₁",
-      origin: { x: STR_R_X + 35, y: Y_M1_INITIAL + M_H / 2 },
+      origin: { x: STR_R_X + 40, y: Y_M1_INITIAL + M_H / 2 },
       components: { dx: 0, dy: -atwoodVectors.T },
       color: "#06b6d4",
       scale: forceScale,
@@ -284,7 +284,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       id: "a1",
       category: "acceleration",
       label: "a₁",
-      origin: { x: STR_R_X + 65, y: Y_M1_INITIAL + M_H / 2 },
+      origin: { x: STR_R_X + 75, y: Y_M1_INITIAL + M_H / 2 },
       components: { dx: 0, dy: -atwoodVectors.a1 },
       color: SCIENTIFIC_THEME.vectors.acceleration,
       scale: accelScale,
@@ -294,8 +294,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   }
   
   // Instrument physical positions (in simulation pixels)
-  const [posB, setPosB] = useState(mode === "GLB" ? Y_A + 200 : Y_A + 400); 
-  const [posC, setPosC] = useState(Y_A + 600);
+  const [posB, setPosB] = useState(mode === "GLB" ? Y_A + 200 : mode === "explore" ? Y_A + 500 : Y_A + 400); 
+  const [posC, setPosC] = useState(mode === "explore" ? Y_A + 900 : Y_A + 600);
   const [draggingItem, setDraggingItem] = useState<"B" | "C" | null>(null);
 
   // Notify parent of initial pos with decoupled ref to avoid loop hazard
@@ -631,15 +631,14 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     resetApparatus
   }));
 
-  // --- RENDER HIGH-CONTRAST MILLIMETER SCALE TICKS ---
-  // Scale zero is aligned with Point A (Y_A = 350)
+  // --- RENDER HIGH-CONTR  // Scale zero is aligned with Point A (Y_A = 280)
   const scaleTicks = useMemo(() => {
     const ticks: React.ReactNode[] = [];
     const minMm = 0;
-    const maxMm = 1050; // 0 cm to 105 cm
+    const maxMm = 1350; // runs from y = 180 (-10cm) to y = 1530 (+125cm)
 
     for (let mm = minMm; mm <= maxMm; mm++) {
-      const y = 200 + mm;
+      const y = 180 + mm;
       const isTenCm = mm % 100 === 0;
       const isFiveCm = !isTenCm && mm % 50 === 0;
       const isCm = !isTenCm && !isFiveCm && mm % 10 === 0;
@@ -706,7 +705,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       <div className="flex-1 w-full min-h-0 flex flex-col items-center justify-center p-2 sm:p-4 touch-none select-none relative">
         
         {/* Top Header Information Ribbon */}
-        <div className="w-full max-w-[560px] flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80 text-[11px] text-slate-400">
+        <div className="w-full max-w-2xl flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80 text-[11px] text-slate-400">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]" />
             <span className="font-bold tracking-wider text-cyan-300 uppercase">
@@ -730,7 +729,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          className="w-full max-w-full h-auto max-h-[85vh] md:max-h-full drop-shadow-2xl"
+          className="w-full max-w-[680px] h-auto drop-shadow-2xl"
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
@@ -746,24 +745,24 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
           {/* Heavy Lab Base Stand (Tripod / Baseplate) */}
           <g>
             {/* Leveling Foot Left */}
-            <circle cx={COL_X - 110} cy="1285" r="9" fill={metalsDarker(gradientIds.steel)} stroke="#0f172a" strokeWidth="2" />
-            <rect x={COL_X - 113} y="1274" width="6" height="12" fill="#64748b" />
+            <circle cx={COL_X - 130} cy="1605" r="9" fill={metalsDarker(gradientIds.steel)} stroke="#0f172a" strokeWidth="2" />
+            <rect x={COL_X - 133} y="1594" width="6" height="12" fill="#64748b" />
             {/* Leveling Foot Right */}
-            <circle cx={COL_X + 110} cy="1285" r="9" fill={metalsDarker(gradientIds.steel)} stroke="#0f172a" strokeWidth="2" />
-            <rect x={COL_X + 107} y="1274" width="6" height="12" fill="#64748b" />
+            <circle cx={COL_X + 130} cy="1605" r="9" fill={metalsDarker(gradientIds.steel)} stroke="#0f172a" strokeWidth="2" />
+            <rect x={COL_X + 127} y="1594" width="6" height="12" fill="#64748b" />
             {/* Main Base Bar */}
             <rect 
-              x={COL_X - 125} 
-              y="1265" 
-              width="250" 
-              height="16" 
+              x={COL_X - 150} 
+              y="1585" 
+              width="300" 
+              height="18" 
               rx="3" 
               fill={`url(#${gradientIds.chassisDark})`} 
               stroke="#334155" 
               strokeWidth="1.5" 
             />
             {/* Center Mast Flange Collar */}
-            <rect x={COL_X - 30} y="1255" width="60" height="12" fill={`url(#${gradientIds.steel})`} stroke="#475569" strokeWidth="1" rx="1" />
+            <rect x={COL_X - 35} y="1573" width="70" height="14" fill={`url(#${gradientIds.steel})`} stroke="#475569" strokeWidth="1" rx="1" />
           </g>
 
           {/* Vertical Precision Extruded Column (Main Mast) */}
@@ -771,7 +770,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
             x={COL_X - 22} 
             y="90" 
             width="44" 
-            height="1170" 
+            height="1485" 
             rx="2"
             fill={`url(#${gradientIds.chassisDark})`} 
             stroke="#1e293b" 
@@ -782,9 +781,9 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
             x={COL_X - 16} 
             y="95" 
             width="32" 
-            height="1160" 
+            height="1475" 
             fill={`url(#${gradientIds.steelVertical})`} 
-            opacity="0.9"
+            opacity="0.9" 
           />
 
           {/* Engraved Millimeter Scale Ruler along the column */}
@@ -794,7 +793,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
           {/* Scale Unit Badge (cm) */}
           <text 
             x={COL_X - 24} 
-            y="215" 
+            y="180" 
             fontSize="10" 
             fontFamily={SCIENTIFIC_THEME.typography.fontMono} 
             fill={SCIENTIFIC_THEME.typography.labelMuted} 
@@ -861,7 +860,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
           {/* ── 3. DATUM LEVEL A (INITIAL RELEASE LEVEL) ── */}
           <g>
             <line 
-              x1={STR_L_X - 65} 
+              x1={STR_L_X - 85} 
               y1={Y_A} 
               x2={STR_L_X + 25} 
               y2={Y_A} 
@@ -875,7 +874,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
               subLabel="0.0 cm"
               targetX={STR_L_X - 25}
               targetY={Y_A}
-              badgeX={STR_L_X - 90}
+              badgeX={STR_L_X - 130}
               badgeY={Y_A}
               color={SCIENTIFIC_THEME.accents.cyan}
               size="md"
@@ -959,7 +958,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
               subLabel={`${((posB - Y_A) / 10).toFixed(1)} cm`}
               targetX={-48}
               targetY={0}
-              badgeX={-90}
+              badgeX={-130}
               badgeY={0}
               color={SCIENTIFIC_THEME.accents.red}
               size="md"
@@ -1021,7 +1020,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
                 subLabel={`${((posC - posB) / 10).toFixed(1)} cm`}
                 targetX={-48}
                 targetY={0}
-                badgeX={-90}
+                badgeX={-130}
                 badgeY={0}
                 color={SCIENTIFIC_THEME.accents.emerald}
                 size="md"
@@ -1071,7 +1070,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
               subLabel="Klem"
               targetX={30}
               targetY={0}
-              badgeX={90}
+              badgeX={130}
               badgeY={0}
               color={SCIENTIFIC_THEME.accents.amber}
               size="md"
@@ -1261,7 +1260,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
 
         {/* Vector Controls Panel */}
         {!hideVectorControls && (
-          <div className="w-full max-w-[560px] mt-3 mb-2">
+          <div className="w-full max-w-2xl mt-3 mb-2">
             <VectorControls
               categories={vectorCategories}
               onToggleCategory={handleToggleCategory}

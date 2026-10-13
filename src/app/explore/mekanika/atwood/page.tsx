@@ -231,7 +231,7 @@ export default function AtwoodExplorePage() {
 
         {/* BOTTOM SECTION: Apparatus */}
         <div className="bg-[#0a0f1c] rounded-xl border border-white/10 p-4 sm:p-6 flex flex-col items-center shadow-xl">
-          <div className="w-full max-w-2xl flex justify-center">
+          <div className="w-full max-w-5xl flex justify-center">
             <AtwoodApparatus 
               ref={appRef}
               key={resetKey}
@@ -246,7 +246,7 @@ export default function AtwoodExplorePage() {
               hideControls={true}
               onTimeChange={handleTimeChange}
               onPosChange={handlePosChange}
-              className="w-full h-[1200px]"
+              className="w-full"
             />
           </div>
         </div>
