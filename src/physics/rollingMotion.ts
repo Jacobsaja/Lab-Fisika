@@ -37,6 +37,64 @@ export function calculateRollingAcceleration(
   return aSlide / (1 + inertiaFactor);
 }
 
+export interface RollingVectors {
+  w: number; // Gaya berat total (N)
+  wParallel: number; // Komponen sejajar bidang: w * sin(theta) (N)
+  wPerpendicular: number; // Komponen tegak lurus bidang: w * cos(theta) (N)
+  N: number; // Gaya normal: w * cos(theta) (N)
+  f: number; // Gaya gesek statis: m * (g*sin(theta) - a) (N)
+  a: number; // Percepatan translasi pusat massa (m/s²)
+  inertiaFactor: number; // I_cm / (m*r^2)
+  thetaRad: number;
+}
+
+/**
+ * Pure physics function that computes forces (w, w_parallel, w_perp, N, f)
+ * and center-of-mass linear acceleration for rolling motion on an inclined plane.
+ */
+export function getRollingVectors(params: {
+  shape: CylinderShape;
+  thetaDeg: number;
+  mass: number; // kg
+  r: number; // m
+  rInner?: number; // m
+  g?: number; // m/s² (default 9.8)
+}): RollingVectors {
+  const g = params.g ?? 9.8;
+  const m = Math.max(0, params.mass);
+  const r = Math.max(1e-4, params.r);
+  const rInner = Math.max(0, params.rInner ?? 0);
+  const thetaRad = (params.thetaDeg * Math.PI) / 180;
+
+  const w = m * g;
+  const wParallel = w * Math.sin(thetaRad);
+  const wPerpendicular = w * Math.cos(thetaRad);
+  const N = wPerpendicular;
+
+  const a = calculateRollingAcceleration(params.shape, params.thetaDeg, r, rInner, g);
+
+  let inertiaFactor = 0;
+  if (params.shape === "solid") {
+    inertiaFactor = 0.5;
+  } else if (params.shape === "hollow") {
+    inertiaFactor = 0.5 * (1 + Math.pow(rInner / r, 2));
+  }
+
+  // Newton's second law: w_parallel - f = m * a => f = w_parallel - m * a
+  const f = Math.max(0, wParallel - m * a);
+
+  return {
+    w,
+    wParallel,
+    wPerpendicular,
+    N,
+    f,
+    a,
+    inertiaFactor,
+    thetaRad,
+  };
+}
+
 /**
  * Calculates the state of a rolling object at time t.
  */

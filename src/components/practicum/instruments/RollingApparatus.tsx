@@ -5,6 +5,7 @@ import {
   CylinderShape,
   calculateRollingAcceleration,
   getRollingState,
+  getRollingVectors,
   generateSensorSample,
   SENSOR_SAMPLE_INTERVAL_S,
 } from "@/physics/rollingMotion";
@@ -13,8 +14,23 @@ import {
   SvgMetalGradients,
   SvgGridBackground,
   SvgRollingCylinder,
+  VectorOverlay,
+  VectorControls,
+  VectorCategoryConfig,
+  ExtraToggleConfig,
+  VectorItem,
   SCIENTIFIC_THEME,
 } from "@/components/simulation/visual";
+
+export interface RollingVectorState {
+  showWeight: boolean;
+  showNormal: boolean;
+  showFriction: boolean;
+  showAcceleration: boolean;
+  decomposeWeight: boolean;
+  arrowScale: number;
+  showValues: boolean;
+}
 
 export interface RollingApparatusProps {
   mode: "explore" | "practicum";
@@ -28,6 +44,12 @@ export interface RollingApparatusProps {
   onTimeChange?: (t: number, isRunning: boolean, reset: boolean) => void;
   onStateUpdate?: (state: any, compareState?: any) => void;
   className?: string;
+  // Vector overlay & controls props
+  vectorControls?: RollingVectorState;
+  onVectorControlsChange?: (state: RollingVectorState) => void;
+  isVectorLocked?: boolean;
+  vectorLockMessage?: string;
+  hideVectorControls?: boolean;
 }
 
 export interface RollingApparatusRef {
@@ -55,6 +77,11 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       onTimeChange,
       onStateUpdate,
       className = "",
+      vectorControls: controlledVectorControls,
+      onVectorControlsChange,
+      isVectorLocked = false,
+      vectorLockMessage,
+      hideVectorControls = false,
     },
     ref
   ) => {
@@ -70,6 +97,102 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
     const isAnimatingRef = useRef(false);
     /** Next fixed-grid sensor sample to emit (practicum mode). Index 0 (t = 0) is skipped. */
     const nextSampleIndexRef = useRef(1);
+
+    // Vector state
+    const isQualitative = mode === "practicum";
+
+    const [internalVectorControls, setInternalVectorControls] = useState<RollingVectorState>({
+      showWeight: true,
+      showNormal: true,
+      showFriction: true,
+      showAcceleration: true,
+      decomposeWeight: false,
+      arrowScale: 1.0,
+      showValues: !isQualitative,
+    });
+
+    const activeVectorControls = controlledVectorControls ?? internalVectorControls;
+
+    const handleToggleCategory = (id: string) => {
+      if (isVectorLocked) return;
+      const updated = { ...activeVectorControls };
+      if (id === "weight") updated.showWeight = !updated.showWeight;
+      if (id === "normal") updated.showNormal = !updated.showNormal;
+      if (id === "friction") updated.showFriction = !updated.showFriction;
+      if (id === "acceleration") updated.showAcceleration = !updated.showAcceleration;
+
+      if (onVectorControlsChange) {
+        onVectorControlsChange(updated);
+      } else {
+        setInternalVectorControls(updated);
+      }
+    };
+
+    const handleScaleChange = (scale: number) => {
+      if (isVectorLocked) return;
+      const updated = { ...activeVectorControls, arrowScale: scale };
+      if (onVectorControlsChange) {
+        onVectorControlsChange(updated);
+      } else {
+        setInternalVectorControls(updated);
+      }
+    };
+
+    const handleToggleShowValues = () => {
+      if (isVectorLocked || isQualitative) return;
+      const updated = { ...activeVectorControls, showValues: !activeVectorControls.showValues };
+      if (onVectorControlsChange) {
+        onVectorControlsChange(updated);
+      } else {
+        setInternalVectorControls(updated);
+      }
+    };
+
+    const rollingCategories: VectorCategoryConfig[] = [
+      {
+        id: "weight",
+        label: "Gaya Berat",
+        color: SCIENTIFIC_THEME.vectors.force,
+        checked: activeVectorControls.showWeight,
+        title: "Tampilkan gaya berat (w)",
+      },
+      {
+        id: "normal",
+        label: "Gaya Normal",
+        color: "#38bdf8",
+        checked: activeVectorControls.showNormal,
+        title: "Tampilkan gaya normal (N)",
+      },
+      {
+        id: "friction",
+        label: "Gaya Gesek",
+        color: "#f97316",
+        checked: activeVectorControls.showFriction,
+        title: "Tampilkan gaya gesek statis (f)",
+      },
+      {
+        id: "acceleration",
+        label: "Percepatan",
+        color: SCIENTIFIC_THEME.vectors.acceleration,
+        checked: activeVectorControls.showAcceleration,
+        title: "Tampilkan percepatan linier pusat massa (a)",
+      },
+    ];
+
+    const extraToggles: ExtraToggleConfig[] = [
+      {
+        id: "decomposeWeight",
+        label: "Uraikan berat",
+        checked: activeVectorControls.decomposeWeight,
+        onToggle: () => {
+          if (isVectorLocked) return;
+          const updated = { ...activeVectorControls, decomposeWeight: !activeVectorControls.decomposeWeight };
+          if (onVectorControlsChange) onVectorControlsChange(updated);
+          else setInternalVectorControls(updated);
+        },
+        title: "Uraikan gaya berat w menjadi komponen sejajar (w∥) dan tegak lurus (w⊥)",
+      },
+    ];
 
     // Track 1 & 2 physics params
     const a1 = calculateRollingAcceleration(shape, thetaDeg, r, rInner, gLocal);
@@ -235,6 +358,116 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
 
       // Arc radius for protractor angle representation
       const arcR = Math.min(70, INCLINE_LENGTH_PX * 0.2);
+
+      const vecData = getRollingVectors({
+        shape: bodyShape,
+        thetaDeg,
+        mass,
+        r,
+        rInner,
+        g: gLocal,
+      });
+
+      const trackVectors: VectorItem[] = [];
+      const showValuesInOverlay = !isQualitative && activeVectorControls.showValues;
+      const forceScale = 22;
+      const accelScale = 25;
+
+      const cosT = Math.cos(thetaRad);
+      const sinT = Math.sin(thetaRad);
+
+      // 1. Gaya Berat w
+      if (activeVectorControls.showWeight && vecData.w > 0) {
+        if (!activeVectorControls.decomposeWeight) {
+          // Total weight pointing vertically down from center
+          trackVectors.push({
+            id: `w-${trackIndex}`,
+            category: "weight",
+            label: "w",
+            origin: { x: objX, y: objY },
+            components: { dx: 0, dy: vecData.w },
+            color: SCIENTIFIC_THEME.vectors.force,
+            scale: forceScale,
+            showValue: showValuesInOverlay,
+            valueText: `${vecData.w.toFixed(2)} N`,
+          });
+        } else {
+          // Decomposed components:
+          // wParallel (down the incline): dx = cosT, dy = sinT
+          if (vecData.wParallel > 1e-4) {
+            trackVectors.push({
+              id: `wPar-${trackIndex}`,
+              category: "weight",
+              label: "w∥",
+              origin: { x: objX, y: objY },
+              components: { dx: vecData.wParallel * cosT, dy: vecData.wParallel * sinT },
+              color: SCIENTIFIC_THEME.vectors.force,
+              scale: forceScale,
+              showValue: showValuesInOverlay,
+              valueText: `${vecData.wParallel.toFixed(2)} N`,
+            });
+          }
+          // wPerpendicular (perpendicular into the incline): dx = -sinT, dy = cosT
+          if (vecData.wPerpendicular > 1e-4) {
+            trackVectors.push({
+              id: `wPerp-${trackIndex}`,
+              category: "weight",
+              label: "w⊥",
+              origin: { x: objX, y: objY },
+              components: { dx: -vecData.wPerpendicular * sinT, dy: vecData.wPerpendicular * cosT },
+              color: SCIENTIFIC_THEME.vectors.force,
+              scale: forceScale,
+              showValue: showValuesInOverlay,
+              valueText: `${vecData.wPerpendicular.toFixed(2)} N`,
+            });
+          }
+        }
+      }
+
+      // 2. Gaya Normal N (perpendicular outward from incline contact point)
+      if (activeVectorControls.showNormal && vecData.N > 1e-4) {
+        trackVectors.push({
+          id: `N-${trackIndex}`,
+          category: "normal",
+          label: "N",
+          origin: { x: cx, y: cy },
+          components: { dx: vecData.N * sinT, dy: -vecData.N * cosT },
+          color: "#38bdf8",
+          scale: forceScale,
+          showValue: showValuesInOverlay,
+          valueText: `${vecData.N.toFixed(2)} N`,
+        });
+      }
+
+      // 3. Gaya Gesek Statis f (along the incline up, from contact point)
+      if (activeVectorControls.showFriction && vecData.f > 1e-4) {
+        trackVectors.push({
+          id: `f-${trackIndex}`,
+          category: "friction",
+          label: "f",
+          origin: { x: cx, y: cy },
+          components: { dx: -vecData.f * cosT, dy: -vecData.f * sinT },
+          color: "#f97316",
+          scale: forceScale,
+          showValue: showValuesInOverlay,
+          valueText: `${vecData.f.toFixed(2)} N`,
+        });
+      }
+
+      // 4. Percepatan translasi a (along the incline down, from center)
+      if (activeVectorControls.showAcceleration && vecData.a > 1e-4) {
+        trackVectors.push({
+          id: `a-${trackIndex}`,
+          category: "acceleration",
+          label: "a",
+          origin: { x: objX, y: objY },
+          components: { dx: vecData.a * cosT, dy: vecData.a * sinT },
+          color: SCIENTIFIC_THEME.vectors.acceleration,
+          scale: accelScale,
+          showValue: showValuesInOverlay,
+          valueText: `${vecData.a.toFixed(2)} m/s²`,
+        });
+      }
 
       return (
         <g key={`track-${trackIndex}`}>
@@ -404,6 +637,16 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
             fillColor={accentColor}
             rimFillId={bodyShape === "hollow" ? gradientIds.hollowRim : undefined}
           />
+
+          {/* 7. Physical Vector Overlay */}
+          {!isVectorLocked && (
+            <VectorOverlay
+              vectors={trackVectors}
+              userScale={activeVectorControls.arrowScale}
+              maxArrowLength={130}
+              showValues={showValuesInOverlay}
+            />
+          )}
         </g>
       );
     };
@@ -458,6 +701,24 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
             )}
           </svg>
         </div>
+
+        {/* Vector Controls Panel */}
+        {!hideVectorControls && (
+          <div className="w-full px-4 pb-4 max-w-4xl mx-auto z-10">
+            <VectorControls
+              categories={rollingCategories}
+              onToggleCategory={handleToggleCategory}
+              extraToggles={extraToggles}
+              arrowScale={activeVectorControls.arrowScale}
+              onScaleChange={handleScaleChange}
+              showValues={activeVectorControls.showValues}
+              onToggleShowValues={handleToggleShowValues}
+              isQualitative={isQualitative}
+              isLocked={isVectorLocked}
+              lockMessage={vectorLockMessage}
+            />
+          </div>
+        )}
       </div>
     );
   }

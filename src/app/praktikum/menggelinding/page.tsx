@@ -94,8 +94,12 @@ function countMeasuredRows(state: PracticumState): number {
   return state.recordedData.filter((row) => rowToTrial(row) !== null).length;
 }
 
-function RollingPracticumSimulation({ state, setRecordedData, addDataRow }: PracticumShellContext) {
+function RollingPracticumSimulation({ state, setRecordedData, addDataRow, hintsRevealedCount }: PracticumShellContext) {
   const appRef = useRef<RollingApparatusRef>(null);
+
+  // Vektor kualitatif terkunci sampai mahasiswa mengisi tabel data atau membuka petunjuk level 3
+  const isVectorLocked = state.recordedData.length === 0 && (hintsRevealedCount ?? 0) < 3;
+  const vectorLockMessage = "Vektor kualitatif terkunci. Silakan catat minimal 1 data percobaan pada tabel atau buka Petunjuk Level 3 untuk membukanya.";
 
   // Apparatus state
   const [shape, setShape] = useState<CylinderShape>("solid");
@@ -243,6 +247,8 @@ function RollingPracticumSimulation({ state, setRecordedData, addDataRow }: Prac
             gLocal={PRACTICUM_G}
             onTimeChange={handleTimeChange}
             onStateUpdate={handleStateUpdate}
+            isVectorLocked={isVectorLocked}
+            vectorLockMessage={vectorLockMessage}
             className="w-full h-full min-h-[500px]"
           />
         </div>
