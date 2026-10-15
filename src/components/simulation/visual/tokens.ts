@@ -68,19 +68,19 @@ export const SCIENTIFIC_THEME = {
     fuchsia: "#d946ef",    // Total momentum vector (System Σp)
   },
 
-  // Semantic Vector Category Palettes (Strict delta-Hue >= 30° between all adjacent categories)
+  // Semantic Vector Category Palettes (Synchronized with Batch E graph palette, WCAG AA >= 4.5:1)
   vectors: {
-    position: "#06b6d4",       // Cyan (Hue 188°) - Posisi
-    velocity: "#22c55e",       // Green (Hue 142°) - Kecepatan
-    acceleration: "#9333ea",   // Purple (Hue 272°) - Percepatan
-    gravity: "#f59e0b",        // Amber (Hue 38°) - Gaya Berat / Gravitasi
-    force: "#f59e0b",          // Amber (Hue 38°) - Gaya Berat / Luar umum
-    friction: "#dc2626",       // Crimson Red (Hue 0°) - Gaya Gesek
-    tensionNormal: "#ec4899",  // Pink/Magenta (Hue 330°) - Tegangan Tali & Gaya Normal
+    position: "#38bdf8",       // Sky Blue (Batch E, Hue 199°) - Posisi (r, s, x, θ)
+    velocity: "#10b981",       // Emerald Green (Batch E, Hue 160°) - Kecepatan (v, v1, v2, vA, vB, ω)
+    acceleration: "#c084fc",   // Purple (Batch E, Hue 274°) - Percepatan (a, a1, a2, ac)
+    gravity: "#f59e0b",        // Amber (Batch E, Hue 38°) - Gaya Berat / Gravitasi (w, w1, w2, w3)
+    force: "#f59e0b",          // Amber (Batch E, Hue 38°) - Gaya Umum / Luar
+    friction: "#f97316",       // Deep Orange (Hue 25°) - Gaya Gesek (f, fs, fk) - DASHED, BUKAN MERAH
+    tensionNormal: "#ec4899",  // Pink/Magenta (Hue 330°) - Tegangan Tali & Gaya Normal (T, N)
     tension: "#ec4899",        // Pink/Magenta (Hue 330°) - Alias Tegangan Tali
     normal: "#ec4899",         // Pink/Magenta (Hue 330°) - Alias Gaya Normal
-    momentum: "#2563eb",       // Royal Blue (Hue 221°) - Momentum (pA, pB, Σp)
-    momentumTotal: "#2563eb",  // Royal Blue (Hue 221°) - Momentum total sistem (dibedakan via garis putus-putus)
+    momentum: "#3b82f6",       // Blue (Hue 217°) - Momentum (pA, pB)
+    momentumTotal: "#3b82f6",  // Blue (Hue 217°) - Momentum total sistem (Σp, DASHED)
   },
 
   // Text & Scale Labels

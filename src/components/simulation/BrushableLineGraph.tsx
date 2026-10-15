@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { LineGraph, DataPoint } from "./LineGraph";
+import { SCIENTIFIC_THEME } from "./visual/tokens";
 import { calculateLinearRegression } from "@/physics/regression";
 
 interface BrushableLineGraphProps {
@@ -37,7 +38,7 @@ export function BrushableLineGraph({
   data,
   width,
   height,
-  color = "#38bdf8",
+  color = SCIENTIFIC_THEME.vectors.position,
   xLabel,
   yLabel,
   onSelectionChange,

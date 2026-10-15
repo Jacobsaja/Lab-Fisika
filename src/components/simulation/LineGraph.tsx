@@ -2,6 +2,8 @@
 
 import React, { useMemo, useId } from "react";
 
+import { SCIENTIFIC_THEME } from "./visual/tokens";
+
 export interface DataPoint {
   t: number;
   val: number;
@@ -35,7 +37,7 @@ export function LineGraph({
   data,
   width,
   height,
-  color = "#38bdf8",
+  color = SCIENTIFIC_THEME.vectors.position,
   xLabel = "Waktu (s)",
   yLabel = "Nilai",
   timeWindow,

@@ -118,6 +118,7 @@ export function UniformCircularMotionView({
   const [isLatched, setIsLatched] = useState(false);
   const prevThetaRef = useRef<number>(snapshot.theta);
   const latchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rotatingAssemblyRef = useRef<SVGGElement>(null);
 
   useEffect(() => {
     const uPrev = (prevThetaRef.current - theta0) / (2 * Math.PI);
@@ -152,6 +153,12 @@ export function UniformCircularMotionView({
 
   // Degrees of rotation for radial guide track
   const rotationDeg = -(snapshot.theta * 180) / Math.PI;
+
+  useEffect(() => {
+    if (rotatingAssemblyRef.current) {
+      rotatingAssemblyRef.current.setAttribute("transform", `rotate(${rotationDeg}, ${center.x}, ${center.y})`);
+    }
+  }, [rotationDeg, center.x, center.y]);
 
   // 360-degree protractor markings memoized
   const protractorTicks = useMemo(() => {
@@ -478,8 +485,12 @@ export function UniformCircularMotionView({
         </g>
       )}
 
-      {/* 6. Rotating Radial Guide Arm & Extrusion Slot (Spins with theta) */}
-      <g transform={`rotate(${rotationDeg}, ${center.x}, ${center.y})`}>
+      {/* 6. Rotating Radial Guide Arm & Extrusion Slot (Spins with theta via DOM ref) */}
+      <g
+        ref={rotatingAssemblyRef}
+        id="gmb-rotating-assembly"
+        transform={`rotate(${rotationDeg}, ${center.x}, ${center.y})`}
+      >
         {/* Aluminium Slotted Guide Rail (from center to full radius) */}
         <rect
           x={center.x}
@@ -516,6 +527,67 @@ export function UniformCircularMotionView({
             />
           );
         })}
+
+        {/* 9. Tangential Velocity, Centripetal Acceleration & Force (Tahap J: VectorOverlay) */}
+        {!isVectorLocked && vectorItems && vectorItems.length > 0 ? (
+          <VectorOverlay
+            vectors={vectorItems}
+            userScale={userVectorScale}
+            showValues={showVectorValues}
+            maxArrowLength={140}
+          />
+        ) : !isVectorLocked && !vectorItems ? (
+          <>
+            {showAcceleration && (
+              <VectorArrow
+                from={{ x: center.x + pathPx, y: center.y }}
+                delta={aDelta}
+                color={UCM_COLORS.acceleration}
+                label="a"
+                labelSubscript="c"
+              />
+            )}
+            {showVelocity && (
+              <VectorArrow
+                from={{ x: center.x + pathPx, y: center.y }}
+                delta={vDelta}
+                color={UCM_COLORS.velocity}
+                label="v"
+              />
+            )}
+          </>
+        ) : null}
+
+        {/* 10. Sliding Sensor Mass Carriage (Beban Sensor Luncur) */}
+        <g transform={`translate(${center.x + pathPx}, ${center.y})`}>
+          {/* Sensor Carriage Base Block */}
+          <rect
+            x="-14"
+            y="-14"
+            width="28"
+            height="28"
+            rx="5"
+            fill={`url(#${gradientIds.sliderCarriage})`}
+            stroke="#0369a1"
+            strokeWidth="1.5"
+          />
+          {/* Brass Mass Collar Layer */}
+          <rect
+            x="-10"
+            y="-10"
+            width="20"
+            height="20"
+            rx="3"
+            fill={`url(#${gradientIds.brass})`}
+            stroke="#78350f"
+            strokeWidth="1"
+          />
+          {/* Center Optical Shutter Flag / Locking Screw */}
+          <circle cx="0" cy="0" r="4.5" fill="#1e293b" stroke="#f1f5f9" strokeWidth="1" />
+          <circle cx="0" cy="0" r="2" fill="#38bdf8" />
+          {/* Tacho sensor interrupter tab extending to the side */}
+          <rect x="12" y="-2" width="5" height="4" rx="1" fill="#f59e0b" stroke="#78350f" strokeWidth="0.8" />
+        </g>
       </g>
 
       {/* 7. Center Direct-Drive Motor Hub & Bearing Assembly */}
@@ -593,66 +665,6 @@ export function UniformCircularMotionView({
         </g>
       )}
 
-      {/* 9. Tangential Velocity, Centripetal Acceleration & Force (Tahap J: VectorOverlay) */}
-      {!isVectorLocked && vectorItems && vectorItems.length > 0 ? (
-        <VectorOverlay
-          vectors={vectorItems}
-          userScale={userVectorScale}
-          showValues={showVectorValues}
-          maxArrowLength={140}
-        />
-      ) : !isVectorLocked && !vectorItems ? (
-        <>
-          {showAcceleration && (
-            <VectorArrow
-              from={particle}
-              delta={aDelta}
-              color={UCM_COLORS.acceleration}
-              label="a"
-              labelSubscript="c"
-            />
-          )}
-          {showVelocity && (
-            <VectorArrow
-              from={particle}
-              delta={vDelta}
-              color={UCM_COLORS.velocity}
-              label="v"
-            />
-          )}
-        </>
-      ) : null}
-
-      {/* 10. Sliding Sensor Mass Carriage (Beban Sensor Luncur) */}
-      <g transform={`translate(${particle.x}, ${particle.y})`}>
-        {/* Sensor Carriage Base Block */}
-        <rect
-          x="-14"
-          y="-14"
-          width="28"
-          height="28"
-          rx="5"
-          fill={`url(#${gradientIds.sliderCarriage})`}
-          stroke="#0369a1"
-          strokeWidth="1.5"
-        />
-        {/* Brass Mass Collar Layer */}
-        <rect
-          x="-10"
-          y="-10"
-          width="20"
-          height="20"
-          rx="3"
-          fill={`url(#${gradientIds.brass})`}
-          stroke="#78350f"
-          strokeWidth="1"
-        />
-        {/* Center Optical Shutter Flag / Locking Screw */}
-        <circle cx="0" cy="0" r="4.5" fill="#1e293b" stroke="#f1f5f9" strokeWidth="1" />
-        <circle cx="0" cy="0" r="2" fill="#38bdf8" />
-        {/* Tacho sensor interrupter tab extending to the side */}
-        <rect x="12" y="-2" width="5" height="4" rx="1" fill="#f59e0b" stroke="#78350f" strokeWidth="0.8" />
-      </g>
     </svg>
   );
 }

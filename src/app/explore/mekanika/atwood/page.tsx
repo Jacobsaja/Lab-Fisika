@@ -6,6 +6,7 @@ import { AtwoodApparatus, AtwoodApparatusRef } from "@/components/practicum/inst
 import { getAtwoodExploreState } from "@/physics/atwood";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
 import { LineGraph } from "@/components/simulation/LineGraph";
+import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
 
 export default function AtwoodExplorePage() {
   const appRef = useRef<AtwoodApparatusRef>(null);
@@ -214,7 +215,7 @@ export default function AtwoodExplorePage() {
                 width={300}
                 height={220}
                 xLabel="t (s)" yLabel="v (m/s)"
-                color="#3b82f6"
+                color={SCIENTIFIC_THEME.vectors.velocity}
               />
             </div>
             <div className="flex-1 pl-4 flex flex-col items-center justify-center">
@@ -224,7 +225,7 @@ export default function AtwoodExplorePage() {
                 width={300}
                 height={220}
                 xLabel="t (s)" yLabel="s (m)"
-                color="#10b981"
+                color={SCIENTIFIC_THEME.vectors.position}
               />
             </div>
           </div>

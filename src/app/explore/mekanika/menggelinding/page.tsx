@@ -6,6 +6,7 @@ import { RollingApparatus, RollingApparatusRef } from "@/components/practicum/in
 import { CylinderShape, calculateRollingAcceleration } from "@/physics/rollingMotion";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
 import { LineGraph } from "@/components/simulation/LineGraph";
+import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
 
 export default function RollingExplorePage() {
   const appRef = useRef<RollingApparatusRef>(null);
@@ -230,7 +231,7 @@ export default function RollingExplorePage() {
                  width={500}
                  height={220}
                  xLabel="t (s)" yLabel="v (m/s)"
-                 color="#3b82f6"
+                 color={SCIENTIFIC_THEME.vectors.velocity}
                />
             </div>
           </div>

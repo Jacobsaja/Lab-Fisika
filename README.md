@@ -52,11 +52,14 @@ npm test
 ```
 
 ### 2. End-to-End Smoke Tests (Playwright)
-Menjalankan pengujian otomatis permanen di seluruh rute Explore, Practicum, dan Home pada tiga ukuran viewport (375px, 768px, 1440px):
+Menjalankan pengujian otomatis permanen di seluruh rute (20 rute laboratorium modul Explore & Practicum + 1 rute Home) pada tiga ukuran viewport (375px mobile, 768px tablet, 1440px desktop), ditambah pengujian fungsional interaktif:
+- **Cakupan Rute**: 20 rute laboratorium $\times$ 3 viewport = 60 tes, ditambah Home $\times$ 3 viewport = 3 tes (total 63 pengujian rute).
+- **Pengujian Fungsional Tambahan**: Pengujian drag responsif BrushableLineGraph, toggle overlay vektor HKM Explore, dan kualitatif lock HKM Practicum (3 tes).
+- **Total Pengujian E2E Smoke**: 66 pengujian.
 - Memeriksa konsol bersih tanpa error/warning.
 - Memastikan tidak ada overflow horizontal pada layout.
 - Memvalidasi elemen apparatus/SVG utama terlihat dengan dimensi non-nol.
-- Menjalankan 1 siklus simulasi penuh (Play, tunggu 2-3 detik, Reset).
+- Menjalankan 1 siklus simulasi penuh (Play, tunggu 2 detik, deteksi mutasi state/transform, Reset).
 - Memastikan tidak ada background putih polos (kecuali pelat skala Caliper/Ohaus).
 - Memverifikasi konsistensi pemetaan proporsional drag pada BrushableLineGraph.
 

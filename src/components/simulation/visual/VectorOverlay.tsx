@@ -47,7 +47,7 @@ export interface VectorOverlayProps {
  * - Arrow lengths clamped to maxArrowLength.
  * - Unique SVG element IDs via useId.
  */
-export function VectorOverlay({
+export const VectorOverlay = React.memo(function VectorOverlay({
   vectors,
   defaultScale = 100,
   userScale = 1.0,
@@ -126,4 +126,4 @@ export function VectorOverlay({
       })}
     </g>
   );
-}
+});

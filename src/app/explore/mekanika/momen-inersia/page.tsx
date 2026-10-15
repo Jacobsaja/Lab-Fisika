@@ -5,6 +5,7 @@ import { ExploreShell } from "@/components/explore/ExploreShell";
 import { TorsionalOscillator, TorsionalOscillatorRef } from "@/components/practicum/instruments/TorsionalOscillator";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
 import { LineGraph } from "@/components/simulation/LineGraph";
+import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
 
 export default function MomenInersiaExplorePage() {
   const appRef = useRef<TorsionalOscillatorRef>(null);
@@ -236,7 +237,7 @@ export default function MomenInersiaExplorePage() {
                     height={300}
                     xLabel="Waktu (s)" 
                     yLabel="Simpangan (°)"
-                    color="#6366f1"
+                    color={SCIENTIFIC_THEME.vectors.position}
                   />
                ) : (
                   <div className="w-full h-full flex items-center justify-center border-2 border-dashed border-slate-800 rounded-lg text-slate-500 bg-slate-950/40">

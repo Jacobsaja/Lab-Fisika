@@ -80,24 +80,18 @@ export function CircularMotionApparatus({
   const sim = useSimulationLoop(circularMotionModel, params);
   const snapshot = computeSnapshot(params, sim.time);
 
-  const gmbVectors = useMemo(() => {
-    return getCircularMotionVectors({
-      r,
-      omega: actualOmega,
-      theta: snapshot.theta,
-      mass: 0.20,
-    });
-  }, [r, actualOmega, snapshot.theta]);
+  const localGmbVectors = useMemo(() => {
+    const speed = Math.abs(actualOmega) * r;
+    const acMag = actualOmega * actualOmega * r;
+    const FcMag = 0.20 * acMag;
+    return { speed, acMag, FcMag };
+  }, [r, actualOmega]);
 
   const viewTransform = useMemo(() => ({
     originX: 520 / 2,
     originY: 520 / 2,
     scale: 195 / Math.max(R_MAX, 1e-6),
   }), []);
-
-  const particleSvg = useMemo(() => {
-    return worldToSvg(snapshot.position, viewTransform);
-  }, [snapshot.position, viewTransform]);
 
   const vectorCategories: VectorCategoryConfig[] = [
     {
@@ -133,50 +127,61 @@ export function CircularMotionApparatus({
 
   const showValuesInOverlay = mode === "explore" && vectorState.showValues;
 
-  const vectorItems: VectorItem[] = [];
-  if (vectorState.showVelocity && gmbVectors.speed > 1e-4) {
-    vectorItems.push({
-      id: "v",
-      category: "velocity",
-      label: "v",
-      origin: particleSvg,
-      components: { dx: gmbVectors.v.x, dy: -gmbVectors.v.y },
-      color: SCIENTIFIC_THEME.vectors.velocity,
-      scale: 35,
-      showValue: showValuesInOverlay,
-      valueText: `${gmbVectors.speed.toFixed(2)} m/s`,
-    });
-  }
+  // Memoized vector items anchored to turntable guide arm coordinates.
+  // Completely static across animation frames — zero React re-render overhead during spinning!
+  const vectorItems = useMemo<VectorItem[]>(() => {
+    const items: VectorItem[] = [];
+    const localOrigin = {
+      x: viewTransform.originX + r * viewTransform.scale,
+      y: viewTransform.originY,
+    };
 
-  if (vectorState.showAcceleration && gmbVectors.acMag > 1e-4) {
-    vectorItems.push({
-      id: "ac",
-      category: "acceleration",
-      label: "ac",
-      origin: particleSvg,
-      components: { dx: gmbVectors.ac.x, dy: -gmbVectors.ac.y },
-      color: SCIENTIFIC_THEME.vectors.acceleration,
-      scale: 10,
-      showValue: showValuesInOverlay,
-      valueText: `${gmbVectors.acMag.toFixed(2)} m/s²`,
-    });
-  }
+    if (vectorState.showVelocity && localGmbVectors.speed > 1e-4) {
+      items.push({
+        id: "v",
+        category: "velocity",
+        label: "v",
+        origin: localOrigin,
+        components: { dx: 0, dy: actualOmega >= 0 ? -localGmbVectors.speed : localGmbVectors.speed },
+        color: SCIENTIFIC_THEME.vectors.velocity,
+        scale: 35,
+        showValue: showValuesInOverlay,
+        valueText: `${localGmbVectors.speed.toFixed(2)} m/s`,
+      });
+    }
 
-  if (vectorState.showCentripetalForce && gmbVectors.FcMag > 1e-4) {
-    vectorItems.push({
-      id: "Fc",
-      category: "force",
-      label: "Fc",
-      origin: particleSvg,
-      components: { dx: gmbVectors.Fc.x, dy: -gmbVectors.Fc.y },
-      color: SCIENTIFIC_THEME.vectors.force,
-      dashed: true,
-      strokeDasharray: "5 3",
-      scale: 50,
-      showValue: showValuesInOverlay,
-      valueText: `${gmbVectors.FcMag.toFixed(2)} N`,
-    });
-  }
+    if (vectorState.showAcceleration && localGmbVectors.acMag > 1e-4) {
+      items.push({
+        id: "ac",
+        category: "acceleration",
+        label: "ac",
+        origin: localOrigin,
+        components: { dx: -localGmbVectors.acMag, dy: 0 },
+        color: SCIENTIFIC_THEME.vectors.acceleration,
+        scale: 10,
+        showValue: showValuesInOverlay,
+        valueText: `${localGmbVectors.acMag.toFixed(2)} m/s²`,
+      });
+    }
+
+    if (vectorState.showCentripetalForce && localGmbVectors.FcMag > 1e-4) {
+      items.push({
+        id: "Fc",
+        category: "force",
+        label: "Fc",
+        origin: localOrigin,
+        components: { dx: -localGmbVectors.FcMag, dy: 0 },
+        color: SCIENTIFIC_THEME.vectors.force,
+        dashed: true,
+        strokeDasharray: "5 3",
+        scale: 50,
+        showValue: showValuesInOverlay,
+        valueText: `${localGmbVectors.FcMag.toFixed(2)} N`,
+      });
+    }
+
+    return items;
+  }, [r, actualOmega, vectorState, showValuesInOverlay, localGmbVectors, viewTransform]);
 
   const alreadyRecorded = lastRecordedTime !== null && lastRecordedTime === sim.time;
   const nearTarget = isStopNearTarget(snapshot.revolutions, targetN, STOP_TOLERANCE_REV);

@@ -73,7 +73,7 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     expect(consoleErrors).toHaveLength(0);
   });
 
-  test("Explore Atwood: vektor kecepatan v₁/v₂ muncul saat bergerak, bertahan di fase GLB, dan bisa dimatikan", async ({ page }) => {
+  test("Explore Atwood: velocity vectors v1/v2 appear during motion, persist into GLB phase, and can be toggled", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
@@ -90,21 +90,21 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     const v2 = page.locator("g[id$='_arrow_v2']");
     const a1 = page.locator("g[id$='_arrow_a1']");
 
-    // Diam: v = 0 → tidak ada panah kecepatan
+    // Stationary: v = 0 -> no velocity arrows rendered
     expect(await v1.count()).toBe(0);
     expect(await v2.count()).toBe(0);
 
     await page.locator("[data-testid='btn-play']").first().click();
 
-    // Fase GLBB: panah kecepatan muncul
+    // GLBB phase: velocity arrows become visible
     await expect.poll(async () => (await v1.count()) + (await v2.count()), { timeout: 3000 }).toBe(2);
 
-    // Fase GLB (setelah keping lepas di B, m1 = m2): a = 0 tetapi v tetap tampil
+    // GLB phase (after slotted disk catches at ring B, m1 = m2): a = 0 while v remains visible
     await expect.poll(async () => await a1.count(), { timeout: 4000, intervals: [50] }).toBe(0);
     expect(await v1.count()).toBe(1);
     expect(await v2.count()).toBe(1);
 
-    // Toggle kategori Kecepatan OFF
+    // Toggle Kecepatan category OFF
     await velBtn.click();
     await page.waitForTimeout(100);
     expect(await v1.count()).toBe(0);
@@ -376,7 +376,7 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     }
   });
 
-  test("Explore & Practicum GLB: pilihan vektor tetap persisten saat reset run (tidak nyala lagi semua)", async ({ page }) => {
+  test("Explore & Practicum GLB: vector selection remains persistent upon reset run (does not re-enable all)", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/explore/mekanika/atwood", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1000);
@@ -384,29 +384,29 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     const weightBtn = page.locator("button:has-text('Gaya Berat')");
     await expect(weightBtn).toBeVisible();
 
-    // Matikan Gaya Berat
+    // Toggle Gaya Berat OFF
     await weightBtn.click();
     await page.waitForTimeout(200);
 
-    // Pastikan panah w tidak ada
+    // Verify weight arrows are removed
     expect(await page.locator("g[id*='_arrow_w1']").count()).toBe(0);
     expect(await page.locator("g[id*='_arrow_w2']").count()).toBe(0);
 
-    // Jalankan simulasi
+    // Start simulation
     await page.locator("[data-testid='btn-play']").first().click();
     await page.waitForTimeout(1000);
 
-    // Klik Reset Run
+    // Click Reset Run
     const resetBtn = page.locator("[data-testid='btn-reset']").first();
     await resetBtn.click();
     await page.waitForTimeout(400);
 
-    // Pastikan Gaya Berat TETAP MATI (tidak nyala lagi otomatis)
+    // Verify Gaya Berat REMAINS OFF (does not auto re-enable)
     expect(await page.locator("g[id*='_arrow_w1']").count()).toBe(0);
     expect(await page.locator("g[id*='_arrow_w2']").count()).toBe(0);
   });
 
-  test("Explore Atwood: Reset Run memulihkan waktu ke nol, posisi dan kecepatan awal, keping kembali terpasang di atas m2, dan tanpa sisa state GLB", async ({ page }) => {
+  test("Explore Atwood: Reset Run restores zero time, initial position/velocity, slotted mass attachment onto m2, with no lingering GLB state", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/explore/mekanika/atwood", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1000);
@@ -420,39 +420,39 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     const m2Group = page.locator("[data-testid='atwood-m2-group']");
     const mTambahanGroup = page.locator("[data-testid='atwood-mtambahan-group']");
 
-    // Kondisi awal (sebelum simulasi)
+    // Initial state (before simulation starts)
     await expect(timeEl).toHaveText("0.000 s");
     await expect(velEl).toHaveText("0.000 m/s");
     await expect(distEl).toHaveText("0.000 m");
     await expect(phaseEl).toHaveText("DIAM");
 
-    // Jalankan simulasi hingga masuk fase GLB (setelah keping lepas di B)
+    // Run simulation until reaching GLB phase (after slotted disk catches at ring B)
     await page.locator("[data-testid='btn-play']").first().click();
     await expect(phaseEl).toHaveText("GLB", { timeout: 6000 });
 
-    // Verifikasi bahwa saat di fase GLB elemen telah berpindah
+    // Verify elements have moved during GLB phase
     const mTambahanTransformMid = await mTambahanGroup.getAttribute("transform");
     expect(mTambahanTransformMid).not.toBe("translate(0, 0)");
     expect(mTambahanTransformMid).not.toBe("translate(0,0)");
 
-    // Klik Reset Run
+    // Click Reset Run
     const resetBtn = page.locator("[data-testid='btn-reset']").first();
     await resetBtn.click();
     await page.waitForTimeout(300);
 
-    // 1. Waktu simulasi kembali nol
+    // 1. Simulation time resets to zero
     await expect(timeEl).toHaveText("0.000 s");
 
-    // 2. Kecepatan kembali awal (0 m/s)
+    // 2. Velocity returns to initial (0 m/s)
     await expect(velEl).toHaveText("0.000 m/s");
 
-    // 3. Posisi kembali awal (0 m)
+    // 3. Position returns to initial (0 m)
     await expect(distEl).toHaveText("0.000 m");
 
-    // 4. Tidak ada sisa state fase GLB (kembali ke DIAM)
+    // 4. No lingering GLB phase state (cleanly reverts to DIAM)
     await expect(phaseEl).toHaveText("DIAM");
 
-    // 5. Keping beban kembali terpasang di atas m2 di Point A (transform kembali translate(0, 0))
+    // 5. Slotted mass attaches back onto m2 at Point A (transform reverts to translate(0, 0))
     const m1TransformEnd = await m1Group.getAttribute("transform");
     const m2TransformEnd = await m2Group.getAttribute("transform");
     const mTambahanTransformEnd = await mTambahanGroup.getAttribute("transform");
@@ -461,7 +461,7 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     expect(m2TransformEnd === "translate(0, 0)" || m2TransformEnd === "translate(0,0)").toBe(true);
     expect(mTambahanTransformEnd === "translate(0, 0)" || mTambahanTransformEnd === "translate(0,0)").toBe(true);
 
-    // 6. Vektor kecepatan v1 dan v2 hilang saat diam
+    // 6. Velocity arrows v1 and v2 disappear when stationary
     expect(await page.locator("g[id$='_arrow_v1']").count()).toBe(0);
     expect(await page.locator("g[id$='_arrow_v2']").count()).toBe(0);
   });

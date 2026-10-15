@@ -112,12 +112,15 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
 
         page.on("console", (msg) => {
           const text = msg.text();
-          // Exclude known external / dev-only browser messages
+          // Exclude known external / dev-only browser messages & network-level fetch timeouts
           if (
             text.includes("Download the React DevTools") ||
             text.includes("Fast Refresh") ||
             text.includes("[HMR]") ||
-            text.includes("favicon.ico")
+            text.includes("favicon.ico") ||
+            text.includes("Failed to load resource") ||
+            text.includes("ERR_CONNECTION_TIMED_OUT") ||
+            text.includes("ERR_NAME_NOT_RESOLVED")
           ) {
             return;
           }
@@ -217,7 +220,7 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
             const playButton = page.locator('[data-testid="btn-play"]').first();
             await expect(
               playButton,
-              `Tombol Mulai [data-testid="btn-play"] wajib ditemukan pada rute ${route.path} (${vp.name})`
+              `Play button [data-testid="btn-play"] must be visible on route ${route.path} (${vp.name})`
             ).toBeVisible({ timeout: 5000 });
 
             // Sample state before Play
@@ -249,14 +252,14 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
             const stateChanged = (stateBefore.displays !== stateAfter.displays) || (stateBefore.svgAttrs !== stateAfter.svgAttrs);
             expect(
               stateChanged,
-              `Simulasi pada rute ${route.path} (${vp.name}) tidak menunjukkan perubahan state yang teramati setelah Play diklik.`
+              `Simulation on route ${route.path} (${vp.name}) showed no observable state change after clicking Play.`
             ).toBe(true);
 
             // Find and Click Reset Button
             const resetButton = page.locator('[data-testid="btn-reset"]').first();
             await expect(
               resetButton,
-              `Tombol Reset [data-testid="btn-reset"] wajib ditemukan pada rute ${route.path} (${vp.name})`
+              `Reset button [data-testid="btn-reset"] must be visible on route ${route.path} (${vp.name})`
             ).toBeVisible({ timeout: 4000 });
             await resetButton.click();
             await page.waitForTimeout(500);
@@ -312,7 +315,7 @@ test.describe("BrushableLineGraph Drag Consistency Across Viewports", () => {
 
 // ── 4. Dedicated Verification for Vector Overlay (Pilot HKM) ──
 test.describe("Vector Overlay (Pilot HKM) — Explore & Practicum", () => {
-  test("Explore HKM: toggle tiap kategori vektor dan pastikan elemen muncul/hilang tanpa error console", async ({ page }) => {
+  test("Explore HKM: toggles each vector category and ensures elements appear/disappear without console errors", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") {
@@ -374,7 +377,7 @@ test.describe("Vector Overlay (Pilot HKM) — Explore & Practicum", () => {
     expect(consoleErrors).toEqual([]);
   });
 
-  test("Practicum HKM: vektor terkunci sebelum tabel terisi dan tidak ada angka saat dibuka (kualitatif)", async ({ page }) => {
+  test("Practicum HKM: vectors locked before recording data and strictly qualitative when unlocked", async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") {
