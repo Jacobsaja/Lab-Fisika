@@ -23,6 +23,7 @@ export interface VectorItem {
   /** Whether the vector line should be dashed (for intra-category distinction) */
   dashed?: boolean;
   strokeDasharray?: string;
+  strokeWidth?: number;
 }
 
 export interface VectorOverlayProps {
@@ -93,6 +94,8 @@ export const VectorOverlay = React.memo(function VectorOverlay({
         const badgeY = vec.origin.y - 12;
 
         const uniqueVectorId = `${baseId}_vector_${vec.id || index}`;
+        const isMomentumTotal = vec.category === "momentumTotal";
+        const isFriction = vec.category === "friction";
 
         return (
           <g key={vec.id || index} id={uniqueVectorId}>
@@ -101,11 +104,11 @@ export const VectorOverlay = React.memo(function VectorOverlay({
               from={vec.origin}
               delta={{ x: dx, y: dy }}
               color={vec.color}
-              strokeWidth={3}
-              headSize={9}
+              strokeWidth={vec.strokeWidth ?? (isMomentumTotal ? 4.5 : 3)}
+              headSize={isMomentumTotal ? 11 : 9}
               disableFilter={true}
-              dashed={vec.dashed}
-              strokeDasharray={vec.strokeDasharray}
+              dashed={vec.dashed ?? (isMomentumTotal || isFriction)}
+              strokeDasharray={vec.strokeDasharray ?? (isMomentumTotal ? "5 3" : isFriction ? "4 4" : undefined)}
               id={`${baseId}_arrow_${vec.id || index}`}
             />
 

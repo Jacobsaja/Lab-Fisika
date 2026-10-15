@@ -72,15 +72,15 @@ export const SCIENTIFIC_THEME = {
   vectors: {
     position: "#38bdf8",       // Sky Blue (Batch E, Hue 199°) - Posisi (r, s, x, θ)
     velocity: "#10b981",       // Emerald Green (Batch E, Hue 160°) - Kecepatan (v, v1, v2, vA, vB, ω)
-    acceleration: "#c084fc",   // Purple (Batch E, Hue 274°) - Percepatan (a, a1, a2, ac)
-    gravity: "#f59e0b",        // Amber (Batch E, Hue 38°) - Gaya Berat / Gravitasi (w, w1, w2, w3)
+    acceleration: "#c084fc",   // Purple (Batch E, Hue 270°) - Percepatan (a, a1, a2, ac)
     force: "#f59e0b",          // Amber (Batch E, Hue 38°) - Gaya Umum / Luar
-    friction: "#f97316",       // Deep Orange (Hue 25°) - Gaya Gesek (f, fs, fk) - DASHED, BUKAN MERAH
+    gravity: "#f59e0b",        // Amber (Batch E, Hue 38°) - Gaya Berat / Gravitasi (w, w1, w2, w3)
+    friction: "#a3e635",       // Lime (Hue 83°) - Gaya Gesek (f, fs, fk) - DASHED, BUKAN MERAH
     tensionNormal: "#ec4899",  // Pink/Magenta (Hue 330°) - Tegangan Tali & Gaya Normal (T, N)
     tension: "#ec4899",        // Pink/Magenta (Hue 330°) - Alias Tegangan Tali
     normal: "#ec4899",         // Pink/Magenta (Hue 330°) - Alias Gaya Normal
-    momentum: "#3b82f6",       // Blue (Hue 217°) - Momentum (pA, pB)
-    momentumTotal: "#3b82f6",  // Blue (Hue 217°) - Momentum total sistem (Σp, DASHED)
+    momentum: "#6677ff",       // Periwinkle/Indigo (Hue 233°) - Momentum (pA, pB)
+    momentumTotal: "#6677ff",  // Periwinkle/Indigo (Hue 233°) - Momentum total sistem (Σp, DASHED & LEBIH TEBAL)
   },
 
   // Text & Scale Labels
