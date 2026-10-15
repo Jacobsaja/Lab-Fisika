@@ -36,6 +36,13 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### Akses Jaringan Lokal (Cross-Origin HMR)
+Bila mengakses dev server dari perangkat lain di jaringan lokal (LAN), daftarkan IP atau hostname yang diizinkan melalui environment variable `DEV_ALLOWED_ORIGINS` di file `.env.local` (dipisahkan koma), misalnya:
+```bash
+DEV_ALLOWED_ORIGINS=10.16.117.69,192.168.0.102
+```
+Secara default (jika variabel ini tidak diisi), `allowedDevOrigins` bernilai kosong demi keamanan.
+
 ## Pengujian (Testing)
 
 ### 1. Unit Tests (Jest)
