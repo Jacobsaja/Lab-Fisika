@@ -405,5 +405,65 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     expect(await page.locator("g[id*='_arrow_w1']").count()).toBe(0);
     expect(await page.locator("g[id*='_arrow_w2']").count()).toBe(0);
   });
+
+  test("Explore Atwood: Reset Run memulihkan waktu ke nol, posisi dan kecepatan awal, keping kembali terpasang di atas m2, dan tanpa sisa state GLB", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/explore/mekanika/atwood", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    const timeEl = page.locator("[data-testid='telemetry-time']");
+    const velEl = page.locator("[data-testid='telemetry-velocity']");
+    const distEl = page.locator("[data-testid='telemetry-distance']");
+    const phaseEl = page.locator("[data-testid='telemetry-phase']");
+
+    const m1Group = page.locator("[data-testid='atwood-m1-group']");
+    const m2Group = page.locator("[data-testid='atwood-m2-group']");
+    const mTambahanGroup = page.locator("[data-testid='atwood-mtambahan-group']");
+
+    // Kondisi awal (sebelum simulasi)
+    await expect(timeEl).toHaveText("0.000 s");
+    await expect(velEl).toHaveText("0.000 m/s");
+    await expect(distEl).toHaveText("0.000 m");
+    await expect(phaseEl).toHaveText("DIAM");
+
+    // Jalankan simulasi hingga masuk fase GLB (setelah keping lepas di B)
+    await page.locator("[data-testid='btn-play']").first().click();
+    await expect(phaseEl).toHaveText("GLB", { timeout: 6000 });
+
+    // Verifikasi bahwa saat di fase GLB elemen telah berpindah
+    const mTambahanTransformMid = await mTambahanGroup.getAttribute("transform");
+    expect(mTambahanTransformMid).not.toBe("translate(0, 0)");
+    expect(mTambahanTransformMid).not.toBe("translate(0,0)");
+
+    // Klik Reset Run
+    const resetBtn = page.locator("[data-testid='btn-reset']").first();
+    await resetBtn.click();
+    await page.waitForTimeout(300);
+
+    // 1. Waktu simulasi kembali nol
+    await expect(timeEl).toHaveText("0.000 s");
+
+    // 2. Kecepatan kembali awal (0 m/s)
+    await expect(velEl).toHaveText("0.000 m/s");
+
+    // 3. Posisi kembali awal (0 m)
+    await expect(distEl).toHaveText("0.000 m");
+
+    // 4. Tidak ada sisa state fase GLB (kembali ke DIAM)
+    await expect(phaseEl).toHaveText("DIAM");
+
+    // 5. Keping beban kembali terpasang di atas m2 di Point A (transform kembali translate(0, 0))
+    const m1TransformEnd = await m1Group.getAttribute("transform");
+    const m2TransformEnd = await m2Group.getAttribute("transform");
+    const mTambahanTransformEnd = await mTambahanGroup.getAttribute("transform");
+
+    expect(m1TransformEnd === "translate(0, 0)" || m1TransformEnd === "translate(0,0)").toBe(true);
+    expect(m2TransformEnd === "translate(0, 0)" || m2TransformEnd === "translate(0,0)").toBe(true);
+    expect(mTambahanTransformEnd === "translate(0, 0)" || mTambahanTransformEnd === "translate(0,0)").toBe(true);
+
+    // 6. Vektor kecepatan v1 dan v2 hilang saat diam
+    expect(await page.locator("g[id$='_arrow_v1']").count()).toBe(0);
+    expect(await page.locator("g[id$='_arrow_v2']").count()).toBe(0);
+  });
 });
 

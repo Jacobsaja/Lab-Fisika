@@ -1168,7 +1168,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
 
           {/* ── 7. MOVING MASSES (ZERO FILTERS FOR MAXIMUM 60 FPS) ── */}
           {/* MASSA m1 (Right Column, starts at bottom held by Clamp P) */}
-          <g ref={m1GroupRef}>
+          <g ref={m1GroupRef} data-testid="atwood-m1-group">
             {/* Top Wire Eyelet */}
             <ellipse cx={STR_R_X} cy={Y_M1_INITIAL - 6} rx="4" ry="6" fill="none" stroke="#cbd5e1" strokeWidth="2" />
             <rect x={STR_R_X - 4} y={Y_M1_INITIAL - 2} width="8" height="4" fill="#64748b" rx="1" />
@@ -1179,7 +1179,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
               width={M_W} 
               height={M_H} 
               rx="3" 
-              fill={`url(#${gradientIds.massBlockA})`} 
+              fill={`url(#${gradientIds.massBlockB})`} 
               stroke="#475569" 
               strokeWidth="1.5" 
             />
@@ -1211,7 +1211,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
           </g>
 
           {/* MASSA m2 (Left Column, starts at top at Point A) */}
-          <g ref={m2GroupRef}>
+          <g ref={m2GroupRef} data-testid="atwood-m2-group">
             {/* Top Wire Eyelet */}
             <ellipse cx={STR_L_X} cy={Y_A - 6} rx="4" ry="6" fill="none" stroke="#cbd5e1" strokeWidth="2" />
             <rect x={STR_L_X - 4} y={Y_A - 2} width="8" height="4" fill="#64748b" rx="1" />
@@ -1254,7 +1254,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
           </g>
 
           {/* MASSA TAMBAHAN m3 & m4 (Stacked slotted weights on top of m2) */}
-          <g ref={mTambahanGroupRef}>
+          <g ref={mTambahanGroupRef} data-testid="atwood-mtambahan-group">
             {/* Slotted Disk m3 */}
             <rect 
               x={STR_L_X - M3_W / 2} 

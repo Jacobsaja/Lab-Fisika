@@ -181,19 +181,19 @@ export default function AtwoodExplorePage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-4 relative z-10">
               <div>
                 <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Waktu (t)</div>
-                <div className="font-mono text-xl text-emerald-400">{simTime.toFixed(3)} s</div>
+                <div data-testid="telemetry-time" className="font-mono text-xl text-emerald-400">{simTime.toFixed(3)} s</div>
               </div>
               <div>
                 <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Jarak (s)</div>
-                <div className="font-mono text-xl text-emerald-400">{currentState.s.toFixed(3)} m</div>
+                <div data-testid="telemetry-distance" className="font-mono text-xl text-emerald-400">{currentState.s.toFixed(3)} m</div>
               </div>
               <div>
                 <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Kecepatan (v)</div>
-                <div className="font-mono text-xl text-emerald-400">{currentState.v.toFixed(3)} m/s</div>
+                <div data-testid="telemetry-velocity" className="font-mono text-xl text-emerald-400">{currentState.v.toFixed(3)} m/s</div>
               </div>
               <div>
                 <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Fase Saat Ini</div>
-                <div className="font-mono text-xl font-bold text-emerald-400">{currentState.phase}</div>
+                <div data-testid="telemetry-phase" className="font-mono text-xl font-bold text-emerald-400">{currentState.phase}</div>
               </div>
             </div>
             
