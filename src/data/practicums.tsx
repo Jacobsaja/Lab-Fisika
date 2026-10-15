@@ -16,7 +16,8 @@ import {
   Lightbulb,
   GitMerge,
   Layers,
-  Battery
+  Battery,
+  Flame
 } from "lucide-react";
 
 export interface PracticumDef {
@@ -145,14 +146,24 @@ export const PRACTICUMS: PracticumDef[] = [
     bgGradient: "radial-gradient(circle at center, #164E63 0%, #06080D 80%)",
   },
   {
-    id: "h2n-hkem",
-    title: "Hukum II Newton & Energi Mekanik",
-    tagline: "H2N & HKEM",
-    description: "Validasi percepatan sistem massa-katrol dan konservasi energi mekanik (potensial dan kinetik) selama pergerakan.",
+    id: "h2n",
+    title: "Hukum II Newton",
+    tagline: "H2N",
+    description: "Validasi hubungan antara gaya, massa, dan percepatan (F = m·a) serta dinamika gerak sistem massa-katrol.",
     icon: <div className={containerClasses}><Zap className={iconClasses} style={{ color: "#E11D48" }} /></div>,
-    info: [{ label: "Fokus", value: "Dinamika & Energi" }, { label: "Tingkat", value: "Menengah" }],
+    info: [{ label: "Fokus", value: "Dinamika Gerak" }, { label: "Tingkat", value: "Dasar" }],
     accent: "#E11D48",
     bgGradient: "radial-gradient(circle at center, #881337 0%, #06080D 80%)",
+  },
+  {
+    id: "hkem",
+    title: "Energi Mekanik",
+    tagline: "HKEM",
+    description: "Analisis konservasi energi mekanik (energi kinetik dan energi potensial) serta transformasi energi selama pergerakan sistem.",
+    icon: <div className={containerClasses}><Flame className={iconClasses} style={{ color: "#F59E0B" }} /></div>,
+    info: [{ label: "Fokus", value: "Konservasi Energi" }, { label: "Tingkat", value: "Menengah" }],
+    accent: "#F59E0B",
+    bgGradient: "radial-gradient(circle at center, #78350F 0%, #06080D 80%)",
   },
   {
     id: "rgb",
