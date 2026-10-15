@@ -118,6 +118,16 @@ export function getAtwoodExploreState(
 
   const t_B = Math.sqrt((2 * s_B) / a1);
   
+  if (t === 0) {
+    return {
+      s: 0,
+      v: 0,
+      a: a1,
+      phase: "DIAM",
+      t_transition: t_B
+    };
+  }
+
   if (t <= t_B) {
     return {
       s: 0.5 * a1 * t * t,
