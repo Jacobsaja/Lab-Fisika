@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { RollingApparatus, RollingApparatusRef } from "@/components/practicum/instruments/RollingApparatus";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { CylinderShape, calculateRollingAcceleration } from "@/physics/rollingMotion";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
 import { LineGraph } from "@/components/simulation/LineGraph";
@@ -10,6 +12,7 @@ import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
 
 export default function RollingExplorePage() {
   const appRef = useRef<RollingApparatusRef>(null);
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("menggelinding", 0.5);
 
   // Parameters
   const [shape, setShape] = useState<CylinderShape>("solid");
@@ -148,7 +151,8 @@ export default function RollingExplorePage() {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 mt-2">
+            <div className="flex flex-wrap items-center justify-end gap-3 mt-2">
+              <PlaybackSpeedControl speed={speed} onSpeedChange={setSpeed} />
               <button data-testid="btn-reset" onClick={handleReset} className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors flex items-center gap-2">
                 <RotateCcw className="w-4 h-4"/> RESET
               </button>
@@ -250,6 +254,8 @@ export default function RollingExplorePage() {
               mass={mass}
               r={r}
               rInner={rInner}
+              speed={speed}
+              onSpeedChange={setSpeed}
               onTimeChange={handleTimeChange}
               onStateUpdate={handleStateUpdate}
               className={`w-full ${isCompareMode ? 'h-[750px]' : 'h-[600px]'} min-w-[300px]`}

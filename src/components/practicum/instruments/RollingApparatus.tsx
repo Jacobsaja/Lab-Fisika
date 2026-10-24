@@ -9,6 +9,7 @@ import {
   generateSensorSample,
   SENSOR_SAMPLE_INTERVAL_S,
 } from "@/physics/rollingMotion";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
@@ -41,6 +42,9 @@ export interface RollingApparatusProps {
   r: number; // in meters
   rInner?: number; // in meters
   gLocal?: number;
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  speedStorageKey?: string;
   onTimeChange?: (t: number, isRunning: boolean, reset: boolean) => void;
   onStateUpdate?: (state: any, compareState?: any) => void;
   className?: string;
@@ -74,6 +78,9 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       r,
       rInner = 0,
       gLocal = 9.8,
+      speed: propSpeed,
+      onSpeedChange: propOnSpeedChange,
+      speedStorageKey,
       onTimeChange,
       onStateUpdate,
       className = "",
@@ -85,6 +92,17 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
     },
     ref
   ) => {
+    const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(speedStorageKey || "menggelinding", 0.5);
+    const activeSpeed = propSpeed ?? internalSpeed;
+    const handleSpeedChange = propOnSpeedChange ?? setInternalSpeed;
+    const speedRef = useRef(activeSpeed);
+    speedRef.current = activeSpeed;
+
+    const onTimeChangeRef = useRef(onTimeChange);
+    onTimeChangeRef.current = onTimeChange;
+    const onStateUpdateRef = useRef(onStateUpdate);
+    onStateUpdateRef.current = onStateUpdate;
+
     const gradientIds = useMetalGradientIds("rolling");
     const svgRef = useRef<SVGSVGElement>(null);
     const reqRef = useRef<number | null>(null);
@@ -242,11 +260,6 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       },
     }));
 
-    const onStateUpdateRef = useRef(onStateUpdate);
-    useEffect(() => {
-      onStateUpdateRef.current = onStateUpdate;
-    }, [onStateUpdate]);
-
     // Auto update state on prop change if not running
     useEffect(() => {
       if (!isAnimatingRef.current && simTimeRef.current === 0) {
@@ -269,9 +282,7 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       const deltaT = (timestamp - lastTimestampRef.current) / 1000;
       lastTimestampRef.current = timestamp;
 
-      // Slow-motion factor 0.5x for crisp visual observation of rotation
-      const SLOW_MO = 0.5;
-      simTimeRef.current += deltaT * SLOW_MO;
+      simTimeRef.current += deltaT * speedRef.current;
       const currentT = simTimeRef.current;
 
       setSimTime(currentT);
@@ -287,7 +298,7 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
         setTheta2(state2.theta);
       }
 
-      if (onStateUpdate) {
+      if (onStateUpdateRef.current) {
         if (mode === "practicum") {
           // Emit deterministic noisy samples on a fixed time grid (t_i = i · interval)
           while (true) {
@@ -295,23 +306,23 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
             const tSample = i * SENSOR_SAMPLE_INTERVAL_S;
             if (tSample > currentT) break;
             if (getRollingState(tSample, a1, r, shape === "block").s > INCLINE_LENGTH_M) break;
-            onStateUpdate(generateSensorSample(shape, thetaDeg, i, a1, r), state2);
+            onStateUpdateRef.current(generateSensorSample(shape, thetaDeg, i, a1, r), state2);
             nextSampleIndexRef.current = i + 1;
           }
         } else {
-          onStateUpdate(state1, state2);
+          onStateUpdateRef.current(state1, state2);
         }
       }
 
-      if (onTimeChange) {
-        onTimeChange(currentT, true, false);
+      if (onTimeChangeRef.current) {
+        onTimeChangeRef.current(currentT, true, false);
       }
 
       // Check termination
       if (state1.s >= INCLINE_LENGTH_M && (!compareShape || state2.s >= INCLINE_LENGTH_M)) {
         isAnimatingRef.current = false;
         setIsAnimating(false);
-        if (onTimeChange) onTimeChange(currentT, false, false);
+        if (onTimeChangeRef.current) onTimeChangeRef.current(currentT, false, false);
         return;
       }
 

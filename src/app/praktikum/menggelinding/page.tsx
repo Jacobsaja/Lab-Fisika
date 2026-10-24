@@ -14,6 +14,8 @@ import {
   buildMeasuredRow,
   rowToTrial,
 } from "@/components/practicum/RollingCalculationPanel";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { Settings, Play, Square, Plus } from "lucide-react";
 
 /** Fixed apparatus parameters for this practicum. */
@@ -102,6 +104,7 @@ function RollingPracticumSimulation({ state, setRecordedData, addDataRow, hintsR
   const vectorLockMessage = "Vektor kualitatif terkunci. Silakan catat minimal 1 data percobaan pada tabel atau buka Petunjuk Level 3 untuk membukanya.";
 
   // Apparatus state
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("menggelinding", 0.5);
   const [shape, setShape] = useState<CylinderShape>("solid");
   const [thetaDeg, setThetaDeg] = useState(14);
   const [isFalling, setIsFalling] = useState(false);
@@ -182,25 +185,28 @@ function RollingPracticumSimulation({ state, setRecordedData, addDataRow, hintsR
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
-              <button
-                id="rolling-play-button"
-                data-testid="btn-play"
-                onClick={() => appRef.current?.start()}
-                disabled={isFalling}
-                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Play className="w-4 h-4" /> PLAY SENSOR
-              </button>
-              <button
-                id="rolling-reset-button"
-                data-testid="btn-reset"
-                onClick={() => appRef.current?.reset()}
-                disabled={isFalling}
-                className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Square className="w-4 h-4" /> RESET
-              </button>
+            <div className="flex flex-wrap items-center gap-3 mt-5">
+              <div className="flex gap-3 w-full">
+                <button
+                  id="rolling-play-button"
+                  data-testid="btn-play"
+                  onClick={() => appRef.current?.start()}
+                  disabled={isFalling}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4" /> PLAY SENSOR
+                </button>
+                <button
+                  id="rolling-reset-button"
+                  data-testid="btn-reset"
+                  onClick={() => appRef.current?.reset()}
+                  disabled={isFalling}
+                  className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Square className="w-4 h-4" /> RESET
+                </button>
+              </div>
+              <PlaybackSpeedControl speed={speed} onSpeedChange={setSpeed} />
             </div>
           </div>
 
@@ -247,6 +253,8 @@ function RollingPracticumSimulation({ state, setRecordedData, addDataRow, hintsR
             r={RADIUS_M}
             rInner={INNER_RADIUS_M}
             gLocal={PRACTICUM_G}
+            speed={speed}
+            onSpeedChange={setSpeed}
             onTimeChange={handleTimeChange}
             onStateUpdate={handleStateUpdate}
             isVectorLocked={isVectorLocked}

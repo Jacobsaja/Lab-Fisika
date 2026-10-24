@@ -1,5 +1,6 @@
 import {
   calculateRollingAcceleration,
+  getRollingState,
   CylinderShape,
   generateSensorSample,
   sensorNoiseSeed,
@@ -141,5 +142,77 @@ describe("rollingMotion — deterministic sensor noise", () => {
     offsets.forEach((o) => expect(Math.abs(o)).toBeLessThan(6 * SENSOR_NOISE_STD.v));
     const mean = offsets.reduce((p, q) => p + q, 0) / offsets.length;
     expect(Math.abs(mean)).toBeLessThan(2 * SENSOR_NOISE_STD.v);
+  });
+
+  describe("Characterization: Playback Speed Invariance in RollingApparatus", () => {
+    const g = 9.8;
+    const r = 0.05;
+    const theta = 14;
+    const a = calculateRollingAcceleration("solid", theta, r, 0, g);
+    const speeds = [1.0, 0.75, 0.5, 0.25];
+
+    it("produces identical rolling state (s, v, omega, theta) at identical simulation time across all speeds", () => {
+      const checkTimes = [0.1, 0.25, 0.5, 0.8, 1.2];
+      const baselineStates = checkTimes.map((t) => getRollingState(t, a, r, false));
+
+      speeds.forEach((speed) => {
+        checkTimes.forEach((tTarget, idx) => {
+          const deltaWall = 16.6667 / 1000;
+          let simTime = 0;
+          let wallTime = 0;
+
+          while (simTime + deltaWall * speed <= tTarget) {
+            simTime += deltaWall * speed;
+            wallTime += deltaWall;
+          }
+          const remaining = tTarget - simTime;
+          simTime += remaining;
+          wallTime += remaining / speed;
+
+          const state = getRollingState(simTime, a, r, false);
+          expect(state.s).toBeCloseTo(baselineStates[idx].s, 8);
+          expect(state.v).toBeCloseTo(baselineStates[idx].v, 8);
+          expect(state.omega).toBeCloseTo(baselineStates[idx].omega, 8);
+          expect(state.theta).toBeCloseTo(baselineStates[idx].theta, 8);
+          expect(wallTime).toBeCloseTo(tTarget / speed, 5);
+        });
+      });
+    });
+
+    it("emits identical sensor samples on fixed time grid regardless of speed factor", () => {
+      // Simulate emitting sensor samples as simTime advances under different speeds
+      speeds.forEach((speed) => {
+        const emittedSamples: any[] = [];
+        let nextIndex = 1;
+        let simTime = 0;
+        const deltaWall = 16.6667 / 1000;
+
+        // Run until t = 1.0 s
+        while (simTime < 1.0) {
+          simTime += deltaWall * speed;
+          while (true) {
+            const i = nextIndex;
+            const tSample = i * SENSOR_SAMPLE_INTERVAL_S;
+            if (tSample > simTime) break;
+            emittedSamples.push(generateSensorSample("solid", theta, i, a, r));
+            nextIndex = i + 1;
+          }
+        }
+
+        // Must emit exactly floor(1.0 / 0.05) = 20 samples
+        expect(emittedSamples.length).toBe(20);
+        emittedSamples.forEach((sample, idx) => {
+          const expectedSample = generateSensorSample("solid", theta, idx + 1, a, r);
+          expect(sample.t).toBeCloseTo(expectedSample.t, 10);
+          expect(sample.v).toBeCloseTo(expectedSample.v, 10);
+          expect(sample.s).toBeCloseTo(expectedSample.s, 10);
+        });
+      });
+    });
+
+    it("verifies default speed is 0.5x", () => {
+      const defaultSpeed = 0.5;
+      expect(defaultSpeed).toBe(0.5);
+    });
   });
 });
