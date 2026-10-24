@@ -1,7 +1,11 @@
 "use client";
 
 import React from "react";
-import { Play, Pause, RotateCcw, FastForward } from "lucide-react";
+import { Play, Pause, RotateCcw } from "lucide-react";
+import {
+  PlaybackSpeedControl,
+  DEFAULT_PLAYBACK_SPEEDS,
+} from "./PlaybackSpeedControl";
 
 interface SimulationContainerProps {
   children: React.ReactNode;
@@ -12,6 +16,7 @@ interface SimulationContainerProps {
   onReset: () => void;
   speed: number;
   onSpeedChange: (speed: number) => void;
+  availableSpeeds?: readonly number[];
   title?: string;
 }
 
@@ -35,10 +40,9 @@ export function SimulationContainer({
   onReset,
   speed,
   onSpeedChange,
+  availableSpeeds,
   title = "Simulasi"
 }: SimulationContainerProps) {
-  const SPEEDS = [0.25, 0.5, 1.0, 2.0, 4.0];
-
   return (
     <div className="flex flex-col gap-4 w-full h-full glass-panel rounded-xl overflow-hidden shadow-lg border border-white/10">
       {/* Header bar */}
@@ -58,7 +62,7 @@ export function SimulationContainer({
       </div>
 
       {/* Controls Footer */}
-      <div className="flex items-center justify-between px-6 py-4 bg-white/5 border-t border-white/5">
+      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 bg-white/5 border-t border-white/5">
         <div className="flex items-center gap-2">
           {isPlaying ? (
             <button
@@ -90,27 +94,12 @@ export function SimulationContainer({
           </button>
         </div>
 
-        {/* Speed Controls */}
-        <div className="flex items-center gap-2 bg-white/5 rounded-full p-1 border border-white/5">
-          <div className="flex items-center justify-center px-3 text-gray-400">
-            <FastForward className="w-4 h-4" />
-          </div>
-          <div className="flex gap-1">
-            {SPEEDS.map((s) => (
-              <button
-                key={s}
-                onClick={() => onSpeedChange(s)}
-                className={`px-3 py-1.5 text-xs font-mono rounded-full transition-colors ${
-                  speed === s 
-                    ? "bg-blue-500 text-white shadow-md" 
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {s}x
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Playback Speed Controls */}
+        <PlaybackSpeedControl
+          speed={speed}
+          onSpeedChange={onSpeedChange}
+          availableSpeeds={availableSpeeds ?? DEFAULT_PLAYBACK_SPEEDS}
+        />
       </div>
     </div>
   );

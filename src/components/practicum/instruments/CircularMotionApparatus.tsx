@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useRef } from "react";
+import React, { useMemo, useState, useRef, useCallback } from "react";
 import { ClipboardPlus, Info, Disc3 } from "lucide-react";
 import { useSimulationLoop } from "@/physics/hooks/useSimulationLoop";
 import {
@@ -43,6 +43,9 @@ interface CircularMotionApparatusProps {
   isVectorLocked?: boolean;
 }
 
+// Module-level cache to persist user speed selection across resets, re-renders, and remounts
+let gmbSpeedCache = 1.0;
+
 export function CircularMotionApparatus({
   mode = "practicum",
   onRecord,
@@ -77,7 +80,18 @@ export function CircularMotionApparatus({
     [r, actualOmega, actualTheta0]
   );
 
-  const sim = useSimulationLoop(circularMotionModel, params);
+  const sim = useSimulationLoop(circularMotionModel, params, 1 / 60, {
+    initialSpeed: gmbSpeedCache,
+  });
+
+  const handleSpeedChange = useCallback(
+    (newSpeed: number) => {
+      gmbSpeedCache = newSpeed;
+      sim.setSpeed(newSpeed);
+    },
+    [sim]
+  );
+
   const snapshot = computeSnapshot(params, sim.time);
 
   const localGmbVectors = useMemo(() => {
@@ -228,7 +242,7 @@ export function CircularMotionApparatus({
           onPause={sim.pause}
           onReset={sim.reset}
           speed={sim.speed}
-          onSpeedChange={sim.setSpeed}
+          onSpeedChange={handleSpeedChange}
         >
           {/* Header Status Bar Pill */}
           <div className="absolute top-3 left-4 z-10 flex items-center gap-2 px-3 py-1 bg-slate-900/80 backdrop-blur-md rounded-full border border-slate-700/60 shadow-lg pointer-events-none">

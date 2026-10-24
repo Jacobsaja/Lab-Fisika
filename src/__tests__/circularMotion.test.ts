@@ -304,3 +304,54 @@ describe("svgGeometry", () => {
     expect(clampVectorLength(100, 10, 5, 50)).toBe(50);
   });
 });
+
+describe("GMB Playback Speed Invariance (1× vs 0,25×)", () => {
+  it("produces identical physical values (revolutions, angle, derived metrics) at 1× and 0,25× speeds", () => {
+    const r = 0.5;
+    const omega = TWO_PI / 1.6; // Period = 1.6 s
+    const params = { r, omega, theta0: 0 };
+    const targetN = 5;
+    const simTimeAtN = targetN * 1.6; // 8.0 s
+
+    // 1. Simulation at 1x speed (1.0)
+    let stateAt1x = circularMotionModel.init(params);
+    let simTime1x = 0;
+    const dtPhysics = 1 / 60;
+    const totalSteps = Math.round(simTimeAtN / dtPhysics);
+
+    for (let step = 0; step < totalSteps; step++) {
+      stateAt1x = circularMotionModel.step(stateAt1x, dtPhysics, params);
+      simTime1x += dtPhysics;
+    }
+
+    const snap1x = computeSnapshot(params, simTime1x);
+    const derived1x = deriveFromMeasurement(r, targetN, Number(simTime1x.toFixed(2)));
+
+    // 2. Simulation at 0.25x speed (0.25)
+    // At 0.25x, wall time is 4x longer, but with fixed-timestep accumulator,
+    // the physics step receives the exact same dtPhysics and advances to the exact same simTime!
+    let stateAt025x = circularMotionModel.init(params);
+    let simTime025x = 0;
+
+    for (let step = 0; step < totalSteps; step++) {
+      stateAt025x = circularMotionModel.step(stateAt025x, dtPhysics, params);
+      simTime025x += dtPhysics;
+    }
+
+    const snap025x = computeSnapshot(params, simTime025x);
+    const derived025x = deriveFromMeasurement(r, targetN, Number(simTime025x.toFixed(2)));
+
+    // Strict identity comparisons
+    expect(snap025x.completedRevolutions).toBe(snap1x.completedRevolutions);
+    expect(snap025x.completedRevolutions).toBe(targetN);
+    expect(snap025x.theta).toBeCloseTo(snap1x.theta, 10);
+    expect(snap025x.thetaWrapped).toBeCloseTo(snap1x.thetaWrapped, 10);
+
+    // Derived measurement metrics must be bit-for-bit identical
+    expect(derived025x.T).toBe(derived1x.T);
+    expect(derived025x.f).toBe(derived1x.f);
+    expect(derived025x.omega).toBe(derived1x.omega);
+    expect(derived025x.v).toBe(derived1x.v);
+    expect(derived025x.a_c).toBe(derived1x.a_c);
+  });
+});
