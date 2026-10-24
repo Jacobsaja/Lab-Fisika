@@ -44,13 +44,14 @@ export interface RollingVectors {
   N: number; // Gaya normal: w * cos(theta) (N)
   f: number; // Gaya gesek statis: m * (g*sin(theta) - a) (N)
   a: number; // Percepatan translasi pusat massa (m/s²)
+  alpha: number; // Percepatan sudut rotasi: a / r (rad/s²), 0 untuk balok
   inertiaFactor: number; // I_cm / (m*r^2)
   thetaRad: number;
 }
 
 /**
  * Pure physics function that computes forces (w, w_parallel, w_perp, N, f)
- * and center-of-mass linear acceleration for rolling motion on an inclined plane.
+ * and center-of-mass linear and angular acceleration for rolling motion on an inclined plane.
  */
 export function getRollingVectors(params: {
   shape: CylinderShape;
@@ -72,6 +73,7 @@ export function getRollingVectors(params: {
   const N = wPerpendicular;
 
   const a = calculateRollingAcceleration(params.shape, params.thetaDeg, r, rInner, g);
+  const alpha = params.shape === "block" ? 0 : a / r;
 
   let inertiaFactor = 0;
   if (params.shape === "solid") {
@@ -90,6 +92,7 @@ export function getRollingVectors(params: {
     N,
     f,
     a,
+    alpha,
     inertiaFactor,
     thetaRad,
   };

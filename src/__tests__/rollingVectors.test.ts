@@ -72,4 +72,19 @@ describe("Physics - getRollingVectors", () => {
     expect(vecBlock.a).toBeCloseTo(g * Math.sin(thetaRad), 6);
     expect(vecBlock.wParallel).toBeCloseTo(mass * vecBlock.a, 6);
   });
+
+  test("Percepatan sudut rotasi alpha = a / r untuk silinder, dan alpha = 0 untuk balok", () => {
+    const thetaDeg = 25;
+    const vecSolid = getRollingVectors({ shape: "solid", thetaDeg, mass, r, g });
+    const vecHollow = getRollingVectors({ shape: "hollow", thetaDeg, mass, r, rInner, g });
+    const vecBlock = getRollingVectors({ shape: "block", thetaDeg, mass, r, g });
+
+    // alpha = a / r
+    expect(vecSolid.alpha).toBeCloseTo(vecSolid.a / r, 6);
+    expect(vecHollow.alpha).toBeCloseTo(vecHollow.a / r, 6);
+    expect(vecSolid.alpha).toBeGreaterThan(vecHollow.alpha);
+
+    // block does not rotate: alpha = 0
+    expect(vecBlock.alpha).toBe(0);
+  });
 });

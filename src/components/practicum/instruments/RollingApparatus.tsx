@@ -20,6 +20,7 @@ import {
   VectorCategoryConfig,
   ExtraToggleConfig,
   VectorItem,
+  RotationalVectorArrow,
   SCIENTIFIC_THEME,
 } from "@/components/simulation/visual";
 
@@ -28,6 +29,8 @@ export interface RollingVectorState {
   showNormal: boolean;
   showFriction: boolean;
   showAcceleration: boolean;
+  showAngularVelocity?: boolean;
+  showAngularAcceleration?: boolean;
   decomposeWeight: boolean;
   arrowScale: number;
   showValues: boolean;
@@ -125,6 +128,8 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       showNormal: true,
       showFriction: true,
       showAcceleration: true,
+      showAngularVelocity: true,
+      showAngularAcceleration: true,
       decomposeWeight: false,
       arrowScale: 1.0,
       showValues: !isQualitative,
@@ -139,6 +144,8 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       if (id === "normal") updated.showNormal = !updated.showNormal;
       if (id === "friction") updated.showFriction = !updated.showFriction;
       if (id === "acceleration") updated.showAcceleration = !updated.showAcceleration;
+      if (id === "angularVelocity") updated.showAngularVelocity = !(updated.showAngularVelocity ?? true);
+      if (id === "angularAcceleration") updated.showAngularAcceleration = !(updated.showAngularAcceleration ?? true);
 
       if (onVectorControlsChange) {
         onVectorControlsChange(updated);
@@ -196,6 +203,21 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
         color: SCIENTIFIC_THEME.vectors.acceleration,
         checked: activeVectorControls.showAcceleration,
         title: "Tampilkan percepatan linier pusat massa (a)",
+      },
+      {
+        id: "angularVelocity",
+        label: "Kecepatan Sudut",
+        color: SCIENTIFIC_THEME.vectors.velocity,
+        checked: activeVectorControls.showAngularVelocity ?? true,
+        title: "Tampilkan vektor kecepatan sudut rotasi (ω)",
+      },
+      {
+        id: "angularAcceleration",
+        label: "Percepatan Sudut",
+        color: SCIENTIFIC_THEME.vectors.acceleration,
+        dashed: true,
+        checked: activeVectorControls.showAngularAcceleration ?? true,
+        title: "Tampilkan vektor percepatan sudut rotasi (α)",
       },
     ];
 
@@ -383,6 +405,10 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
         rInner,
         g: gLocal,
       });
+
+      const isRollingBody = bodyShape !== "block";
+      const currentV = vecData.a * simTime;
+      const currentOmega = isRollingBody ? (currentV / r) : 0;
 
       const trackVectors: VectorItem[] = [];
       const showValuesInOverlay = !isQualitative && activeVectorControls.showValues;
@@ -660,14 +686,58 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
             rimFillId={bodyShape === "hollow" ? gradientIds.hollowRim : undefined}
           />
 
-          {/* 7. Physical Vector Overlay */}
+          {/* 7. Physical Vector Overlay & Rotational Vectors */}
           {!isVectorLocked && (
-            <VectorOverlay
-              vectors={trackVectors}
-              userScale={activeVectorControls.arrowScale}
-              maxArrowLength={130}
-              showValues={showValuesInOverlay}
-            />
+            <>
+              <VectorOverlay
+                vectors={trackVectors}
+                userScale={activeVectorControls.arrowScale}
+                maxArrowLength={130}
+                showValues={showValuesInOverlay}
+              />
+
+              {/* Rotational Velocity Vector (ω) */}
+              {(activeVectorControls.showAngularVelocity ?? true) && isRollingBody && (
+                <RotationalVectorArrow
+                  id={`rot-omega-${trackIndex}`}
+                  center={{ x: objX, y: objY }}
+                  radius={rPx + 14}
+                  direction="cw"
+                  value={currentOmega}
+                  label="ω"
+                  valueText={`${currentOmega.toFixed(1)} rad/s`}
+                  color={SCIENTIFIC_THEME.vectors.velocity}
+                  userScale={activeVectorControls.arrowScale}
+                  showValue={showValuesInOverlay}
+                  startAngleDeg={-175}
+                  arcSpanDeg={Math.min(90, Math.max(35, 30 + currentOmega * 1.5))}
+                  badgeAngleDeg={-125}
+                  minThreshold={0.05}
+                />
+              )}
+
+              {/* Rotational Acceleration Vector (α) */}
+              {(activeVectorControls.showAngularAcceleration ?? true) && isRollingBody && (
+                <RotationalVectorArrow
+                  id={`rot-alpha-${trackIndex}`}
+                  center={{ x: objX, y: objY }}
+                  radius={rPx + 28}
+                  direction="cw"
+                  value={vecData.alpha}
+                  label="α"
+                  valueText={`${vecData.alpha.toFixed(1)} rad/s²`}
+                  color={SCIENTIFIC_THEME.vectors.acceleration}
+                  dashed={true}
+                  strokeDasharray="4 3"
+                  userScale={activeVectorControls.arrowScale}
+                  showValue={showValuesInOverlay}
+                  startAngleDeg={-200}
+                  arcSpanDeg={65}
+                  badgeAngleDeg={-165}
+                  minThreshold={0.01}
+                />
+              )}
+            </>
           )}
         </g>
       );

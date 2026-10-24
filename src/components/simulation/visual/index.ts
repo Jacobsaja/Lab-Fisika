@@ -8,3 +8,4 @@ export * from "./SvgHardware";
 export * from "./DigitalDisplay";
 export * from "./VectorOverlay";
 export * from "./VectorControls";
+export * from "./RotationalVectorArrow";

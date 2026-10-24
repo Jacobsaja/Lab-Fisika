@@ -128,12 +128,16 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     const weightBtn = page.locator("button:has-text('Gaya Berat')");
     const normalBtn = page.locator("button:has-text('Gaya Normal')");
     const frictionBtn = page.locator("button:has-text('Gaya Gesek')");
-    const accelBtn = page.locator("button:has-text('Percepatan')");
+    const accelBtn = page.getByRole("button", { name: "Percepatan", exact: true });
+    const angularVelBtn = page.getByRole("button", { name: "Kecepatan Sudut" });
+    const angularAccelBtn = page.getByRole("button", { name: "Percepatan Sudut" });
 
     await expect(weightBtn).toBeVisible();
     await expect(normalBtn).toBeVisible();
     await expect(frictionBtn).toBeVisible();
     await expect(accelBtn).toBeVisible();
+    await expect(angularVelBtn).toBeVisible();
+    await expect(angularAccelBtn).toBeVisible();
 
     // Toggle 'Uraikan berat' checkbox
     const decomposeToggle = page.locator("label:has-text('Uraikan berat')");
