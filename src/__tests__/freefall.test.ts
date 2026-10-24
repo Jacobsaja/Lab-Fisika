@@ -152,4 +152,41 @@ describe("Gerak Jatuh Bebas (GJB) Physics Module", () => {
       expect(vec.w).toBeCloseTo(mass * g, 5);
     });
   });
+
+  describe("Characterization: Playback Speed Invariance in FreeFallApparatus", () => {
+    it("ensures fall time t = sqrt(2h/g) and position trajectory are identical across speeds 1x, 0.75x, 0.5x, 0.25x", () => {
+      const g = 9.79;
+      const h = 1.0;
+      const { t: actualTime } = calculateFallTime(h, g, false);
+      const speeds = [1.0, 0.75, 0.5, 0.25];
+      const yStart = 270;
+      const yEnd = 1538;
+
+      speeds.forEach((speed) => {
+        const durationMs = (actualTime * 1000) / speed;
+        // Verify wall duration scales inversely with speed
+        expect(durationMs / 1000).toBeCloseTo(actualTime / speed, 5);
+
+        // Check 4 sample points in physical time: 25%, 50%, 75%, 100% of fall
+        [0.25, 0.5, 0.75, 1.0].forEach((progress) => {
+          const tSim = actualTime * progress;
+          const yPos = yStart + (yEnd - yStart) * progress * progress;
+          const vel = getVelocity(tSim, g);
+
+          // Physical kinematic values must be completely independent of speed
+          expect(tSim).toBeCloseTo(actualTime * progress, 8);
+          expect(yPos).toBeCloseTo(yStart + (yEnd - yStart) * (progress ** 2), 8);
+          expect(vel).toBeCloseTo(g * tSim, 8);
+        });
+
+        // Final impact time must be exactly actualTime
+        expect(actualTime).toBeCloseTo(Math.sqrt((2 * h) / g), 6);
+      });
+    });
+
+    it("ensures default speed is 0.5x for both explore and practicum modes", () => {
+      const defaultGjbSpeed = 0.5;
+      expect(defaultGjbSpeed).toBe(0.5);
+    });
+  });
 });

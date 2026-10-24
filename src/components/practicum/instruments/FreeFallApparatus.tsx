@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { calculateFallTime, getFreeFallVectors } from "@/physics/freefall";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { Activity, Radio } from "lucide-react";
 import {
   useMetalGradientIds,
@@ -39,6 +41,9 @@ export interface FreeFallApparatusProps {
   scaleMaxMeters?: number;
   controlledHeight?: number; // In meters
   isVectorLocked?: boolean;
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  speedStorageKey?: string;
 }
 
 export function FreeFallApparatus({ 
@@ -50,7 +55,14 @@ export function FreeFallApparatus({
   scaleMaxMeters = 1.2,
   controlledHeight,
   isVectorLocked = false,
+  speed: propSpeed,
+  onSpeedChange: propOnSpeedChange,
+  speedStorageKey,
 }: FreeFallApparatusProps) {
+  const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(speedStorageKey || "gjb", 0.5);
+  const activeSpeed = propSpeed ?? internalSpeed;
+  const handleSpeedChange = propOnSpeedChange ?? setInternalSpeed;
+
   const gradientIds = useMetalGradientIds("freefall");
   const svgRef = useRef<SVGSVGElement>(null);
   const reqRef = useRef<number | null>(null);
@@ -269,10 +281,8 @@ export function FreeFallApparatus({
     const ballEndY = GROUND_Y - 12; // Striking the brass contact pad
     let startAnim: number | null = null;
     
-    // Slow-motion factor for visual clarity:
-    // Practicum mode: 2.5x slower; Explore mode: 1.5x slower
-    const slowMoFactor = mode === "practicum" ? 2.5 : 1.5;
-    const durationMs = actualTime * 1000 * slowMoFactor;
+    // Duration in milliseconds scaled by chosen playback speed
+    const durationMs = (actualTime * 1000) / activeSpeed;
 
     const animate = (timestamp: number) => {
       if (!startAnim) startAnim = timestamp;
@@ -307,7 +317,7 @@ export function FreeFallApparatus({
     };
 
     reqRef.current = requestAnimationFrame(animate);
-  }, [isFalling, magnetY, gLocal, mode, onTimeChange, pixelsToMeters]);
+  }, [isFalling, magnetY, gLocal, mode, activeSpeed, pixelsToMeters]);
 
   const handleMorseRelease = useCallback(() => {
     if (!isMorsePressed) return;
@@ -663,6 +673,12 @@ export function FreeFallApparatus({
 
           {/* Bottom: Quick Release & Tactical Morse Key Push Switch */}
           <div className="mt-6 md:mt-0 flex flex-col items-center gap-3">
+            <PlaybackSpeedControl
+              speed={activeSpeed}
+              onSpeedChange={handleSpeedChange}
+              disabled={isFalling}
+              className="justify-center w-full"
+            />
             <button
               data-testid="btn-play"
               onClick={triggerDrop}
