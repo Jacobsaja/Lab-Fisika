@@ -484,6 +484,58 @@ test.describe("Vector Overlay (Pilot HKM) — Explore & Practicum", () => {
     // The header ExperimentTimer must have advanced in real time (~2 to 3 seconds),
     // proving the header timer remains real-time despite simulation running at 0.25x!
     const timerAfter = await timerDisplay.textContent();
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("GJB Playback Speed: default is 0,5×, setting 0,25× scales simulation while ExperimentTimer header stays real-time", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/praktikum/gjb", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Navigate to SIMULATION step
+    const nextBtn = page.locator("button[data-testid='practicum-next-step']").or(page.locator("button:has-text('Selanjutnya')"));
+    if (await nextBtn.first().isVisible()) {
+      await nextBtn.first().click(); // to SETUP
+      await page.waitForTimeout(400);
+      await nextBtn.first().click(); // to SIMULATION
+      await page.waitForTimeout(600);
+    }
+
+    // Verify speed radiogroup exists with options
+    const speedGroup = page.locator("div[role='radiogroup'][aria-label='Kecepatan simulasi']");
+    await expect(speedGroup.first()).toBeVisible();
+
+    // Default speed for GJB is 0,5x
+    const btnHalf = page.locator("button[role='radio']:has-text('0,5×')");
+    await expect(btnHalf.first()).toHaveAttribute("aria-checked", "true");
+
+    // Select 0,25x
+    const btnQuarter = page.locator("button[role='radio']:has-text('0,25×')");
+    await expect(btnQuarter.first()).toBeVisible();
+    await btnQuarter.first().click();
+    await expect(btnQuarter.first()).toHaveAttribute("aria-checked", "true");
+    await expect(btnHalf.first()).toHaveAttribute("aria-checked", "false");
+
+    // Read ExperimentTimer initial value
+    const timerDisplay = page.locator("div:has-text('00:')").or(page.locator("text=/\\d{2}:\\d{2}/")).first();
+    const initialText = await timerDisplay.textContent();
+
+    // Trigger drop at 0.25x
+    const playBtn = page.locator("button[data-testid='btn-play']");
+    await playBtn.first().click();
+
+    // Wait ~2.5 seconds real time
+    await page.waitForTimeout(2500);
+
+    // Header timer advances in real time regardless of simulation speed
+    const timerAfter = await timerDisplay.textContent();
     expect(timerAfter).not.toEqual(initialText);
 
     expect(consoleErrors).toEqual([]);
