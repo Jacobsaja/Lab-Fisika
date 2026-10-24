@@ -26,6 +26,14 @@
 /** Standard gravitational acceleration used by the lab manual (m/s²). */
 export const G_STANDARD = 9.8;
 
+/**
+ * [CATATAN ASUMSI DESAIN SIMULASI]:
+ * Buku panduan Modul 6 Fisika Dasar 1 (HKEM) mencantumkan variabel massa kereta M
+ * dan beban gantung m pada Tabel 6.1 tanpa mendikte nilai nominal beban gantung secara spesifik.
+ * Pemilihan variasi beban gantung kelipatan 5 g (5 g, 10 g, 15 g, 20 g) pada modul praktikum
+ * adalah ASUMSI perancangan antarmuka simulasi, BUKAN batasan mutlak dari teks panduan praktikum.
+ */
+
 export interface AirTrackPulleyParams {
   /** M — cart (glider) mass in kg, including any slotted mass on the cart. */
   cartMass: number;

@@ -19,8 +19,12 @@ import {
   Zap,
   Scale,
   ArrowRight,
-  Flame,
   TrendingDown,
+  Eye,
+  EyeOff,
+  Calculator,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 
 // Standard laboratory configuration from Physics Lab Manual 6
@@ -33,6 +37,11 @@ const FLAG_WIDTH = 0.03; // 3 cm
 const REQUIRED_TRIALS = 5;
 
 // Trial presets from Table 6.1
+// [ASUMSI DESAIN SIMULASI]:
+// Teks modul cetak Modul 6 Fisika Dasar 1 hanya mencantumkan kolom massa kereta M dan beban gantung m
+// tanpa menentukan nilai nominal beban gantung yang harus digunakan. Pilihan variasi beban gantung
+// kelipatan 5 g (5g, 10g, 15g, 20g) pada simulasi ini adalah ASUMSI perancangan antarmuka simulasi untuk
+// menyajikan alur praktikum yang terstruktur, BUKAN ketentuan baku atau batasan mutlak dari teks panduan praktikum.
 interface TrialPreset {
   no: number;
   label: string;
@@ -67,9 +76,9 @@ const CONFIG: PracticumConfig = {
     "FASE PERSIAPAN: Lakukan penimbangan massa kereta dasar (M) dan beban tambahan (12.5 g) menggunakan neraca Ohaus.",
     "FASE EKSPERIMEN: Hubungkan benang dari pengait kereta melewati katrol di ujung rel, lalu gantungkan beban m.",
     "Atur Timer Counter ke fungsi ACCELERATION. Posisi Gerbang 1 berada pada 25 cm dan Gerbang 2 pada 65 cm.",
-    "Lakukan 5 variasi percobaan sesuai Tabel 6.1 (m = 5g, 10g, 15g, 20g, dan M + 12.5g).",
+    "Lakukan 5 variasi percobaan sesuai Tabel 6.1 (asumsi simulasi: beban kelipatan 5 g: m = 5g, 10g, 15g, 20g, dan M + 12.5g).",
     "Lepaskan kereta dari keadaan diam, catat waktu lintasan t1 dan t2 yang ditampilkan pada Timer Counter.",
-    "Lengkapi data Tabel 6.1 dan hitung nilai kecepatan, EK, EP, dan EM pada Tabel 6.2.",
+    "Lengkapi data Tabel 6.1 dan hitung mandiri nilai kecepatan, EK, EP, dan EM pada Tabel 6.2 (periksa kebenaran dengan tombol validasi).",
     "Jawab seluruh pertanyaan evaluasi dan buat kesimpulan akhir.",
   ],
   columns: [
@@ -170,9 +179,94 @@ export default function HKEMPracticumPage() {
   // Stored detailed trials
   const [completedTrials, setCompletedTrials] = useState<Record<number, AirTrackTrialResult>>({});
 
+  // Student manual calculation inputs for Table 6.2
+  const [studentCalc, setStudentCalc] = useState<
+    Record<
+      number,
+      {
+        v1: string;
+        ek1: string;
+        ep1: string;
+        em1: string;
+        v2: string;
+        ek2: string;
+        ep2: string;
+        em2: string;
+      }
+    >
+  >({
+    1: { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
+    2: { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
+    3: { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
+    4: { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
+    5: { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
+  });
+
+  const [hasValidated, setHasValidated] = useState(false);
+  const [showSystemReference, setShowSystemReference] = useState(false);
+
   const currentPreset = TRIAL_PRESETS[activePresetIndex];
   const totalCollectedTrials = Object.keys(completedTrials).length;
   const hasCompletedAllTrials = totalCollectedTrials >= REQUIRED_TRIALS;
+
+  // Validation helper: checks student numeric answer against ground truth with 6% tolerance
+  const isCellAccurate = (enteredStr: string, groundTruth: number): boolean => {
+    if (!enteredStr || enteredStr.trim() === "") return false;
+    const parsed = parseFloat(enteredStr.replace(",", "."));
+    if (isNaN(parsed)) return false;
+    if (Math.abs(groundTruth) < 0.01) {
+      return Math.abs(parsed - groundTruth) <= 0.005;
+    }
+    return Math.abs(parsed - groundTruth) / Math.abs(groundTruth) <= 0.06;
+  };
+
+  // Auto-fill student calculation table with system ground truths (learning / verification aid)
+  const handleFillSystemKeys = () => {
+    const filled: typeof studentCalc = { ...studentCalc };
+    TRIAL_PRESETS.forEach((p) => {
+      const trial =
+        completedTrials[p.no] ||
+        computeAirTrackTrial(
+          { cartMass: p.cartMass, hangingMass: p.hangingMass },
+          { dropHeight: DROP_HEIGHT_H0, railTravel: 1.1 },
+          { gate1Position: GATE1_DEFAULT_X, gate2Position: GATE2_DEFAULT_X, flagWidth: FLAG_WIDTH }
+        );
+      filled[p.no] = {
+        v1: trial.v1.toFixed(3),
+        ek1: trial.ek1.toFixed(4),
+        ep1: trial.ep1.toFixed(4),
+        em1: trial.em1.toFixed(4),
+        v2: trial.v2.toFixed(3),
+        ek2: trial.ek2.toFixed(4),
+        ep2: trial.ep2.toFixed(4),
+        em2: trial.em2.toFixed(4),
+      };
+    });
+    setStudentCalc(filled);
+    setHasValidated(true);
+  };
+
+  // Calculate validation stats
+  const validationStats = useMemo(() => {
+    let correctCount = 0;
+    const totalFields = TRIAL_PRESETS.length * 8; // 40 fields
+
+    TRIAL_PRESETS.forEach((p) => {
+      const trial = completedTrials[p.no];
+      if (!trial) return;
+      const row = studentCalc[p.no];
+      if (isCellAccurate(row.v1, trial.v1)) correctCount++;
+      if (isCellAccurate(row.ek1, trial.ek1)) correctCount++;
+      if (isCellAccurate(row.ep1, trial.ep1)) correctCount++;
+      if (isCellAccurate(row.em1, trial.em1)) correctCount++;
+      if (isCellAccurate(row.v2, trial.v2)) correctCount++;
+      if (isCellAccurate(row.ek2, trial.ek2)) correctCount++;
+      if (isCellAccurate(row.ep2, trial.ep2)) correctCount++;
+      if (isCellAccurate(row.em2, trial.em2)) correctCount++;
+    });
+
+    return { correctCount, totalFields, percent: Math.round((correctCount / totalFields) * 100) };
+  }, [studentCalc, completedTrials]);
 
   // Handle recording a completed trial
   const handleRecordTrial = (ctx: PracticumShellContext) => {
@@ -235,65 +329,229 @@ export default function HKEMPracticumPage() {
                   </div>
                 </div>
 
-                {/* Comprehensive Energy Verification Table (Tabel 6.2) */}
+                {/* Validation Feedback Banner */}
+                {hasValidated && (
+                  <div
+                    className={`p-4 rounded-xl border flex items-center justify-between text-xs font-mono transition-all ${
+                      validationStats.correctCount === validationStats.totalFields
+                        ? "bg-emerald-950/80 border-emerald-500 text-emerald-300"
+                        : "bg-amber-950/80 border-amber-500 text-amber-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {validationStats.correctCount === validationStats.totalFields ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                      )}
+                      <div>
+                        <div className="font-bold text-sm">
+                          Hasil Validasi Perhitungan: {validationStats.correctCount} / {validationStats.totalFields} Nilai Benar ({validationStats.percent}%)
+                        </div>
+                        <div className="text-slate-400 text-[11px] mt-0.5">
+                          {validationStats.correctCount === validationStats.totalFields
+                            ? "Luar biasa! Seluruh perhitungan kecepatan dan energi mekanik Anda akurat sesuai hukum fisika."
+                            : "Periksa kembali sel berwarna merah/oranye. Pastikan rumus w/t, ½(M+m)v², m·g·h, dan EM = EK + EP dihitung dengan teliti."}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Interactive Student Calculation Table (Tabel 6.2) */}
                 <div className="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl">
-                  <h3 className="text-lg font-bold font-mono text-cyan-300 mb-2 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-cyan-400" />
-                    Tabel 6.2: Perhitungan Energi Kinetik, Potensial, dan Mekanik (Titik 1 vs Titik 2)
-                  </h3>
-                  <p className="text-xs text-slate-400 mb-4">
-                    Data diperoleh dari pengukuran waktu perlintasan bendera w = 3 cm di Gerbang 1 dan Gerbang 2.
-                  </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold font-mono text-cyan-300 flex items-center gap-2">
+                        <Calculator className="w-5 h-5 text-cyan-400" />
+                        Tabel 6.2: Perhitungan Mandiri Siswa (v, EK, EP, EM)
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Hitung nilai kecepatan (v = w/t), EK = ½(M+m)v², EP = m·g·h, dan EM = EK + EP untuk setiap percobaan. Tabel sistem hanya digunakan untuk memeriksa jawaban.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setHasValidated(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-mono font-bold transition-all shadow-[0_0_12px_rgba(37,99,235,0.4)]"
+                      >
+                        <Check className="w-4 h-4" />
+                        Periksa Perhitungan
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleFillSystemKeys}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-mono transition-all border border-slate-700"
+                        title="Isi dengan nilai kunci sistem untuk bantuan belajar"
+                      >
+                        <Calculator className="w-3.5 h-3.5 text-cyan-400" />
+                        Bantu Lengkapi
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs font-mono border-collapse">
                       <thead>
                         <tr className="bg-slate-800 text-slate-300 border-b border-slate-700">
-                          <th className="p-3">No</th>
-                          <th className="p-3">v1 (m/s)</th>
-                          <th className="p-3">EK1 (J)</th>
-                          <th className="p-3">EP1 (J)</th>
-                          <th className="p-3 text-purple-300 font-bold">EM1 (J)</th>
-                          <th className="p-3">v2 (m/s)</th>
-                          <th className="p-3">EK2 (J)</th>
-                          <th className="p-3">EP2 (J)</th>
-                          <th className="p-3 text-purple-300 font-bold">EM2 (J)</th>
-                          <th className="p-3 text-emerald-300 font-bold">ΔEM (%)</th>
+                          <th className="p-2.5">No</th>
+                          <th className="p-2.5">v1 (m/s)</th>
+                          <th className="p-2.5">EK1 (J)</th>
+                          <th className="p-2.5">EP1 (J)</th>
+                          <th className="p-2.5 text-purple-300 font-bold">EM1 (J)</th>
+                          <th className="p-2.5">v2 (m/s)</th>
+                          <th className="p-2.5">EK2 (J)</th>
+                          <th className="p-2.5">EP2 (J)</th>
+                          <th className="p-2.5 text-purple-300 font-bold">EM2 (J)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
                         {TRIAL_PRESETS.map((p) => {
                           const trial = completedTrials[p.no];
-                          if (!trial) {
+                          const row = studentCalc[p.no];
+
+                          const renderInput = (
+                            fieldKey: keyof typeof row,
+                            expectedNum: number | undefined,
+                            precisionHint: string
+                          ) => {
+                            const val = row[fieldKey];
+                            const accurate =
+                              hasValidated && expectedNum !== undefined
+                                ? isCellAccurate(val, expectedNum)
+                                : false;
+                            const hasError =
+                              hasValidated && expectedNum !== undefined && !accurate;
+
                             return (
-                              <tr key={p.no} className="opacity-40">
-                                <td className="p-3">{p.no}</td>
-                                <td colSpan={9} className="p-3 italic text-slate-500">
-                                  Belum tercatat
-                                </td>
-                              </tr>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={val}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setStudentCalc((prev) => ({
+                                    ...prev,
+                                    [p.no]: { ...prev[p.no], [fieldKey]: newVal },
+                                  }));
+                                }}
+                                placeholder={
+                                  process.env.NODE_ENV === "development" && expectedNum !== undefined
+                                    ? `K: ${expectedNum.toFixed(precisionHint === "v" ? 3 : 4)}`
+                                    : "0.000"
+                                }
+                                className={`w-20 px-2 py-1.5 rounded-lg text-xs font-mono transition-all border outline-none ${
+                                  hasValidated
+                                    ? accurate
+                                      ? "bg-emerald-950/40 border-emerald-500 text-emerald-300"
+                                      : hasError
+                                      ? "bg-rose-950/40 border-rose-500 text-rose-300"
+                                      : "bg-slate-950 border-slate-700 text-white"
+                                    : "bg-slate-950 border-slate-700 text-white focus:border-cyan-400"
+                                }`}
+                              />
                             );
-                          }
+                          };
+
                           return (
-                            <tr key={p.no} className="hover:bg-slate-800/50">
-                              <td className="p-3 font-bold text-cyan-400">{p.no}</td>
-                              <td className="p-3 text-slate-300">{trial.v1.toFixed(3)}</td>
-                              <td className="p-3 text-emerald-400">{trial.ek1.toFixed(4)}</td>
-                              <td className="p-3 text-amber-400">{trial.ep1.toFixed(4)}</td>
-                              <td className="p-3 font-bold text-purple-300">{trial.em1.toFixed(4)}</td>
-                              <td className="p-3 text-slate-300">{trial.v2.toFixed(3)}</td>
-                              <td className="p-3 text-emerald-400">{trial.ek2.toFixed(4)}</td>
-                              <td className="p-3 text-amber-400">{trial.ep2.toFixed(4)}</td>
-                              <td className="p-3 font-bold text-purple-300">{trial.em2.toFixed(4)}</td>
-                              <td className="p-3 font-bold text-emerald-300">
-                                {Math.abs(trial.differencePercent).toFixed(2)}%
-                              </td>
+                            <tr key={p.no} className="hover:bg-slate-800/40">
+                              <td className="p-2.5 font-bold text-cyan-400">P{p.no}</td>
+                              <td className="p-2">{renderInput("v1", trial?.v1, "v")}</td>
+                              <td className="p-2">{renderInput("ek1", trial?.ek1, "e")}</td>
+                              <td className="p-2">{renderInput("ep1", trial?.ep1, "e")}</td>
+                              <td className="p-2">{renderInput("em1", trial?.em1, "e")}</td>
+                              <td className="p-2">{renderInput("v2", trial?.v2, "v")}</td>
+                              <td className="p-2">{renderInput("ek2", trial?.ek2, "e")}</td>
+                              <td className="p-2">{renderInput("ep2", trial?.ep2, "e")}</td>
+                              <td className="p-2">{renderInput("em2", trial?.em2, "e")}</td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
+                </div>
+
+                {/* Collapsible System Reference Table */}
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-mono font-bold text-slate-300">
+                        Tabel Referensi Sistem (Kunci Jawaban untuk Pemeriksaan)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSystemReference((prev) => !prev)}
+                      className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg text-xs font-mono transition-all border border-slate-700"
+                    >
+                      {showSystemReference ? (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5" /> Sembunyikan Kunci
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5" /> Buka Kunci Referensi
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {showSystemReference && (
+                    <div className="mt-4 pt-4 border-t border-slate-800 overflow-x-auto">
+                      <table className="w-full text-left text-xs font-mono border-collapse">
+                        <thead>
+                          <tr className="bg-slate-800 text-slate-400 border-b border-slate-700">
+                            <th className="p-2.5">No</th>
+                            <th className="p-2.5">v1 (m/s)</th>
+                            <th className="p-2.5">EK1 (J)</th>
+                            <th className="p-2.5">EP1 (J)</th>
+                            <th className="p-2.5 text-purple-300 font-bold">EM1 (J)</th>
+                            <th className="p-2.5">v2 (m/s)</th>
+                            <th className="p-2.5">EK2 (J)</th>
+                            <th className="p-2.5">EP2 (J)</th>
+                            <th className="p-2.5 text-purple-300 font-bold">EM2 (J)</th>
+                            <th className="p-2.5 text-emerald-300 font-bold">ΔEM (%)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {TRIAL_PRESETS.map((p) => {
+                            const trial = completedTrials[p.no];
+                            if (!trial) {
+                              return (
+                                <tr key={p.no} className="opacity-40">
+                                  <td className="p-2.5">{p.no}</td>
+                                  <td colSpan={9} className="p-2.5 italic text-slate-500">
+                                    Belum tercatat
+                                  </td>
+                                </tr>
+                              );
+                            }
+                            return (
+                              <tr key={p.no} className="hover:bg-slate-800/50">
+                                <td className="p-2.5 font-bold text-cyan-400">{p.no}</td>
+                                <td className="p-2.5 text-slate-300">{trial.v1.toFixed(3)}</td>
+                                <td className="p-2.5 text-emerald-400">{trial.ek1.toFixed(4)}</td>
+                                <td className="p-2.5 text-amber-400">{trial.ep1.toFixed(4)}</td>
+                                <td className="p-2.5 font-bold text-purple-300">{trial.em1.toFixed(4)}</td>
+                                <td className="p-2.5 text-slate-300">{trial.v2.toFixed(3)}</td>
+                                <td className="p-2.5 text-emerald-400">{trial.ek2.toFixed(4)}</td>
+                                <td className="p-2.5 text-amber-400">{trial.ep2.toFixed(4)}</td>
+                                <td className="p-2.5 font-bold text-purple-300">{trial.em2.toFixed(4)}</td>
+                                <td className="p-2.5 font-bold text-emerald-300">
+                                  {Math.abs(trial.differencePercent).toFixed(2)}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
                 {/* Analysis Cards */}
@@ -584,6 +842,9 @@ export default function HKEMPracticumPage() {
                       </tbody>
                     </table>
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-2 font-mono italic">
+                    * Catatan Asumsi Desain: Variasi beban gantung kelipatan 5 g (5g, 10g, 15g, 20g) adalah asumsi perancangan perangkat lunak simulasi untuk kemudahan praktikum terstruktur, bukan ketentuan baku dari teks modul laboratorium.
+                  </p>
                 </div>
 
                 {!hasCompletedAllTrials && (
