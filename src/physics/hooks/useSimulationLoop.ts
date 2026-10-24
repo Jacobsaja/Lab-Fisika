@@ -1,15 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { SimulationModel } from "../core";
 
-interface UseSimulationLoopResult<TState> {
+export interface UseSimulationLoopResult<TState> {
   state: TState;
+  /** Simulation time in seconds (backward compatibility alias for simTime) */
   time: number;
+  /** Accumulated simulation time in seconds */
+  simTime: number;
   isPlaying: boolean;
   play: () => void;
   pause: () => void;
   reset: () => void;
   setSpeed: (multiplier: number) => void;
   speed: number;
+}
+
+export interface SimulationLoopOptions {
+  /** Initial playback speed multiplier (default: 1.0) */
+  initialSpeed?: number;
+  /** Maximum wall delta time in seconds clamped per frame to prevent background tab lag spirals (default: 0.25) */
+  maxFrameTime?: number;
 }
 
 /**
@@ -19,14 +29,18 @@ interface UseSimulationLoopResult<TState> {
 export function useSimulationLoop<TParams, TState>(
   model: SimulationModel<TParams, TState>,
   params: TParams,
-  fixedDt: number = 1 / 60
+  fixedDt: number = 1 / 60,
+  options?: SimulationLoopOptions
 ): UseSimulationLoopResult<TState> {
+  const initialSpeed = options?.initialSpeed ?? 1.0;
+  const maxFrameTime = options?.maxFrameTime ?? 0.25;
+
   // We keep the simulation state in a ref to avoid recreating the loop closure.
   // We sync it to React state only when we need to render.
   const [renderState, setRenderState] = useState<TState>(() => model.init(params));
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1.0);
+  const [speed, setSpeed] = useState(initialSpeed);
 
   const stateRef = useRef<TState>(renderState);
   const timeRef = useRef<number>(0);
@@ -57,7 +71,7 @@ export function useSimulationLoop<TParams, TState>(
     setTime(0);
   }, [model]);
 
-  // Reset when params change
+  // Reset when params change (speed is intentionally preserved)
   useEffect(() => {
     if (JSON.stringify(prevParamsRef.current) !== JSON.stringify(params)) {
       prevParamsRef.current = params;
@@ -98,12 +112,12 @@ export function useSimulationLoop<TParams, TState>(
 
       // Cap dt to avoid death spirals if tab is inactive for a long time
       let frameTime = (currentWallTime - lastWallTimeRef.current) / 1000;
-      if (frameTime > 0.25) {
-        frameTime = 0.25;
+      if (frameTime > maxFrameTime) {
+        frameTime = maxFrameTime;
       }
       lastWallTimeRef.current = currentWallTime;
 
-      // Apply speed multiplier
+      // Apply speed multiplier: dtSim = dtWall * speed
       accumulatorRef.current += frameTime * speedRef.current;
 
       let stepsTaken = 0;
@@ -131,11 +145,12 @@ export function useSimulationLoop<TParams, TState>(
         cancelAnimationFrame(rAFRef.current);
       }
     };
-  }, [model, params, fixedDt]);
+  }, [model, params, fixedDt, maxFrameTime]);
 
   return {
     state: renderState,
     time,
+    simTime: time,
     isPlaying,
     play,
     pause,
