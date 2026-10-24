@@ -11,6 +11,7 @@ import { OhausBalance } from "@/components/practicum/instruments/OhausBalance";
 import {
   computeAirTrackTrial,
   AirTrackTrialResult,
+  validateHkemCalculation,
 } from "@/physics/airTrackPulleySystem";
 import {
   CheckCircle2,
@@ -37,11 +38,11 @@ const FLAG_WIDTH = 0.03; // 3 cm
 const REQUIRED_TRIALS = 5;
 
 // Trial presets from Table 6.1
-// [ASUMSI DESAIN SIMULASI]:
-// Teks modul cetak Modul 6 Fisika Dasar 1 hanya mencantumkan kolom massa kereta M dan beban gantung m
-// tanpa menentukan nilai nominal beban gantung yang harus digunakan. Pilihan variasi beban gantung
-// kelipatan 5 g (5g, 10g, 15g, 20g) pada simulasi ini adalah ASUMSI perancangan antarmuka simulasi untuk
-// menyajikan alur praktikum yang terstruktur, BUKAN ketentuan baku atau batasan mutlak dari teks panduan praktikum.
+// [SIMULATION DESIGN NOTE]:
+// The printed lab manual for Module 6 lists cart mass M and hanging mass m
+// without specifying exact nominal values for hanging mass. The 5 g multiples
+// (5g, 10g, 15g, 20g) used in this simulation provide a structured workflow
+// for students, and are a simulation software design choice.
 interface TrialPreset {
   no: number;
   label: string;
@@ -76,7 +77,7 @@ const CONFIG: PracticumConfig = {
     "FASE PERSIAPAN: Lakukan penimbangan massa kereta dasar (M) dan beban tambahan (12.5 g) menggunakan neraca Ohaus.",
     "FASE EKSPERIMEN: Hubungkan benang dari pengait kereta melewati katrol di ujung rel, lalu gantungkan beban m.",
     "Atur Timer Counter ke fungsi ACCELERATION. Posisi Gerbang 1 berada pada 25 cm dan Gerbang 2 pada 65 cm.",
-    "Lakukan 5 variasi percobaan sesuai Tabel 6.1 (asumsi simulasi: beban kelipatan 5 g: m = 5g, 10g, 15g, 20g, dan M + 12.5g).",
+    "Lakukan 5 variasi percobaan sesuai Tabel 6.1 (variasi beban gantung pada simulasi ini: m = 5 g, 10 g, 15 g, 20 g, serta penambahan beban kereta M + 12.5 g).",
     "Lepaskan kereta dari keadaan diam, catat waktu lintasan t1 dan t2 yang ditampilkan pada Timer Counter.",
     "Lengkapi data Tabel 6.1 dan hitung mandiri nilai kecepatan, EK, EP, dan EM pada Tabel 6.2 (periksa kebenaran dengan tombol validasi).",
     "Jawab seluruh pertanyaan evaluasi dan buat kesimpulan akhir.",
@@ -202,6 +203,9 @@ export default function HKEMPracticumPage() {
     5: { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
   });
 
+  // Track which cells were populated via the assist button
+  const [assistedCells, setAssistedCells] = useState<Record<string, boolean>>({});
+
   const [hasValidated, setHasValidated] = useState(false);
   const [showSystemReference, setShowSystemReference] = useState(false);
 
@@ -209,20 +213,11 @@ export default function HKEMPracticumPage() {
   const totalCollectedTrials = Object.keys(completedTrials).length;
   const hasCompletedAllTrials = totalCollectedTrials >= REQUIRED_TRIALS;
 
-  // Validation helper: checks student numeric answer against ground truth with 6% tolerance
-  const isCellAccurate = (enteredStr: string, groundTruth: number): boolean => {
-    if (!enteredStr || enteredStr.trim() === "") return false;
-    const parsed = parseFloat(enteredStr.replace(",", "."));
-    if (isNaN(parsed)) return false;
-    if (Math.abs(groundTruth) < 0.01) {
-      return Math.abs(parsed - groundTruth) <= 0.005;
-    }
-    return Math.abs(parsed - groundTruth) / Math.abs(groundTruth) <= 0.06;
-  };
-
   // Auto-fill student calculation table with system ground truths (learning / verification aid)
-  const handleFillSystemKeys = () => {
-    const filled: typeof studentCalc = { ...studentCalc };
+  const handleAutoFillAssistance = () => {
+    const filledCalc: typeof studentCalc = { ...studentCalc };
+    const filledAssisted: Record<string, boolean> = { ...assistedCells };
+
     TRIAL_PRESETS.forEach((p) => {
       const trial =
         completedTrials[p.no] ||
@@ -231,7 +226,7 @@ export default function HKEMPracticumPage() {
           { dropHeight: DROP_HEIGHT_H0, railTravel: 1.1 },
           { gate1Position: GATE1_DEFAULT_X, gate2Position: GATE2_DEFAULT_X, flagWidth: FLAG_WIDTH }
         );
-      filled[p.no] = {
+      filledCalc[p.no] = {
         v1: trial.v1.toFixed(3),
         ek1: trial.ek1.toFixed(4),
         ep1: trial.ep1.toFixed(4),
@@ -241,32 +236,49 @@ export default function HKEMPracticumPage() {
         ep2: trial.ep2.toFixed(4),
         em2: trial.em2.toFixed(4),
       };
+      const keys: (keyof (typeof studentCalc)[number])[] = ["v1", "ek1", "ep1", "em1", "v2", "ek2", "ep2", "em2"];
+      keys.forEach((k) => {
+        filledAssisted[`${p.no}_${k}`] = true;
+      });
     });
-    setStudentCalc(filled);
+
+    setStudentCalc(filledCalc);
+    setAssistedCells(filledAssisted);
     setHasValidated(true);
   };
 
-  // Calculate validation stats
+  // Calculate validation statistics
   const validationStats = useMemo(() => {
     let correctCount = 0;
+    let assistedCount = 0;
     const totalFields = TRIAL_PRESETS.length * 8; // 40 fields
 
     TRIAL_PRESETS.forEach((p) => {
       const trial = completedTrials[p.no];
       if (!trial) return;
       const row = studentCalc[p.no];
-      if (isCellAccurate(row.v1, trial.v1)) correctCount++;
-      if (isCellAccurate(row.ek1, trial.ek1)) correctCount++;
-      if (isCellAccurate(row.ep1, trial.ep1)) correctCount++;
-      if (isCellAccurate(row.em1, trial.em1)) correctCount++;
-      if (isCellAccurate(row.v2, trial.v2)) correctCount++;
-      if (isCellAccurate(row.ek2, trial.ek2)) correctCount++;
-      if (isCellAccurate(row.ep2, trial.ep2)) correctCount++;
-      if (isCellAccurate(row.em2, trial.em2)) correctCount++;
+      const keys: (keyof typeof row)[] = ["v1", "ek1", "ep1", "em1", "v2", "ek2", "ep2", "em2"];
+
+      keys.forEach((k) => {
+        const isAssisted = !!assistedCells[`${p.no}_${k}`];
+        const isAccurate = validateHkemCalculation(row[k], trial[k]);
+        if (isAccurate) {
+          if (isAssisted) {
+            assistedCount++;
+          } else {
+            correctCount++;
+          }
+        }
+      });
     });
 
-    return { correctCount, totalFields, percent: Math.round((correctCount / totalFields) * 100) };
-  }, [studentCalc, completedTrials]);
+    return {
+      correctCount,
+      assistedCount,
+      totalFields,
+      percentCorrect: Math.round((correctCount / totalFields) * 100),
+    };
+  }, [studentCalc, completedTrials, assistedCells]);
 
   // Handle recording a completed trial
   const handleRecordTrial = (ctx: PracticumShellContext) => {
@@ -335,6 +347,8 @@ export default function HKEMPracticumPage() {
                     className={`p-4 rounded-xl border flex items-center justify-between text-xs font-mono transition-all ${
                       validationStats.correctCount === validationStats.totalFields
                         ? "bg-emerald-950/80 border-emerald-500 text-emerald-300"
+                        : validationStats.assistedCount > 0
+                        ? "bg-purple-950/80 border-purple-500 text-purple-300"
                         : "bg-amber-950/80 border-amber-500 text-amber-300"
                     }`}
                   >
@@ -342,16 +356,23 @@ export default function HKEMPracticumPage() {
                       {validationStats.correctCount === validationStats.totalFields ? (
                         <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                       ) : (
-                        <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                        <AlertCircle className="w-5 h-5 text-purple-400 shrink-0" />
                       )}
                       <div>
                         <div className="font-bold text-sm">
-                          Hasil Validasi Perhitungan: {validationStats.correctCount} / {validationStats.totalFields} Nilai Benar ({validationStats.percent}%)
+                          Hasil Validasi Perhitungan: {validationStats.correctCount} / {validationStats.totalFields} Benar
+                          {validationStats.assistedCount > 0 && (
+                            <span className="text-purple-300 font-normal ml-2">
+                              ({validationStats.assistedCount} dibantu)
+                            </span>
+                          )}
                         </div>
                         <div className="text-slate-400 text-[11px] mt-0.5">
                           {validationStats.correctCount === validationStats.totalFields
-                            ? "Luar biasa! Seluruh perhitungan kecepatan dan energi mekanik Anda akurat sesuai hukum fisika."
-                            : "Periksa kembali sel berwarna merah/oranye. Pastikan rumus w/t, ½(M+m)v², m·g·h, dan EM = EK + EP dihitung dengan teliti."}
+                            ? "Luar biasa! Seluruh 40 nilai perhitungan kecepatan dan energi mekanik Anda akurat sesuai hukum fisika."
+                            : validationStats.assistedCount > 0
+                            ? `Terdapat ${validationStats.assistedCount} sel terisi melalui tombol bantuan (tanda ungu) yang dikeluarkan dari skor benar mandiri. Silakan coba hitung mandiri untuk menyelesaikannya.`
+                            : "Periksa kembali sel berwarna merah. Pastikan rumus w/t, ½(M+m)v², m·g·h, dan EM = EK + EP dihitung dengan teliti (toleransi ±2%)."}
                         </div>
                       </div>
                     </div>
@@ -383,7 +404,7 @@ export default function HKEMPracticumPage() {
 
                       <button
                         type="button"
-                        onClick={handleFillSystemKeys}
+                        onClick={handleAutoFillAssistance}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-mono transition-all border border-slate-700"
                         title="Isi dengan nilai kunci sistem untuk bantuan belajar"
                       >
@@ -418,41 +439,61 @@ export default function HKEMPracticumPage() {
                             expectedNum: number | undefined,
                             precisionHint: string
                           ) => {
+                            const cellId = `${p.no}_${fieldKey}`;
                             const val = row[fieldKey];
+                            const isAssisted = !!assistedCells[cellId];
                             const accurate =
                               hasValidated && expectedNum !== undefined
-                                ? isCellAccurate(val, expectedNum)
+                                ? validateHkemCalculation(val, expectedNum)
                                 : false;
                             const hasError =
                               hasValidated && expectedNum !== undefined && !accurate;
 
-                            return (
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={val}
-                                onChange={(e) => {
-                                  const newVal = e.target.value;
-                                  setStudentCalc((prev) => ({
-                                    ...prev,
-                                    [p.no]: { ...prev[p.no], [fieldKey]: newVal },
-                                  }));
-                                }}
-                                placeholder={
-                                  process.env.NODE_ENV === "development" && expectedNum !== undefined
-                                    ? `K: ${expectedNum.toFixed(precisionHint === "v" ? 3 : 4)}`
-                                    : "0.000"
+                            let visualStyle = "bg-slate-950 border-slate-700 text-white focus:border-cyan-400";
+                            if (hasValidated) {
+                              if (accurate) {
+                                if (isAssisted) {
+                                  visualStyle = "bg-purple-950/40 border-purple-500 text-purple-300";
+                                } else {
+                                  visualStyle = "bg-emerald-950/40 border-emerald-500 text-emerald-300";
                                 }
-                                className={`w-20 px-2 py-1.5 rounded-lg text-xs font-mono transition-all border outline-none ${
-                                  hasValidated
-                                    ? accurate
-                                      ? "bg-emerald-950/40 border-emerald-500 text-emerald-300"
-                                      : hasError
-                                      ? "bg-rose-950/40 border-rose-500 text-rose-300"
-                                      : "bg-slate-950 border-slate-700 text-white"
-                                    : "bg-slate-950 border-slate-700 text-white focus:border-cyan-400"
-                                }`}
-                              />
+                              } else if (hasError) {
+                                visualStyle = "bg-rose-950/40 border-rose-500 text-rose-300";
+                              }
+                            }
+
+                            return (
+                              <div className="relative inline-block" key={fieldKey}>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={val}
+                                  onChange={(e) => {
+                                    const newVal = e.target.value;
+                                    setStudentCalc((prev) => ({
+                                      ...prev,
+                                      [p.no]: { ...prev[p.no], [fieldKey]: newVal },
+                                    }));
+                                    setAssistedCells((prev) => ({
+                                      ...prev,
+                                      [cellId]: false,
+                                    }));
+                                  }}
+                                  placeholder={
+                                    process.env.NODE_ENV === "development" && expectedNum !== undefined
+                                      ? `K: ${expectedNum.toFixed(precisionHint === "v" ? 3 : 4)}`
+                                      : "0.000"
+                                  }
+                                  className={`w-20 px-2 py-1.5 rounded-lg text-xs font-mono transition-all border outline-none ${visualStyle}`}
+                                  title={isAssisted ? "Nilai terisi melalui bantuan sistem" : undefined}
+                                />
+                                {hasValidated && accurate && isAssisted && (
+                                  <span
+                                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-slate-900"
+                                    title="Dibantu"
+                                  />
+                                )}
+                              </div>
                             );
                           };
 
@@ -634,7 +675,7 @@ export default function HKEMPracticumPage() {
               </div>
             </div>
 
-            {/* TAB 1: PERSIAPAN (Penimbangan Ohaus) */}
+            {/* TAB 1: SETUP (Ohaus balance) */}
             {activeTab === "PERSIAPAN" && (
               <div className="w-full flex flex-col gap-6 items-center bg-slate-900/40 p-6 md:p-8 rounded-2xl border border-white/5">
                 <div className="w-full max-w-4xl bg-slate-800/80 p-6 rounded-xl border border-slate-700">
@@ -702,7 +743,7 @@ export default function HKEMPracticumPage() {
               </div>
             )}
 
-            {/* TAB 2: EKSPERIMEN (Rel Udara & Timer) */}
+            {/* TAB 2: EXPERIMENT (Air track & timer) */}
             {activeTab === "EKSPERIMEN" && (
               <>
                 {/* Preset Selector Ribbon */}
@@ -787,7 +828,7 @@ export default function HKEMPracticumPage() {
                   </button>
                 </div>
 
-                {/* Table 6.1 (Data Eksperimen) */}
+                {/* Table 6.1 (Experimental data) */}
                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-hidden shadow-xl">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-xs font-bold font-mono text-cyan-300 flex items-center gap-2">
@@ -843,7 +884,7 @@ export default function HKEMPracticumPage() {
                     </table>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-2 font-mono italic">
-                    * Catatan Asumsi Desain: Variasi beban gantung kelipatan 5 g (5g, 10g, 15g, 20g) adalah asumsi perancangan perangkat lunak simulasi untuk kemudahan praktikum terstruktur, bukan ketentuan baku dari teks modul laboratorium.
+                    * Catatan: Variasi massa beban gantung yang digunakan pada simulasi ini adalah 5 g, 10 g, 15 g, dan 20 g.
                   </p>
                 </div>
 

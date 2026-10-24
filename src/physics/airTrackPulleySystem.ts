@@ -27,11 +27,12 @@
 export const G_STANDARD = 9.8;
 
 /**
- * [CATATAN ASUMSI DESAIN SIMULASI]:
- * Buku panduan Modul 6 Fisika Dasar 1 (HKEM) mencantumkan variabel massa kereta M
- * dan beban gantung m pada Tabel 6.1 tanpa mendikte nilai nominal beban gantung secara spesifik.
- * Pemilihan variasi beban gantung kelipatan 5 g (5 g, 10 g, 15 g, 20 g) pada modul praktikum
- * adalah ASUMSI perancangan antarmuka simulasi, BUKAN batasan mutlak dari teks panduan praktikum.
+ * [SIMULATION DESIGN NOTE]:
+ * The Modul 6 Physics Lab Manual (HKEM) lists cart mass M and hanging mass m
+ * in Table 6.1 without specifying exact nominal values for the hanging mass.
+ * The selection of 5 g multiples (5 g, 10 g, 15 g, 20 g) in this module is
+ * a simulation design assumption to provide structured trials, not a strict
+ * requirement from the printed laboratory guide.
  */
 
 export interface AirTrackPulleyParams {
@@ -400,4 +401,37 @@ export function energyAtState(
   const ek = landed ? kineticEnergy(M, 0, state.v) : kineticEnergy(M, m, state.v);
   const ep = potentialEnergy(m, hangingHeight(H0, state.x), g);
   return { ek, ep, em: mechanicalEnergy(ek, ep) };
+}
+
+/**
+ * Validates a student's numerical entry against expected ground truth for HKEM.
+ *
+ * Evaluation rules:
+ * - Empty string, whitespace-only, or non-numeric input evaluates to false.
+ * - Supports both '.' and ',' as decimal separators.
+ * - For near-zero values (|groundTruth| < 0.01), uses an absolute tolerance of 0.0015.
+ * - Otherwise, applies a relative tolerance of ±2.0% (0.02) to accept reasonable
+ *   3-significant-figure roundings while strictly rejecting erroneous calculations (e.g. 5% off).
+ */
+export function validateHkemCalculation(
+  enteredStr: string,
+  groundTruth: number,
+  relativeTolerance = 0.02,
+  absoluteNearZeroBound = 0.0015
+): boolean {
+  if (!enteredStr || typeof enteredStr !== "string") return false;
+  const trimmed = enteredStr.trim();
+  if (trimmed === "") return false;
+  const normalized = trimmed.replace(",", ".");
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || isNaN(parsed)) return false;
+
+  const absTruth = Math.abs(groundTruth);
+  const absDiff = Math.abs(parsed - groundTruth);
+
+  if (absTruth < 0.01) {
+    return absDiff <= absoluteNearZeroBound;
+  }
+
+  return absDiff / absTruth <= relativeTolerance;
 }

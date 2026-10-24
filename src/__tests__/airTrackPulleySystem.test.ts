@@ -18,6 +18,7 @@ import {
   energyDifferencePercent,
   computeAirTrackTrial,
   energyAtState,
+  validateHkemCalculation,
 } from "@/physics/airTrackPulleySystem";
 
 describe("airTrackPulleySystem physics engine", () => {
@@ -232,4 +233,53 @@ describe("airTrackPulleySystem physics engine", () => {
       expect(e.em).toBe(e.ek + e.ep);
     });
   });
+
+  describe("validateHkemCalculation", () => {
+    const truth = 0.4092;
+
+    test("accepts exact correct answers (with period and comma)", () => {
+      expect(validateHkemCalculation("0.4092", truth)).toBe(true);
+      expect(validateHkemCalculation("0,4092", truth)).toBe(true);
+    });
+
+    test("accepts reasonable 3-significant-figure rounding within ±2%", () => {
+      // 0.409 vs 0.4092 has error 0.048% <= 2%
+      expect(validateHkemCalculation("0.409", truth)).toBe(true);
+      expect(validateHkemCalculation("0,409", truth)).toBe(true);
+      // Other standard trials:
+      // v2 = 1.0885 -> 1.089 (error 0.046%)
+      expect(validateHkemCalculation("1.089", 1.0885)).toBe(true);
+      // EM = 0.11979 -> 0.120 (error 0.175%)
+      expect(validateHkemCalculation("0.120", 0.11979)).toBe(true);
+    });
+
+    test("rejects answers that are 5% off (exceeding ±2% tolerance)", () => {
+      const fivePercentHigh = (truth * 1.05).toFixed(4); // 0.4297
+      const fivePercentLow = (truth * 0.95).toFixed(4); // 0.3887
+      expect(validateHkemCalculation(fivePercentHigh, truth)).toBe(false);
+      expect(validateHkemCalculation(fivePercentLow, truth)).toBe(false);
+    });
+
+    test("rejects empty and whitespace-only entries", () => {
+      expect(validateHkemCalculation("", truth)).toBe(false);
+      expect(validateHkemCalculation("   ", truth)).toBe(false);
+    });
+
+    test("rejects non-numeric and malformed entries", () => {
+      expect(validateHkemCalculation("abc", truth)).toBe(false);
+      expect(validateHkemCalculation("0.40m/s", truth)).toBe(false);
+      expect(validateHkemCalculation("NaN", truth)).toBe(false);
+      expect(validateHkemCalculation("undefined", truth)).toBe(false);
+    });
+
+    test("evaluates near-zero values using small absolute bound", () => {
+      const nearZeroTruth = 0.00735; // EP2 for m = 5 g at h2 = 0.15 m
+      // Exactly 3 sig figs: 0.00735 or reasonable rounding: 0.0074 (|diff| = 0.00005 <= 0.0015)
+      expect(validateHkemCalculation("0.00735", nearZeroTruth)).toBe(true);
+      expect(validateHkemCalculation("0.0074", nearZeroTruth)).toBe(true);
+      // Distant value (|diff| = 0.00265 > 0.0015)
+      expect(validateHkemCalculation("0.0100", nearZeroTruth)).toBe(false);
+    });
+  });
 });
+
