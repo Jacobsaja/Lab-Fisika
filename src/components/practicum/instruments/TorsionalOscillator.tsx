@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { simulateOscillationTime, getTorsionalState } from "@/physics/momentOfInertia";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { Activity } from "lucide-react";
 import {
   SvgMetalGradients,
@@ -21,6 +23,9 @@ export interface TorsionalOscillatorProps {
   attachedBodyShape?: "solid-sphere" | "solid-cylinder" | null;
   attachedBodyRadius?: number; // in meters
   initialAngle?: number; // for explore
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  speedStorageKey?: string;
   className?: string;
   onTimeChange?: (t: number, isRunning: boolean, reset: boolean) => void;
   onStateUpdate?: (t: number, angleDeg: number, omega: number) => void;
@@ -34,7 +39,11 @@ export interface TorsionalOscillatorRef {
 }
 
 export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalOscillatorProps>(
-  ({ mode = "practicum", i0True, kappaTrue, attachedBodyInertia = 0, attachedBodyShape = null, attachedBodyRadius = 0.05, initialAngle = 90, className = "", onTimeChange, onStateUpdate, onCycleComplete }, ref) => {
+  ({ mode = "practicum", i0True, kappaTrue, attachedBodyInertia = 0, attachedBodyShape = null, attachedBodyRadius = 0.05, initialAngle = 90, speed: propSpeed, onSpeedChange: propOnSpeedChange, speedStorageKey, className = "", onTimeChange, onStateUpdate, onCycleComplete }, ref) => {
+    const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(speedStorageKey || "momen-inersia", 1.0);
+    const activeSpeed = propSpeed ?? internalSpeed;
+    const handleSpeedChange = propOnSpeedChange ?? setInternalSpeed;
+
     const totalInertia = i0True + attachedBodyInertia;
     const [angleDeg, setAngleDeg] = useState(0);
     const [isPulled, setIsPulled] = useState(false);
@@ -59,6 +68,8 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
     onStateUpdateRef.current = onStateUpdate;
     const onCycleCompleteRef = useRef(onCycleComplete);
     onCycleCompleteRef.current = onCycleComplete;
+    const speedRef = useRef(activeSpeed);
+    speedRef.current = activeSpeed;
 
     const handlePull = () => {
       if (isOscillating) return;
@@ -94,7 +105,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
         const delta = timestamp - lastTimestampRef.current;
         lastTimestampRef.current = timestamp;
 
-        timeAccumulator.current += delta / 1000;
+        timeAccumulator.current += (delta / 1000) * speedRef.current;
         const currentT = timeAccumulator.current;
 
         if (mode === "practicum") {
@@ -440,7 +451,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
 
             {/* Manual Controls Overlay (Practicum Only) */}
             {mode === "practicum" && (
-              <div className="absolute bottom-5 left-5 flex gap-2.5 z-10">
+              <div className="absolute bottom-5 left-5 flex flex-wrap items-center gap-2.5 z-10 max-w-[calc(100%-2.5rem)]">
                 <button
                   data-testid="btn-pull"
                   onClick={handlePull}
@@ -466,6 +477,7 @@ export const TorsionalOscillator = forwardRef<TorsionalOscillatorRef, TorsionalO
                 >
                   Lepas (Mulai)
                 </button>
+                <PlaybackSpeedControl speed={activeSpeed} onSpeedChange={handleSpeedChange} />
               </div>
             )}
           </div>

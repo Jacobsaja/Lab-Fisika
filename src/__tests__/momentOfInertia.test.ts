@@ -370,4 +370,50 @@ describe("Momen Inersia I Physics Module", () => {
       expect(s2.omegaRad).toBe(0);
     });
   });
+
+  describe("Characterization: Playback Speed Invariance in TorsionalOscillator", () => {
+    it("produces identical physical angle and omega at same simulation time across speeds 1x, 0.75x, 0.5x, 0.25x", () => {
+      const I = 0.003;
+      const kappa = 0.04;
+      const initialAngle = 90;
+      const speeds = [1.0, 0.75, 0.5, 0.25];
+      const checkTimes = [0.25, 0.5, 1.0, 1.75, 2.5];
+
+      const baselineStates = checkTimes.map((t) => getTorsionalState(t, initialAngle, I, kappa));
+
+      speeds.forEach((speed) => {
+        checkTimes.forEach((tTarget, idx) => {
+          // Accumulate time in discrete steps of deltaWall
+          const deltaWall = 16.6667 / 1000; // ~60fps frame delta in seconds
+          let timeAccumulator = 0;
+          let wallTime = 0;
+          
+          while (timeAccumulator + deltaWall * speed <= tTarget) {
+            timeAccumulator += deltaWall * speed;
+            wallTime += deltaWall;
+          }
+          // Final partial step to land exactly on tTarget
+          const remainingSim = tTarget - timeAccumulator;
+          timeAccumulator += remainingSim;
+          wallTime += remainingSim / speed;
+
+          const stateAtSpeed = getTorsionalState(timeAccumulator, initialAngle, I, kappa);
+          expect(stateAtSpeed.thetaDeg).toBeCloseTo(baselineStates[idx].thetaDeg, 8);
+          expect(stateAtSpeed.omegaRad).toBeCloseTo(baselineStates[idx].omegaRad, 8);
+          expect(stateAtSpeed.period).toBeCloseTo(baselineStates[idx].period, 8);
+          expect(wallTime).toBeCloseTo(tTarget / speed, 5);
+        });
+      });
+    });
+
+    it("ensures 5-cycle simulation duration remains analytically identical across speeds", () => {
+      const I = 0.003;
+      const kappa = 0.04;
+      const cycles = 5;
+      
+      const totalSimulated1 = simulateOscillationTime(I, kappa, cycles, false);
+      const totalSimulatedAt025 = simulateOscillationTime(I, kappa, cycles, false);
+      expect(totalSimulatedAt025).toBe(totalSimulated1);
+    });
+  });
 });

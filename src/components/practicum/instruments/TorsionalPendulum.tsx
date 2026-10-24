@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useMemo } from "react";
 import { period, angleAt } from "@/physics/torsionalOscillation";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { Activity } from "lucide-react";
 import {
   SvgMetalGradients,
@@ -16,6 +18,9 @@ export interface TorsionalPendulumProps {
   totalInertia: number;
   kappa: number;
   initialAngleDeg?: number;
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  speedStorageKey?: string;
   className?: string;
   onTimeChange?: (t: number, isRunning: boolean, reset: boolean) => void;
   onStateUpdate?: (t: number, angleDeg: number, omega: number) => void;
@@ -29,8 +34,11 @@ export interface TorsionalPendulumRef {
 }
 
 export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendulumProps>(
-  ({ mode = "practicum", rodLengthCm, radiusCm, totalInertia, kappa, initialAngleDeg = 90, className = "", onTimeChange, onStateUpdate, onOscillationEnd }, ref) => {
-    
+  ({ mode = "practicum", rodLengthCm, radiusCm, totalInertia, kappa, initialAngleDeg = 90, speed: propSpeed, onSpeedChange: propOnSpeedChange, speedStorageKey, className = "", onTimeChange, onStateUpdate, onOscillationEnd }, ref) => {
+    const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(speedStorageKey || "osilasi-torsional", 1.0);
+    const activeSpeed = propSpeed ?? internalSpeed;
+    const handleSpeedChange = propOnSpeedChange ?? setInternalSpeed;
+
     const [angleDeg, setAngleDeg] = useState(0);
     const [isPulled, setIsPulled] = useState(false);
     const [isOscillating, setIsOscillating] = useState(false);
@@ -48,6 +56,8 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
     onStateUpdateRef.current = onStateUpdate;
     const onOscillationEndRef = useRef(onOscillationEnd);
     onOscillationEndRef.current = onOscillationEnd;
+    const speedRef = useRef(activeSpeed);
+    speedRef.current = activeSpeed;
 
     const handlePull = () => {
       if (isOscillating) return;
@@ -84,7 +94,7 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
         const delta = timestamp - lastTimestampRef.current;
         lastTimestampRef.current = timestamp;
 
-        timeAccumulator.current += delta / 1000;
+        timeAccumulator.current += (delta / 1000) * speedRef.current;
         const currentT = timeAccumulator.current;
 
         if (mode === "practicum") {
@@ -446,7 +456,7 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
 
         {/* Controls for Practicum Mode */}
         {mode === "practicum" && (
-          <div className="flex gap-3 z-10 mt-2">
+          <div className="flex flex-wrap items-center gap-3 z-10 mt-2">
             {!isPulled && !isOscillating && (
               <button 
                 data-testid="btn-pull"
@@ -485,6 +495,7 @@ export const TorsionalPendulum = forwardRef<TorsionalPendulumRef, TorsionalPendu
             >
               Reset
             </button>
+            <PlaybackSpeedControl speed={activeSpeed} onSpeedChange={handleSpeedChange} />
           </div>
         )}
       </div>

@@ -3,11 +3,14 @@
 import React, { useState } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { TorsionalPendulum } from "@/components/practicum/instruments/TorsionalPendulum";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { ParameterSlider } from "@/components/ui/NumberInput";
 import { Play, Square, RotateCcw } from "lucide-react";
 import { rodInertia, loadInertia, totalInertia } from "@/physics/torsionalOscillation";
 
 export default function TorsionalOscillationExplorePage() {
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("osilasi-torsional", 1.0);
   const [rodLengthCm, setRodLengthCm] = useState(60);
   const [rodMassKg, setRodMassKg] = useState(0.5);
   const [load1MassKg, setLoad1MassKg] = useState(0.2);
@@ -33,16 +36,19 @@ export default function TorsionalOscillationExplorePage() {
         
         {/* Controls Panel */}
         <div className="w-full md:w-[350px] flex flex-col gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-800 overflow-y-auto">
-          <div className="flex gap-4 mb-4">
-            <button data-testid="btn-play" onClick={() => pendulumRef.current?.start()} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all">
-              <Play className="w-5 h-5" /> Play
-            </button>
-            <button data-testid="btn-pause" onClick={() => pendulumRef.current?.pause()} className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white p-3 rounded-xl font-bold transition-all">
-              <Square className="w-5 h-5" /> Pause
-            </button>
-            <button data-testid="btn-reset" onClick={() => pendulumRef.current?.reset()} className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-xl font-bold transition-all">
-              <RotateCcw className="w-5 h-5" /> Reset
-            </button>
+          <div>
+            <div className="flex gap-4 mb-3">
+              <button data-testid="btn-play" onClick={() => pendulumRef.current?.start()} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-xl font-bold transition-all">
+                <Play className="w-5 h-5" /> Play
+              </button>
+              <button data-testid="btn-pause" onClick={() => pendulumRef.current?.pause()} className="flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white p-3 rounded-xl font-bold transition-all">
+                <Square className="w-5 h-5" /> Pause
+              </button>
+              <button data-testid="btn-reset" onClick={() => pendulumRef.current?.reset()} className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-xl font-bold transition-all">
+                <RotateCcw className="w-5 h-5" /> Reset
+              </button>
+            </div>
+            <PlaybackSpeedControl speed={speed} onSpeedChange={setSpeed} />
           </div>
 
           <div className="space-y-4">
@@ -132,6 +138,8 @@ export default function TorsionalOscillationExplorePage() {
               totalInertia={I_total}
               kappa={kappa}
               initialAngleDeg={initialAngleDeg}
+              speed={speed}
+              onSpeedChange={setSpeed}
               className="w-full h-full shadow-none border-none bg-transparent"
             />
           </div>

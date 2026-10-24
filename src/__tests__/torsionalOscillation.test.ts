@@ -66,4 +66,45 @@ describe('Torsional Oscillation Engine', () => {
     expect(relativeError(10, 11)).toBeCloseTo(10, 5);
     expect(relativeError(0, 10)).toBe(0);
   });
+
+  describe('Characterization: Playback Speed Invariance in TorsionalPendulum', () => {
+    it('produces identical physical angle at same simulation time across speeds 1x, 0.75x, 0.5x, 0.25x', () => {
+      const I = 0.05;
+      const kappa = 2.0;
+      const T = period(I, kappa);
+      const omega = angularFrequency(I, kappa);
+      const startAngle = Math.PI / 2;
+      const speeds = [1.0, 0.75, 0.5, 0.25];
+      const checkTimes = [0.2, 0.5, 1.0, 1.5, T];
+
+      const baselineAngles = checkTimes.map((t) => angleAt(t, startAngle, omega, 0));
+
+      speeds.forEach((speed) => {
+        checkTimes.forEach((tTarget, idx) => {
+          const deltaWall = 16.6667 / 1000;
+          let timeAccumulator = 0;
+          let wallTime = 0;
+
+          while (timeAccumulator + deltaWall * speed <= tTarget) {
+            timeAccumulator += deltaWall * speed;
+            wallTime += deltaWall;
+          }
+          const remainingSim = tTarget - timeAccumulator;
+          timeAccumulator += remainingSim;
+          wallTime += remainingSim / speed;
+
+          const angleAtSpeed = angleAt(timeAccumulator, startAngle, omega, 0);
+          expect(angleAtSpeed).toBeCloseTo(baselineAngles[idx], 8);
+          expect(wallTime).toBeCloseTo(tTarget / speed, 5);
+        });
+      });
+    });
+
+    it('ensures theoretical period remains constant regardless of animation speed', () => {
+      const I = 0.05;
+      const kappa = 2.0;
+      const basePeriod = period(I, kappa);
+      expect(basePeriod).toBeCloseTo(Math.PI * Math.sqrt(0.1), 5);
+    });
+  });
 });

@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { TorsionalOscillator, TorsionalOscillatorRef } from "@/components/practicum/instruments/TorsionalOscillator";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
 import { LineGraph } from "@/components/simulation/LineGraph";
 import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
@@ -16,6 +18,7 @@ import {
 
 export default function MomenInersia2ExplorePage() {
   const appRef = useRef<TorsionalOscillatorRef>(null);
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("momen-inersia-2", 1.0);
 
   // Apparatus Constants
   const [i0True, setI0True] = useState(FALLBACK_I0); 
@@ -163,7 +166,7 @@ export default function MomenInersia2ExplorePage() {
           
           <div className="bg-slate-900/90 rounded-2xl shadow-xl border border-slate-800 p-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   data-testid="btn-play"
                   onClick={() => isOscillating ? appRef.current?.pause() : appRef.current?.start()}
@@ -183,6 +186,7 @@ export default function MomenInersia2ExplorePage() {
                 >
                   <RotateCcw className="w-4 h-4" /> Reset
                 </button>
+                <PlaybackSpeedControl speed={speed} onSpeedChange={setSpeed} />
               </div>
 
               <div className="flex gap-4">
@@ -212,6 +216,8 @@ export default function MomenInersia2ExplorePage() {
                 attachedBodyShape={shape}
                 attachedBodyRadius={radiusM}
                 initialAngle={initialAngle}
+                speed={speed}
+                onSpeedChange={setSpeed}
                 onTimeChange={handleTimeChange}
                 onStateUpdate={handleStateUpdate}
                 onCycleComplete={handleCycleComplete}

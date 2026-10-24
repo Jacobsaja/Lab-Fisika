@@ -6,6 +6,8 @@ import { PracticumConfig } from "@/types/practicum";
 import { TorsionalPendulum, TorsionalPendulumRef } from "@/components/practicum/instruments/TorsionalPendulum";
 import { LineGraph, DataPoint } from "@/components/simulation/LineGraph";
 import { DataTable } from "@/components/practicum/DataTable";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { Settings, Play, Square } from "lucide-react";
 import { totalInertia, rodInertia, loadInertia } from "@/physics/torsionalOscillation";
 
@@ -70,6 +72,7 @@ function TorsionalPracticumSimulation({ state, setRecordedData }: PracticumShell
   const load2MassKg = 0.2;
 
   // Apparatus state
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("osilasi-torsional", 1.0);
   const [radiusCm, setRadiusCm] = useState(10);
   const [isOscillating, setIsOscillating] = useState(false);
 
@@ -128,23 +131,26 @@ function TorsionalPracticumSimulation({ state, setRecordedData }: PracticumShell
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
-              <button
-                data-testid="btn-play"
-                onClick={() => appRef.current?.start()}
-                disabled={isOscillating}
-                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Play className="w-4 h-4" /> PLAY SENSOR
-              </button>
-              <button
-                data-testid="btn-reset"
-                onClick={() => appRef.current?.reset()}
-                disabled={isOscillating}
-                className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Square className="w-4 h-4" /> RESET
-              </button>
+            <div className="flex flex-wrap items-center gap-3 mt-5">
+              <div className="flex gap-3 w-full">
+                <button
+                  data-testid="btn-play"
+                  onClick={() => appRef.current?.start()}
+                  disabled={isOscillating}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4" /> PLAY SENSOR
+                </button>
+                <button
+                  data-testid="btn-reset"
+                  onClick={() => appRef.current?.reset()}
+                  disabled={isOscillating}
+                  className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Square className="w-4 h-4" /> RESET
+                </button>
+              </div>
+              <PlaybackSpeedControl speed={speed} onSpeedChange={setSpeed} />
             </div>
           </div>
 
@@ -174,6 +180,8 @@ function TorsionalPracticumSimulation({ state, setRecordedData }: PracticumShell
              totalInertia={I_tot}
              kappa={kappa}
              initialAngleDeg={90}
+             speed={speed}
+             onSpeedChange={setSpeed}
              onTimeChange={handleTimeChange}
              onStateUpdate={handleStateUpdate}
              className="w-full h-full shadow-none border-none bg-transparent"
