@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
 import { calculateFallTime, calculateGLBTime, getAtwoodVectors, getAtwoodVelocityAt } from "@/physics/atwood";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
@@ -95,6 +97,10 @@ export interface AtwoodApparatusProps {
   isVectorLocked?: boolean;
   vectorLockMessage?: string;
   hideVectorControls?: boolean;
+  // Playback speed props
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  playbackSpeedKey?: string;
 }
 
 // Coordinate & Physical Simulation Constants
@@ -144,6 +150,9 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   isVectorLocked = false,
   vectorLockMessage,
   hideVectorControls = false,
+  speed: propSpeed,
+  onSpeedChange,
+  playbackSpeedKey,
 }, ref) => {
   const gradientIds = useMetalGradientIds("atwood");
   const svgRef = useRef<SVGSVGElement>(null);
@@ -373,9 +382,19 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const [posC, setPosC] = useState(mode === "explore" ? Y_A + 900 : Y_A + 600);
   const [draggingItem, setDraggingItem] = useState<"B" | "C" | null>(null);
 
-  // Notify parent of initial pos with decoupled ref to avoid loop hazard
+  // Playback speed state & persistence
+  const defaultSpeedKey = playbackSpeedKey ?? (mode === "explore" ? "atwood-explore" : mode === "GLBB" ? "atwood-glbb" : "atwood-glb");
+  const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(defaultSpeedKey, 1);
+  const activeSpeed = propSpeed ?? internalSpeed;
+  const setActiveSpeed = onSpeedChange ?? setInternalSpeed;
+  const speedRef = useRef(activeSpeed);
+  speedRef.current = activeSpeed;
+
+  // Decoupled callback refs to avoid infinite loop / re-render hazards
   const onPosChangeRef = useRef(onPosChange);
   onPosChangeRef.current = onPosChange;
+  const onTimeChangeRef = useRef(onTimeChange);
+  onTimeChangeRef.current = onTimeChange;
 
   useEffect(() => {
     onPosChangeRef.current?.((posB - Y_A) / PX_PER_METER, (posC - Y_A) / PX_PER_METER);
@@ -390,7 +409,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const [m1Y, setM1Y] = useState(Y_M1_INITIAL);
   
   const animReqRef = useRef<number | null>(null);
-  const animStartTimeRef = useRef<number | null>(null);
+  const simTimeRef = useRef<number>(0);
+  const lastFrameTimeRef = useRef<number | null>(null);
 
   // Manual & Photogate Stopwatch state
   const stopwatchValueRef = useRef(0);
@@ -540,16 +560,28 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     
     lastM2YRef.current = Y_A;
     passedBRef.current = false;
+    simTimeRef.current = 0;
+    lastFrameTimeRef.current = null;
+
+    if (swReqRef.current) {
+      cancelAnimationFrame(swReqRef.current);
+      swReqRef.current = null;
+    }
+    stopwatchValueRef.current = 0;
+    if (stopwatchTextRef.current) {
+      stopwatchTextRef.current.textContent = "0.00";
+    }
 
     // Automatic photogate triggering
     if (mode === "GLBB") {
-      resetStopwatch();
-      setTimeout(startStopwatch, 50);
-    } else if (mode === "GLB") {
-      resetStopwatch();
+      setIsStopwatchRunning(true);
+      isStopwatchRunningRef.current = true;
+    } else {
+      setIsStopwatchRunning(false);
+      isStopwatchRunningRef.current = false;
     }
     
-    if (onTimeChange) onTimeChange(0, true, true);
+    onTimeChangeRef.current?.(0, true, true);
 
     const s_AB = (posB - Y_A) / PX_PER_METER;
     const t_AB = a_true > 0 ? calculateFallTime(s_AB, a_true, mode !== "explore") : Infinity;
@@ -581,42 +613,68 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     const a_anim = t_AB !== Infinity ? (2 * s_AB) / (t_AB * t_AB) : 0;
     const a2_anim = a_phase2;
 
-    animStartTimeRef.current = null;
-
     const animate = (time: number) => {
-      if (!animStartTimeRef.current) animStartTimeRef.current = time;
-      const elapsed = (time - animStartTimeRef.current) / 1000;
-      
-      if (onTimeChange) onTimeChange(elapsed, true, false);
+      if (lastFrameTimeRef.current === null) {
+        lastFrameTimeRef.current = time;
+        animReqRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      const deltaWallSec = Math.min((time - lastFrameTimeRef.current) / 1000, 0.1);
+      lastFrameTimeRef.current = time;
+      simTimeRef.current += deltaWallSec * speedRef.current;
+      const simTime = simTimeRef.current;
 
       let currentM2Y = m2Y;
       let currentM1Y = m1Y;
       let currentMTambahanY = mTambahanY;
 
-      if (elapsed <= t_AB) {
+      if (simTime <= t_AB) {
         // Phase 1: GLBB (Accelerated drop from A to B)
-        const s = 0.5 * a_anim * elapsed * elapsed;
+        const s = 0.5 * a_anim * simTime * simTime;
         const yDrop = s * PX_PER_METER;
         
         currentM2Y = Y_A + yDrop;
         currentMTambahanY = Y_A + yDrop;
         currentM1Y = Y_M1_INITIAL - yDrop;
 
+        if (mode === "GLBB" && isStopwatchRunningRef.current) {
+          stopwatchValueRef.current = simTime;
+          if (stopwatchTextRef.current) {
+            stopwatchTextRef.current.textContent = simTime.toFixed(2);
+          }
+        }
+
+        onTimeChangeRef.current?.(simTime, true, false);
         animReqRef.current = requestAnimationFrame(animate);
-      } else if (elapsed <= t_AB + t_BC) {
+      } else if (simTime <= t_AB + t_BC) {
         // Photogate B trigger
         if (!passedBRef.current) {
           passedBRef.current = true;
           setCurrentPhase("GLB");
           if (mode === "GLB") {
-            startStopwatch();
+            setIsStopwatchRunning(true);
+            isStopwatchRunningRef.current = true;
           } else if (mode === "GLBB") {
-            stopStopwatch();
+            setIsStopwatchRunning(false);
+            isStopwatchRunningRef.current = false;
+            // Lock stopwatch analytically to exact theoretical event time
+            stopwatchValueRef.current = t_AB;
+            if (stopwatchTextRef.current) {
+              stopwatchTextRef.current.textContent = t_AB.toFixed(2);
+            }
+          }
+        }
+
+        if (mode === "GLB" && isStopwatchRunningRef.current) {
+          const glbElapsed = simTime - t_AB;
+          stopwatchValueRef.current = glbElapsed;
+          if (stopwatchTextRef.current) {
+            stopwatchTextRef.current.textContent = glbElapsed.toFixed(2);
           }
         }
 
         // Phase 2: Constant speed GLB (m3 caught on Ring B)
-        const t2 = elapsed - t_AB;
+        const t2 = simTime - t_AB;
         let s2 = v_anim * t2;
         if (mode === "explore") {
           s2 += 0.5 * a2_anim * t2 * t2;
@@ -627,13 +685,26 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
         currentMTambahanY = posB; // Additional weights caught exactly on Ring B
         currentM1Y = Y_M1_INITIAL - yDrop;
         
+        onTimeChangeRef.current?.(simTime, true, false);
         animReqRef.current = requestAnimationFrame(animate);
       } else {
         // Animation finished
         if (mode === "GLB") {
-          stopStopwatch();
+          setIsStopwatchRunning(false);
+          isStopwatchRunningRef.current = false;
+          // Lock stopwatch analytically to exact theoretical event time
+          stopwatchValueRef.current = t_BC;
+          if (stopwatchTextRef.current) {
+            stopwatchTextRef.current.textContent = t_BC.toFixed(2);
+          }
+        } else if (mode === "GLBB") {
+          // Ensure locked to exact event time t_AB
+          stopwatchValueRef.current = t_AB;
+          if (stopwatchTextRef.current) {
+            stopwatchTextRef.current.textContent = t_AB.toFixed(2);
+          }
         }
-        if (onTimeChange) onTimeChange(t_AB + t_BC, false, false);
+        onTimeChangeRef.current?.(t_AB + t_BC, false, false);
         
         const finalDrop = (s_AB + s_BC) * PX_PER_METER;
         currentM2Y = Y_A + finalDrop;
@@ -649,7 +720,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
 
       // Kecepatan translasi dari engine fisika murni (Physics -> data -> renderer)
       const vel = getAtwoodVelocityAt({
-        t: elapsed,
+        t: Math.min(simTime, t_AB + t_BC),
         tB: t_AB,
         a1: a_anim,
         vB: v_anim,
@@ -689,6 +760,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     setClampRetracted(false);
     isAutoScrollingRef.current = false;
     setCurrentPhase("GLBB");
+    simTimeRef.current = 0;
+    lastFrameTimeRef.current = null;
     
     setM2Y(Y_A);
     setMTambahanY(Y_A);
@@ -705,6 +778,8 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     v2ArrowRef.current?.setSpeed(0);
 
     if (animReqRef.current) cancelAnimationFrame(animReqRef.current);
+    resetStopwatch();
+    onTimeChangeRef.current?.(0, false, true);
 
     // Scroll kembali untuk memfokuskan m2 di posisi awal (Point A)
     if (m2GroupRef.current) {
@@ -1408,6 +1483,19 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
                 : "Jarak A-B tetap (20.0 cm). Atur posisi landasan C. Stopwatch akan secara otomatis di-trigger oleh sensor gerbang cahaya B (START) dan C (STOP)."}
             </p>
             
+            {/* Playback Speed Control */}
+            <div className="mb-4">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                Kecepatan Animasi
+              </label>
+              <PlaybackSpeedControl
+                speed={activeSpeed}
+                onSpeedChange={setActiveSpeed}
+                disabled={isAnimating}
+                className="w-full"
+              />
+            </div>
+
             {/* Actuation Buttons */}
             <div className="flex flex-col gap-2.5">
               <button 

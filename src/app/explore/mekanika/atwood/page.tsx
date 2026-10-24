@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import { AtwoodApparatus, AtwoodApparatusRef } from "@/components/practicum/instruments/AtwoodApparatus";
 import { getAtwoodExploreState } from "@/physics/atwood";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
 import { Info, Calculator, Settings, Activity, RotateCcw } from "lucide-react";
 import { LineGraph } from "@/components/simulation/LineGraph";
 import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
@@ -21,6 +23,7 @@ export default function AtwoodExplorePage() {
   const [simTime, setSimTime] = useState(0);
   const [isFalling, setIsFalling] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("atwood-explore", 1);
 
   const g = 9.81;
 
@@ -130,14 +133,17 @@ export default function AtwoodExplorePage() {
               <p className="text-xs text-amber-500/80 italic flex-1">
                 Atur jarak lepas massa (cincin B) dan landasan (C) dengan menggesernya langsung pada alat ukur di bawah.
               </p>
-              <button 
-                data-testid="btn-play"
-                onClick={() => appRef.current?.startDrop()}
-                disabled={isFalling}
-                className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shrink-0"
-              >
-                LEPAS BEBAN (PLAY)
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <PlaybackSpeedControl speed={speed} onSpeedChange={setSpeed} />
+                <button 
+                  data-testid="btn-play"
+                  onClick={() => appRef.current?.startDrop()}
+                  disabled={isFalling}
+                  className="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-2 shrink-0"
+                >
+                  LEPAS BEBAN (PLAY)
+                </button>
+              </div>
             </div>
           </div>
 
@@ -245,6 +251,8 @@ export default function AtwoodExplorePage() {
               mAdd={mAdd}
               g={g}
               hideControls={true}
+              speed={speed}
+              onSpeedChange={setSpeed}
               onTimeChange={handleTimeChange}
               onPosChange={handlePosChange}
               className="w-full"
