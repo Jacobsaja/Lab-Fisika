@@ -62,10 +62,10 @@ export interface RollingApparatusRef {
   reset: () => void;
 }
 
-const PX_PER_METER = 500;
+const PX_PER_METER = 560;
 const INCLINE_LENGTH_M = 1.5; // 1.5 meters track
 const INCLINE_LENGTH_PX = INCLINE_LENGTH_M * PX_PER_METER;
-const GROUND_X = 900;
+const GROUND_X = 920;
 
 export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatusProps>(
   (
@@ -104,6 +104,7 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
     onStateUpdateRef.current = onStateUpdate;
 
     const gradientIds = useMetalGradientIds("rolling");
+    const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const reqRef = useRef<number | null>(null);
 
@@ -230,6 +231,9 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
           setIsAnimating(true);
           lastTimestampRef.current = performance.now();
           reqRef.current = requestAnimationFrame(animate);
+        }
+        if (containerRef.current) {
+          containerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       },
       pause: () => {
@@ -669,8 +673,15 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
       );
     };
 
+    const thetaRad = (thetaDeg * Math.PI) / 180;
+    const rampHeight = INCLINE_LENGTH_PX * Math.sin(thetaRad);
+    const singleTrackBaseY = Math.round(115 + rampHeight);
+    const vbHeight = compareShape ? 600 : Math.max(360, singleTrackBaseY + 50);
+
     return (
       <div
+        ref={containerRef}
+        id="apparatus-rolling-container"
         className={`relative w-full rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-slate-950 via-[#0a0f1d] to-slate-950 shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex flex-col overflow-hidden ${className}`}
         style={{ fontFamily: SCIENTIFIC_THEME.typography.fontMono }}
       >
@@ -696,18 +707,18 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
         </div>
 
         {/* ── SVG SIMULATION VIEW ── */}
-        <div className="flex-1 w-full h-full flex justify-center items-center p-3 sm:p-5 touch-none select-none min-h-[420px] relative">
+        <div className="w-full flex justify-center items-center p-2 sm:p-4 touch-none select-none relative">
           <svg
             ref={svgRef}
-            viewBox="0 0 1000 600"
-            className="h-full w-auto max-w-full drop-shadow-2xl"
-            style={{ aspectRatio: "1000 / 600" }}
+            viewBox={`0 0 1000 ${vbHeight}`}
+            className="w-full h-auto max-w-5xl drop-shadow-2xl"
+            style={{ aspectRatio: `1000 / ${vbHeight}` }}
           >
             {/* Instance-unique Metal & Chassis Gradients */}
             <SvgMetalGradients ids={gradientIds} />
 
             {/* Coordinate Background Grid */}
-            <SvgGridBackground width={1000} height={600} gridSize={30} opacity={0.3} />
+            <SvgGridBackground width={1000} height={vbHeight} gridSize={30} opacity={0.3} />
 
             {compareShape ? (
               <>
@@ -715,7 +726,7 @@ export const RollingApparatus = forwardRef<RollingApparatusRef, RollingApparatus
                 {renderTrackAndBody(540, s2, theta2, compareShape, "#34d399", `REL 2: ${compareShape.toUpperCase()}`, 2)}
               </>
             ) : (
-              renderTrackAndBody(490, s1, theta1, shape, "#38bdf8", `BENDA: ${shape.toUpperCase()}`, 1)
+              renderTrackAndBody(singleTrackBaseY, s1, theta1, shape, "#38bdf8", `BENDA: ${shape.toUpperCase()}`, 1)
             )}
           </svg>
         </div>

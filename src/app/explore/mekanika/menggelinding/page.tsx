@@ -12,6 +12,7 @@ import { SCIENTIFIC_THEME } from "@/components/simulation/visual/tokens";
 
 export default function RollingExplorePage() {
   const appRef = useRef<RollingApparatusRef>(null);
+  const apparatusSectionRef = useRef<HTMLDivElement>(null);
   const [speed, setSpeed] = usePersistedPlaybackSpeed("menggelinding", 0.5);
 
   // Parameters
@@ -158,7 +159,14 @@ export default function RollingExplorePage() {
               </button>
               <button 
                 data-testid="btn-play"
-                onClick={() => isFalling ? appRef.current?.pause() : appRef.current?.start()}
+                onClick={() => {
+                  if (isFalling) {
+                    appRef.current?.pause();
+                  } else {
+                    appRef.current?.start();
+                    apparatusSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                }}
                 className={`px-8 py-2.5 ${isFalling ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center min-w-[140px]`}
               >
                 {isFalling ? 'PAUSE' : 'PLAY'}
@@ -242,7 +250,7 @@ export default function RollingExplorePage() {
         </div>
 
         {/* BOTTOM SECTION: Apparatus (Scrollable large view) */}
-        <div className="bg-[#0a0f1c] rounded-xl border border-white/10 p-4 sm:p-6 flex flex-col items-center shadow-xl">
+        <div ref={apparatusSectionRef} id="apparatus-simulation-area" className="bg-[#0a0f1c] rounded-xl border border-white/10 p-4 sm:p-6 flex flex-col items-center shadow-xl">
           <div className="w-full flex justify-center">
             <RollingApparatus 
               ref={appRef}
@@ -258,7 +266,7 @@ export default function RollingExplorePage() {
               onSpeedChange={setSpeed}
               onTimeChange={handleTimeChange}
               onStateUpdate={handleStateUpdate}
-              className={`w-full ${isCompareMode ? 'h-[750px]' : 'h-[600px]'} min-w-[300px]`}
+              className="w-full min-w-[300px]"
             />
           </div>
         </div>
