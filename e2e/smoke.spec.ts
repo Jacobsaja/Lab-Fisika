@@ -47,7 +47,8 @@ export const ROUTES_WITH_SIMULATION = new Set([
   "/explore/mekanika/momen-inersia-2",
   "/explore/mekanika/osilasi-torsional",
   "/explore/mekanika/hkm",
-  // Practicum (9)
+  "/explore/mekanika/hkem",
+  // Practicum (10)
   "/praktikum/gjb",
   "/praktikum/atwood-glbb",
   "/praktikum/atwood-glb",
@@ -57,6 +58,7 @@ export const ROUTES_WITH_SIMULATION = new Set([
   "/praktikum/momen-inersia-2",
   "/praktikum/osilasi-torsional",
   "/praktikum/hkm",
+  "/praktikum/hkem",
 ]);
 
 const VIEWPORTS = [
@@ -210,6 +212,12 @@ test.describe("Automated Smoke Test Suite - All Registered Routes & Viewports", 
               }
             } else if (route.path === "/praktikum/momen-inersia-2") {
               const tabBtn = page.locator('[data-testid="tab-mi2-b"]');
+              if (await tabBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await tabBtn.click().catch(() => {});
+                await page.waitForTimeout(400);
+              }
+            } else if (route.path === "/praktikum/hkem") {
+              const tabBtn = page.locator('[data-testid="tab-simulation"]');
               if (await tabBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
                 await tabBtn.click().catch(() => {});
                 await page.waitForTimeout(400);

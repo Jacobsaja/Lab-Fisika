@@ -79,6 +79,14 @@ export const EXPLORE_REGISTRY: Record<string, ExploreModule> = {
     available: true,
     desc: "Eksplorasi tumbukan satu dimensi pada rel udara. Variasikan massa kereta, kecepatan awal, dan koefisien restitusi.",
     category: "mekanika"
+  },
+  "hkem": {
+    id: "hkem",
+    title: "Energi Mekanik",
+    route: "/explore/mekanika/hkem",
+    available: true,
+    desc: "Eksplorasi perubahan energi potensial gravitasi menjadi energi kinetik pada sistem rel udara dan katrol.",
+    category: "mekanika"
   }
 };
 

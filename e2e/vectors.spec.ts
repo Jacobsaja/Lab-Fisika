@@ -465,5 +465,99 @@ test.describe("Vector Overlay & Controls E2E Validation", () => {
     expect(await page.locator("g[id$='_arrow_v1']").count()).toBe(0);
     expect(await page.locator("g[id$='_arrow_v2']").count()).toBe(0);
   });
+
+  test("Explore HKEM: toggles categories and displays numerical values", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/explore/mekanika/hkem", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    const controls = page.locator("div:has-text('Vektor Fisika (Overlay)')");
+    await expect(controls.first()).toBeVisible();
+
+    const weightBtn = page.locator("button:has-text('Gaya Berat')");
+    const tensionBtn = page.locator("button:has-text('Tegangan Tali')");
+    const accelBtn = page.locator("button:has-text('Percepatan')");
+
+    await expect(weightBtn).toBeVisible();
+    await expect(tensionBtn).toBeVisible();
+    await expect(accelBtn).toBeVisible();
+
+    // In explore mode, vector badges contain values
+    const overlayGroup = page.locator("g[aria-label='Overlay Vektor Fisika']");
+    await expect(overlayGroup.first()).toBeVisible();
+
+    const initialArrows = await page.locator("g[id*='_arrow_']").count();
+    expect(initialArrows).toBeGreaterThan(0);
+
+    // Toggle Gaya Berat OFF and ON
+    await weightBtn.click();
+    await page.waitForTimeout(300);
+    const arrowsWeightOff = await page.locator("g[id*='_arrow_']").count();
+    expect(arrowsWeightOff).toBeLessThan(initialArrows);
+
+    await weightBtn.click();
+    await page.waitForTimeout(300);
+    const arrowsWeightOn = await page.locator("g[id*='_arrow_']").count();
+    expect(arrowsWeightOn).toBe(initialArrows);
+
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("Practicum HKEM: vector overlay initially locked, unlocks qualitatively", async ({ page }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text());
+    });
+
+    await page.goto("/praktikum/hkem", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1000);
+
+    // Switch to step 3 (SIMULATION)
+    for (let step = 0; step < 2; step++) {
+      const nextBtn = page.locator("[data-testid='practicum-next-step']");
+      if (await nextBtn.isVisible()) {
+        await nextBtn.click();
+        await page.waitForTimeout(400);
+      }
+    }
+
+    // Switch to simulation tab
+    const tabSim = page.locator("[data-testid='tab-simulation']");
+    await expect(tabSim).toBeVisible();
+    await tabSim.click();
+    await page.waitForTimeout(500);
+
+    // Lock banner is displayed initially
+    const lockBanner = page.locator("text=Vektor kualitatif terkunci");
+    await expect(lockBanner).toBeVisible();
+
+    // Unlock by recording 1 data trial
+    const recordBtn = page.locator("button:has-text('Catat Data Percobaan 1')");
+    await expect(recordBtn).toBeVisible();
+    await recordBtn.click();
+    await page.waitForTimeout(500);
+
+    // Lock banner disappears
+    await expect(lockBanner).toHaveCount(0);
+
+    // Overlay is now rendered qualitatively (no numbers / units)
+    const overlayGroup = page.locator("g[aria-label='Overlay Vektor Fisika']");
+    await expect(overlayGroup.first()).toBeVisible();
+
+    const overlayTexts = await overlayGroup.locator("text").allTextContents();
+    for (const t of overlayTexts) {
+      if (t && t.trim().length > 0) {
+        expect(t).not.toMatch(/\d/);
+        expect(t).not.toMatch(/m\/s/i);
+        expect(t).not.toMatch(/N\b/);
+      }
+    }
+
+    expect(consoleErrors).toEqual([]);
+  });
 });
 
