@@ -8,6 +8,10 @@ import {
   DEFAULT_PLAYBACK_SPEEDS,
   formatSpeedLabel,
 } from "../components/simulation/PlaybackSpeedControl";
+import {
+  usePersistedPlaybackSpeed,
+  clearPersistedPlaybackSpeeds,
+} from "../physics/hooks/usePersistedPlaybackSpeed";
 
 describe("PlaybackSpeed Foundation (useSimulationLoop & PlaybackSpeedControl)", () => {
   beforeEach(() => {
@@ -277,6 +281,77 @@ describe("PlaybackSpeed Foundation (useSimulationLoop & PlaybackSpeedControl)", 
       expect(radios[3]).toHaveTextContent("2×");
       expect(radios[3]).toHaveAttribute("aria-checked", "true");
       expect(radios[4]).toHaveTextContent("4×");
+    });
+  });
+
+  describe("usePersistedPlaybackSpeed hook", () => {
+    beforeEach(() => {
+      clearPersistedPlaybackSpeeds();
+    });
+
+    it("uses defaultSpeed when no value has been chosen yet", () => {
+      const { result } = renderHook(() => usePersistedPlaybackSpeed("test-module", 0.5));
+      expect(result.current[0]).toBe(0.5);
+    });
+
+    it("falls back to 1.0 if an invalid defaultSpeed is provided", () => {
+      const { result } = renderHook(() => usePersistedPlaybackSpeed("test-invalid", 3.14));
+      expect(result.current[0]).toBe(1.0);
+    });
+
+    it("persists chosen speed across component remounts with the same key", () => {
+      const { result: firstMount, unmount } = renderHook(() =>
+        usePersistedPlaybackSpeed("gmb-key", 1.0)
+      );
+
+      expect(firstMount.current[0]).toBe(1.0);
+
+      // Change speed to 0.25x
+      act(() => {
+        firstMount.current[1](0.25);
+      });
+      expect(firstMount.current[0]).toBe(0.25);
+
+      // Unmount first component instance
+      unmount();
+
+      // Remount a second component instance with the same key
+      const { result: secondMount } = renderHook(() =>
+        usePersistedPlaybackSpeed("gmb-key", 1.0)
+      );
+      // Must retain 0.25x!
+      expect(secondMount.current[0]).toBe(0.25);
+    });
+
+    it("isolates choices across different keys", () => {
+      const { result: hookA } = renderHook(() => usePersistedPlaybackSpeed("module-A", 1.0));
+      const { result: hookB } = renderHook(() => usePersistedPlaybackSpeed("module-B", 0.5));
+
+      expect(hookA.current[0]).toBe(1.0);
+      expect(hookB.current[0]).toBe(0.5);
+
+      act(() => {
+        hookA.current[1](0.75);
+      });
+
+      expect(hookA.current[0]).toBe(0.75);
+      expect(hookB.current[0]).toBe(0.5);
+    });
+
+    it("rejects values outside DEFAULT_PLAYBACK_SPEEDS without mutating stored state", () => {
+      const { result } = renderHook(() => usePersistedPlaybackSpeed("module-clamp", 1.0));
+
+      act(() => {
+        result.current[1](2.5); // Invalid: not in [1, 0.75, 0.5, 0.25]
+      });
+
+      // Should remain 1.0
+      expect(result.current[0]).toBe(1.0);
+
+      act(() => {
+        result.current[1](-1); // Invalid
+      });
+      expect(result.current[0]).toBe(1.0);
     });
   });
 });

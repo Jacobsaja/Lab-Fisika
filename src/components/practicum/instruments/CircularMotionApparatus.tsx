@@ -43,8 +43,7 @@ interface CircularMotionApparatusProps {
   isVectorLocked?: boolean;
 }
 
-// Module-level cache to persist user speed selection across resets, re-renders, and remounts
-let gmbSpeedCache = 1.0;
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 
 export function CircularMotionApparatus({
   mode = "practicum",
@@ -53,6 +52,8 @@ export function CircularMotionApparatus({
   isDataStep = true,
   isVectorLocked,
 }: CircularMotionApparatusProps) {
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("gmb", 1.0);
+
   const [r, setR] = useState(0.5);
   const [targetN, setTargetN] = useState(5);
   const [omega, setOmega] = useState(GMB_MOTOR_OMEGA);
@@ -81,15 +82,15 @@ export function CircularMotionApparatus({
   );
 
   const sim = useSimulationLoop(circularMotionModel, params, 1 / 60, {
-    initialSpeed: gmbSpeedCache,
+    initialSpeed: speed,
   });
 
   const handleSpeedChange = useCallback(
     (newSpeed: number) => {
-      gmbSpeedCache = newSpeed;
+      setSpeed(newSpeed);
       sim.setSpeed(newSpeed);
     },
-    [sim]
+    [setSpeed, sim]
   );
 
   const snapshot = computeSnapshot(params, sim.time);
