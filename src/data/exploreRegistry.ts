@@ -87,6 +87,14 @@ export const EXPLORE_REGISTRY: Record<string, ExploreModule> = {
     available: true,
     desc: "Eksplorasi perubahan energi potensial gravitasi menjadi energi kinetik pada sistem rel udara dan katrol.",
     category: "mekanika"
+  },
+  "h2n": {
+    id: "h2n",
+    title: "Hukum II Newton",
+    route: "/explore/mekanika/h2n",
+    available: true,
+    desc: "Eksplorasi hubungan antara gaya tarik, massa total, dan percepatan (F = m·a) serta tegangan tali pada sistem rel udara dan katrol.",
+    category: "mekanika"
   }
 };
 
