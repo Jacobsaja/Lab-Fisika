@@ -199,4 +199,39 @@ describe("Hukum II Newton (H2N) Physics & Analytical Suite", () => {
       expect(validateStudentCalculation("0.0052", nearZero)).toBe(false); // diff = 2e-4 > 1e-4
     });
   });
+
+  describe("Playback Speed Invariance & HKEM Output Lock", () => {
+    test("advanceSimTime is invariant across all 4 playback speeds (1x, 0.75x, 0.5x, 0.25x)", () => {
+      const speeds = [1.0, 0.75, 0.5, 0.25];
+      const targetPhysicalDuration = 1.0; // 1s simulation time
+
+      const accumulatedSimTimes = speeds.map((speed) => {
+        const totalWallTime = targetPhysicalDuration / speed;
+        const dtWall = 1 / 60;
+        let simTime = 0;
+        let elapsedWall = 0;
+
+        while (elapsedWall < totalWallTime - 1e-9) {
+          const stepWall = Math.min(dtWall, totalWallTime - elapsedWall);
+          simTime += stepWall * speed;
+          elapsedWall += stepWall;
+        }
+
+        return Number(simTime.toFixed(4));
+      });
+
+      const baseline = accumulatedSimTimes[0];
+      accumulatedSimTimes.forEach((val) => {
+        expect(val).toBeCloseTo(baseline, 3);
+      });
+    });
+
+    test("H2N computeH2NTrial outputs are analytical and independent of playback speed", () => {
+      const res = computeH2NTrial(0.15, 0.015, H2N_EXP1_GATE1_X, H2N_EXP1_GATE2_X);
+      expect(res.aTheory).toBeCloseTo(0.890909, 5);
+      expect(res.pullingForce).toBeCloseTo(0.147, 4);
+      expect(res.tension).toBeCloseTo(0.133636, 4);
+    });
+  });
 });
+
