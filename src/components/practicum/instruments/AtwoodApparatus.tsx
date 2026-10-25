@@ -420,7 +420,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const isAutoScrollingRef = useRef(false);
   const idealYRef = useRef<number | null>(null);
   const lastM2YRef = useRef(Y_A);
-  const swStartTimeRef = useRef<number>(0);
+  const swLastTimestampRef = useRef<number | null>(null);
   const swReqRef = useRef<number | null>(null);
   const passedBRef = useRef<boolean>(false);
 
@@ -500,22 +500,34 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
     if (isStopwatchRunningRef.current) return;
     setIsStopwatchRunning(true);
     isStopwatchRunningRef.current = true;
-    swStartTimeRef.current = performance.now() - stopwatchValueRef.current * 1000;
+    swLastTimestampRef.current = null;
     
-    const updateSw = (time: number) => {
-      const elapsed = (time - swStartTimeRef.current) / 1000;
-      stopwatchValueRef.current = elapsed;
-      if (stopwatchTextRef.current) {
-        stopwatchTextRef.current.textContent = elapsed.toFixed(2);
-      }
+    // In GLBB and GLB during an active drop animation, the drop loop (animate) drives the photogate timer.
+    // In all other cases (explore mode, or outside of active drop), run the dedicated rAF loop scaled by speedRef.current.
+    const isDrivenByDropLoop = isAnimating && (mode === "GLBB" || mode === "GLB");
+
+    if (!isDrivenByDropLoop) {
+      const updateSw = (time: number) => {
+        if (!isStopwatchRunningRef.current) return;
+        if (swLastTimestampRef.current !== null) {
+          const deltaWallSec = Math.min((time - swLastTimestampRef.current) / 1000, 0.1);
+          const dtSim = deltaWallSec * speedRef.current;
+          stopwatchValueRef.current += dtSim;
+          if (stopwatchTextRef.current) {
+            stopwatchTextRef.current.textContent = stopwatchValueRef.current.toFixed(2);
+          }
+        }
+        swLastTimestampRef.current = time;
+        swReqRef.current = requestAnimationFrame(updateSw);
+      };
       swReqRef.current = requestAnimationFrame(updateSw);
-    };
-    swReqRef.current = requestAnimationFrame(updateSw);
+    }
   };
 
   const stopStopwatch = () => {
     setIsStopwatchRunning(false);
     isStopwatchRunningRef.current = false;
+    swLastTimestampRef.current = null;
     if (swReqRef.current) {
       cancelAnimationFrame(swReqRef.current);
       swReqRef.current = null;
@@ -533,11 +545,15 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const resetStopwatch = () => {
     setIsStopwatchRunning(false);
     isStopwatchRunningRef.current = false;
+    swLastTimestampRef.current = null;
     stopwatchValueRef.current = 0;
     if (stopwatchTextRef.current) {
       stopwatchTextRef.current.textContent = "0.00";
     }
-    if (swReqRef.current) cancelAnimationFrame(swReqRef.current);
+    if (swReqRef.current) {
+      cancelAnimationFrame(swReqRef.current);
+      swReqRef.current = null;
+    }
   };
 
   // --- ANIMATION & PHYSICS ENGINE ---
@@ -567,6 +583,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
       cancelAnimationFrame(swReqRef.current);
       swReqRef.current = null;
     }
+    swLastTimestampRef.current = null;
     stopwatchValueRef.current = 0;
     if (stopwatchTextRef.current) {
       stopwatchTextRef.current.textContent = "0.00";

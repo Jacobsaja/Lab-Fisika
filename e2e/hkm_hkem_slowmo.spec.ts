@@ -122,4 +122,47 @@ test.describe("HKM & HKEM Slow Motion and Header Timer Validation", () => {
     const finalSec = parseSeconds(await timeDisplay.innerText());
     expect(finalSec).toBeGreaterThanOrEqual(initialSec + 2);
   });
+
+  test("Atwood Manual Stopwatch: at 0.25x speed, stopwatch advances according to simulation time, not wall-clock time", async ({ page }) => {
+    await page.goto("/praktikum/atwood-glbb", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(500);
+
+    // 1. Advance to Tab 2: GLBB (m3) where AtwoodApparatus controls and digital counter are mounted
+    const tabM3 = page.locator("button[data-testid='tab-glbb-m3']");
+    await expect(tabM3).toBeVisible();
+    await tabM3.click();
+    await page.waitForTimeout(500);
+
+    // 2. Select 0.25x playback speed
+    const speedGroup = page.getByRole("radiogroup", { name: "Kecepatan simulasi" });
+    await expect(speedGroup).toBeVisible();
+    await speedGroup.getByRole("radio", { name: /0,25×/ }).click();
+
+    // 3. Locate digital counter readout and manual START button
+    const startBtn = page.getByRole("button", { name: /^START$/ });
+    await expect(startBtn).toBeVisible();
+
+    // 4. Start manual stopwatch
+    await startBtn.click();
+
+    // 5. Wait 1600ms wall-clock time
+    await page.waitForTimeout(1600);
+
+    // 6. Stop manual stopwatch
+    const stopBtn = page.getByRole("button", { name: /^STOP$/ });
+    await expect(stopBtn).toBeVisible();
+    await stopBtn.click();
+
+    // 7. Read counter value: at 0.25x, 1.6s wall time should be ~0.40s simulation time (NOT ~1.60s)
+    const counterReadout = page.locator("span.font-mono.text-4xl, span.font-mono.text-5xl").first();
+    await expect(counterReadout).toBeVisible();
+    const recordedText = (await counterReadout.innerText()).trim();
+    const recordedVal = parseFloat(recordedText);
+
+    console.log(`Atwood manual stopwatch at 0.25x for 1.6s wall time: recorded = ${recordedVal}s`);
+
+    // In simulation time: ~0.40s. If wall-clock were used, it would be ~1.60s.
+    expect(recordedVal).toBeGreaterThanOrEqual(0.25);
+    expect(recordedVal).toBeLessThan(0.70);
+  });
 });

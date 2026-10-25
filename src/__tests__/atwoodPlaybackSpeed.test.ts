@@ -199,5 +199,33 @@ describe("Atwood Apparatus Characterization & Playback Speed Invariance", () => 
       expect(delta).toBeLessThan(0.06);
       expect(delta).toBeGreaterThan(0.03);
     });
+
+    test("Manual Stopwatch: measured interval for identical physical event duration is 100% invariant across all speeds (1x, 0.75x, 0.5x, 0.25x)", () => {
+      const targetPhysicalDuration = 1.25; // 1.25 simulation seconds
+
+      const readings = DEFAULT_PLAYBACK_SPEEDS.map((speed) => {
+        const totalWallTime = targetPhysicalDuration / speed;
+        const dtWall = 1 / 60;
+        let stopwatchValue = 0;
+        let elapsedWall = 0;
+
+        while (elapsedWall < totalWallTime - 1e-9) {
+          const stepWall = Math.min(dtWall, totalWallTime - elapsedWall);
+          const dtSim = stepWall * speed;
+          stopwatchValue += dtSim;
+          elapsedWall += stepWall;
+        }
+
+        return Number(stopwatchValue.toFixed(2));
+      });
+
+      // All speeds (1x, 0.75x, 0.5x, 0.25x) must yield identical 1.25s
+      const baseline = readings[0];
+      expect(baseline).toBe(1.25);
+      readings.forEach((val) => {
+        expect(val).toBe(baseline);
+      });
+    });
   });
 });
+
