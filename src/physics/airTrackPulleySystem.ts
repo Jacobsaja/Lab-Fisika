@@ -495,36 +495,19 @@ export function energyAtState(
   const ep = potentialEnergy(m, hangingHeight(H0, state.x), g);
   return { ek, ep, em: mechanicalEnergy(ek, ep) };
 }
+import { validateStudentCalculation } from "./validation";
+export { validateStudentCalculation };
 
 /**
  * Validates a student's numerical entry against expected ground truth for HKEM.
- *
- * Evaluation rules:
- * - Empty string, whitespace-only, or non-numeric input evaluates to false.
- * - Supports both '.' and ',' as decimal separators.
- * - For near-zero values (|groundTruth| < 0.01), uses an absolute tolerance of 0.0015.
- * - Otherwise, applies a relative tolerance of ±2.0% (0.02) to accept reasonable
- *   3-significant-figure roundings while strictly rejecting erroneous calculations (e.g. 5% off).
+ * Re-exports shared validateStudentCalculation with default 1e-4 absolute bound.
  */
 export function validateHkemCalculation(
   enteredStr: string,
   groundTruth: number,
   relativeTolerance = 0.02,
-  absoluteNearZeroBound = 0.0015
+  absoluteNearZeroBound = 0.0001
 ): boolean {
-  if (!enteredStr || typeof enteredStr !== "string") return false;
-  const trimmed = enteredStr.trim();
-  if (trimmed === "") return false;
-  const normalized = trimmed.replace(",", ".");
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || isNaN(parsed)) return false;
-
-  const absTruth = Math.abs(groundTruth);
-  const absDiff = Math.abs(parsed - groundTruth);
-
-  if (absTruth < 0.01) {
-    return absDiff <= absoluteNearZeroBound;
-  }
-
-  return absDiff / absTruth <= relativeTolerance;
+  return validateStudentCalculation(enteredStr, groundTruth, relativeTolerance, absoluteNearZeroBound);
 }
+

@@ -46,6 +46,8 @@ export interface AirTrackPulleyApparatusProps {
   hangingMass?: number;
   /** Whether +12.5g slotted mass is attached to the cart */
   cartHasAddedMass?: boolean;
+  /** Custom label for added mass on cart (e.g. "+12.5g", "+25g", "+50g", "+20g") */
+  cartAddedMassLabel?: string;
   /** Drop height H0 in meters (default 0.80) */
   dropHeight?: number;
   /** Max rail travel in meters (default 1.10) */
@@ -121,6 +123,7 @@ export const AirTrackPulleyApparatus = forwardRef<
       cartMass = 0.15,
       hangingMass = 0.015,
       cartHasAddedMass = false,
+      cartAddedMassLabel,
       dropHeight = 0.8,
       railTravel = 1.1,
       gate1Pos = 0.25,
@@ -156,7 +159,8 @@ export const AirTrackPulleyApparatus = forwardRef<
     const speedRef = useRef(activeSpeed);
     speedRef.current = activeSpeed;
 
-    const effectiveCartMass = cartMass + (cartHasAddedMass ? 0.0125 : 0);
+    const effectiveCartMass = cartHasAddedMass && !cartAddedMassLabel ? cartMass + 0.0125 : cartMass;
+
 
     // Apparatus hardware states
     const [compressorOn, setCompressorOn] = useState(true);
@@ -908,8 +912,8 @@ export const AirTrackPulleyApparatus = forwardRef<
                   fill="#0f172a"
                 />
 
-                {/* Additional Slotted Mass (+12.5g) if mounted */}
-                {cartHasAddedMass && (
+                {/* Additional Slotted Mass if mounted */}
+                {(cartHasAddedMass || cartAddedMassLabel) && (
                   <g transform={`translate(${CART_LEN_PX / 2 - 16}, -14)`}>
                     <rect
                       x="0"
@@ -930,7 +934,7 @@ export const AirTrackPulleyApparatus = forwardRef<
                       textAnchor="middle"
                       fontFamily="monospace"
                     >
-                      +12.5g
+                      {cartAddedMassLabel ?? "+12.5g"}
                     </text>
                   </g>
                 )}

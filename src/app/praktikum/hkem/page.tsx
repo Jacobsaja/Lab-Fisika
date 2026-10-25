@@ -14,6 +14,11 @@ import {
   validateHkemCalculation,
 } from "@/physics/airTrackPulleySystem";
 import {
+  StudentCalculationTable,
+  StudentCalcColumn,
+  StudentCalcRow,
+} from "@/components/practicum/StudentCalculationTable";
+import {
   CheckCircle2,
   AlertCircle,
   Activity,
@@ -21,12 +26,19 @@ import {
   Scale,
   ArrowRight,
   TrendingDown,
-  Eye,
-  EyeOff,
-  Calculator,
-  Check,
   RotateCcw,
 } from "lucide-react";
+
+const CALC_COLUMNS: StudentCalcColumn[] = [
+  { key: "v1", header: "v1 (m/s)", precision: 3 },
+  { key: "ek1", header: "EK1 (J)", precision: 4 },
+  { key: "ep1", header: "EP1 (J)", precision: 4 },
+  { key: "em1", header: "EM1 (J)", precision: 4, highlightHeaderClass: "text-purple-300 font-bold" },
+  { key: "v2", header: "v2 (m/s)", precision: 3 },
+  { key: "ek2", header: "EK2 (J)", precision: 4 },
+  { key: "ep2", header: "EP2 (J)", precision: 4 },
+  { key: "em2", header: "EM2 (J)", precision: 4, highlightHeaderClass: "text-purple-300 font-bold" },
+];
 
 // Standard laboratory configuration from Physics Lab Manual 6
 const BASE_CART_MASS = 0.15; // 150 g
@@ -207,7 +219,6 @@ export default function HKEMPracticumPage() {
   const [assistedCells, setAssistedCells] = useState<Record<string, boolean>>({});
 
   const [hasValidated, setHasValidated] = useState(false);
-  const [showSystemReference, setShowSystemReference] = useState(false);
 
   const currentPreset = TRIAL_PRESETS[activePresetIndex];
   const totalCollectedTrials = Object.keys(completedTrials).length;
@@ -247,38 +258,53 @@ export default function HKEMPracticumPage() {
     setHasValidated(true);
   };
 
-  // Calculate validation statistics
-  const validationStats = useMemo(() => {
-    let correctCount = 0;
-    let assistedCount = 0;
-    const totalFields = TRIAL_PRESETS.length * 8; // 40 fields
-
-    TRIAL_PRESETS.forEach((p) => {
+  const calcRows: StudentCalcRow[] = useMemo(() => {
+    return TRIAL_PRESETS.map((p) => {
       const trial = completedTrials[p.no];
-      if (!trial) return;
-      const row = studentCalc[p.no];
-      const keys: (keyof typeof row)[] = ["v1", "ek1", "ep1", "em1", "v2", "ek2", "ep2", "em2"];
-
-      keys.forEach((k) => {
-        const isAssisted = !!assistedCells[`${p.no}_${k}`];
-        const isAccurate = validateHkemCalculation(row[k], trial[k]);
-        if (isAccurate) {
-          if (isAssisted) {
-            assistedCount++;
-          } else {
-            correctCount++;
-          }
-        }
-      });
+      return {
+        rowId: p.no,
+        label: `P${p.no}`,
+        values: studentCalc[p.no] ?? { v1: "", ek1: "", ep1: "", em1: "", v2: "", ek2: "", ep2: "", em2: "" },
+        expected: trial
+          ? {
+              v1: trial.v1,
+              ek1: trial.ek1,
+              ep1: trial.ep1,
+              em1: trial.em1,
+              v2: trial.v2,
+              ek2: trial.ek2,
+              ep2: trial.ep2,
+              em2: trial.em2,
+            }
+          : undefined,
+      };
     });
+  }, [completedTrials, studentCalc]);
 
+  const referenceTableData = useMemo(() => {
     return {
-      correctCount,
-      assistedCount,
-      totalFields,
-      percentCorrect: Math.round((correctCount / totalFields) * 100),
+      title: "Kunci Jawaban untuk Pemeriksaan",
+      description: "Nilai acuan teoritis yang dihitung otomatis oleh sistem laboratorium.",
+      headers: ["No", "v1 (m/s)", "EK1 (J)", "EP1 (J)", "EM1 (J)", "v2 (m/s)", "EK2 (J)", "EP2 (J)", "EM2 (J)", "ΔEM (%)"],
+      rows: TRIAL_PRESETS.map((p) => {
+        const trial = completedTrials[p.no];
+        if (!trial) return [`P${p.no}`, "-", "-", "-", "-", "-", "-", "-", "-", "-"];
+        return [
+          `P${p.no}`,
+          trial.v1.toFixed(3),
+          trial.ek1.toFixed(4),
+          trial.ep1.toFixed(4),
+          trial.em1.toFixed(4),
+          trial.v2.toFixed(3),
+          trial.ek2.toFixed(4),
+          trial.ep2.toFixed(4),
+          trial.em2.toFixed(4),
+          `${Math.abs(trial.differencePercent).toFixed(2)}%`,
+        ];
+      }),
     };
-  }, [studentCalc, completedTrials, assistedCells]);
+  }, [completedTrials]);
+
 
   // Handle recording a completed trial
   const handleRecordTrial = (ctx: PracticumShellContext) => {
@@ -341,259 +367,29 @@ export default function HKEMPracticumPage() {
                   </div>
                 </div>
 
-                {/* Validation Feedback Banner */}
-                {hasValidated && (
-                  <div
-                    className={`p-4 rounded-xl border flex items-center justify-between text-xs font-mono transition-all ${
-                      validationStats.correctCount === validationStats.totalFields
-                        ? "bg-emerald-950/80 border-emerald-500 text-emerald-300"
-                        : validationStats.assistedCount > 0
-                        ? "bg-purple-950/80 border-purple-500 text-purple-300"
-                        : "bg-amber-950/80 border-amber-500 text-amber-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {validationStats.correctCount === validationStats.totalFields ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-purple-400 shrink-0" />
-                      )}
-                      <div>
-                        <div className="font-bold text-sm">
-                          Hasil Validasi Perhitungan: {validationStats.correctCount} / {validationStats.totalFields} Benar
-                          {validationStats.assistedCount > 0 && (
-                            <span className="text-purple-300 font-normal ml-2">
-                              ({validationStats.assistedCount} dibantu)
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-slate-400 text-[11px] mt-0.5">
-                          {validationStats.correctCount === validationStats.totalFields
-                            ? "Luar biasa! Seluruh 40 nilai perhitungan kecepatan dan energi mekanik Anda akurat sesuai hukum fisika."
-                            : validationStats.assistedCount > 0
-                            ? `Terdapat ${validationStats.assistedCount} sel terisi melalui tombol bantuan (tanda ungu) yang dikeluarkan dari skor benar mandiri. Silakan coba hitung mandiri untuk menyelesaikannya.`
-                            : "Periksa kembali sel berwarna merah. Pastikan rumus w/t, ½(M+m)v², m·g·h, dan EM = EK + EP dihitung dengan teliti (toleransi ±2%)."}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Interactive Student Calculation Table (Tabel 6.2) with built-in validation & reference accordion */}
+                <StudentCalculationTable
+                  title="Tabel 6.2: Perhitungan Mandiri Siswa (v, EK, EP, EM)"
+                  description="Hitung nilai kecepatan (v = w/t), EK = ½(M+m)v², EP = m·g·h, dan EM = EK + EP untuk setiap percobaan. Tabel sistem hanya digunakan untuk memeriksa jawaban."
+                  columns={CALC_COLUMNS}
+                  rows={calcRows}
+                  assistedCells={assistedCells}
+                  hasValidated={hasValidated}
+                  onCellChange={(rowId, colKey, val) => {
+                    setStudentCalc((prev) => ({
+                      ...prev,
+                      [rowId]: { ...prev[rowId as number], [colKey]: val },
+                    }));
+                    setAssistedCells((prev) => ({
+                      ...prev,
+                      [`${rowId}_${colKey}`]: false,
+                    }));
+                  }}
+                  onValidate={() => setHasValidated(true)}
+                  onAutoFillAssistance={handleAutoFillAssistance}
+                  referenceTable={referenceTableData}
+                />
 
-                {/* Interactive Student Calculation Table (Tabel 6.2) */}
-                <div className="bg-slate-900/90 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold font-mono text-cyan-300 flex items-center gap-2">
-                        <Calculator className="w-5 h-5 text-cyan-400" />
-                        Tabel 6.2: Perhitungan Mandiri Siswa (v, EK, EP, EM)
-                      </h3>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Hitung nilai kecepatan (v = w/t), EK = ½(M+m)v², EP = m·g·h, dan EM = EK + EP untuk setiap percobaan. Tabel sistem hanya digunakan untuk memeriksa jawaban.
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setHasValidated(true)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-mono font-bold transition-all shadow-[0_0_12px_rgba(37,99,235,0.4)]"
-                      >
-                        <Check className="w-4 h-4" />
-                        Periksa Perhitungan
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleAutoFillAssistance}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-mono transition-all border border-slate-700"
-                        title="Isi dengan nilai kunci sistem untuk bantuan belajar"
-                      >
-                        <Calculator className="w-3.5 h-3.5 text-cyan-400" />
-                        Bantu Lengkapi
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs font-mono border-collapse">
-                      <thead>
-                        <tr className="bg-slate-800 text-slate-300 border-b border-slate-700">
-                          <th className="p-2.5">No</th>
-                          <th className="p-2.5">v1 (m/s)</th>
-                          <th className="p-2.5">EK1 (J)</th>
-                          <th className="p-2.5">EP1 (J)</th>
-                          <th className="p-2.5 text-purple-300 font-bold">EM1 (J)</th>
-                          <th className="p-2.5">v2 (m/s)</th>
-                          <th className="p-2.5">EK2 (J)</th>
-                          <th className="p-2.5">EP2 (J)</th>
-                          <th className="p-2.5 text-purple-300 font-bold">EM2 (J)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {TRIAL_PRESETS.map((p) => {
-                          const trial = completedTrials[p.no];
-                          const row = studentCalc[p.no];
-
-                          const renderInput = (
-                            fieldKey: keyof typeof row,
-                            expectedNum: number | undefined,
-                            precisionHint: string
-                          ) => {
-                            const cellId = `${p.no}_${fieldKey}`;
-                            const val = row[fieldKey];
-                            const isAssisted = !!assistedCells[cellId];
-                            const accurate =
-                              hasValidated && expectedNum !== undefined
-                                ? validateHkemCalculation(val, expectedNum)
-                                : false;
-                            const hasError =
-                              hasValidated && expectedNum !== undefined && !accurate;
-
-                            let visualStyle = "bg-slate-950 border-slate-700 text-white focus:border-cyan-400";
-                            if (hasValidated) {
-                              if (accurate) {
-                                if (isAssisted) {
-                                  visualStyle = "bg-purple-950/40 border-purple-500 text-purple-300";
-                                } else {
-                                  visualStyle = "bg-emerald-950/40 border-emerald-500 text-emerald-300";
-                                }
-                              } else if (hasError) {
-                                visualStyle = "bg-rose-950/40 border-rose-500 text-rose-300";
-                              }
-                            }
-
-                            return (
-                              <div className="relative inline-block" key={fieldKey}>
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={val}
-                                  onChange={(e) => {
-                                    const newVal = e.target.value;
-                                    setStudentCalc((prev) => ({
-                                      ...prev,
-                                      [p.no]: { ...prev[p.no], [fieldKey]: newVal },
-                                    }));
-                                    setAssistedCells((prev) => ({
-                                      ...prev,
-                                      [cellId]: false,
-                                    }));
-                                  }}
-                                  placeholder={
-                                    process.env.NODE_ENV === "development" && expectedNum !== undefined
-                                      ? `K: ${expectedNum.toFixed(precisionHint === "v" ? 3 : 4)}`
-                                      : "0.000"
-                                  }
-                                  className={`w-20 px-2 py-1.5 rounded-lg text-xs font-mono transition-all border outline-none ${visualStyle}`}
-                                  title={isAssisted ? "Nilai terisi melalui bantuan sistem" : undefined}
-                                />
-                                {hasValidated && accurate && isAssisted && (
-                                  <span
-                                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-purple-500 ring-2 ring-slate-900"
-                                    title="Dibantu"
-                                  />
-                                )}
-                              </div>
-                            );
-                          };
-
-                          return (
-                            <tr key={p.no} className="hover:bg-slate-800/40">
-                              <td className="p-2.5 font-bold text-cyan-400">P{p.no}</td>
-                              <td className="p-2">{renderInput("v1", trial?.v1, "v")}</td>
-                              <td className="p-2">{renderInput("ek1", trial?.ek1, "e")}</td>
-                              <td className="p-2">{renderInput("ep1", trial?.ep1, "e")}</td>
-                              <td className="p-2">{renderInput("em1", trial?.em1, "e")}</td>
-                              <td className="p-2">{renderInput("v2", trial?.v2, "v")}</td>
-                              <td className="p-2">{renderInput("ek2", trial?.ek2, "e")}</td>
-                              <td className="p-2">{renderInput("ep2", trial?.ep2, "e")}</td>
-                              <td className="p-2">{renderInput("em2", trial?.em2, "e")}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Collapsible System Reference Table */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-cyan-400" />
-                      <span className="text-xs font-mono font-bold text-slate-300">
-                        Tabel Referensi Sistem (Kunci Jawaban untuk Pemeriksaan)
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowSystemReference((prev) => !prev)}
-                      className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg text-xs font-mono transition-all border border-slate-700"
-                    >
-                      {showSystemReference ? (
-                        <>
-                          <EyeOff className="w-3.5 h-3.5" /> Sembunyikan Kunci
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="w-3.5 h-3.5" /> Buka Kunci Referensi
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {showSystemReference && (
-                    <div className="mt-4 pt-4 border-t border-slate-800 overflow-x-auto">
-                      <table className="w-full text-left text-xs font-mono border-collapse">
-                        <thead>
-                          <tr className="bg-slate-800 text-slate-400 border-b border-slate-700">
-                            <th className="p-2.5">No</th>
-                            <th className="p-2.5">v1 (m/s)</th>
-                            <th className="p-2.5">EK1 (J)</th>
-                            <th className="p-2.5">EP1 (J)</th>
-                            <th className="p-2.5 text-purple-300 font-bold">EM1 (J)</th>
-                            <th className="p-2.5">v2 (m/s)</th>
-                            <th className="p-2.5">EK2 (J)</th>
-                            <th className="p-2.5">EP2 (J)</th>
-                            <th className="p-2.5 text-purple-300 font-bold">EM2 (J)</th>
-                            <th className="p-2.5 text-emerald-300 font-bold">ΔEM (%)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800">
-                          {TRIAL_PRESETS.map((p) => {
-                            const trial = completedTrials[p.no];
-                            if (!trial) {
-                              return (
-                                <tr key={p.no} className="opacity-40">
-                                  <td className="p-2.5">{p.no}</td>
-                                  <td colSpan={9} className="p-2.5 italic text-slate-500">
-                                    Belum tercatat
-                                  </td>
-                                </tr>
-                              );
-                            }
-                            return (
-                              <tr key={p.no} className="hover:bg-slate-800/50">
-                                <td className="p-2.5 font-bold text-cyan-400">{p.no}</td>
-                                <td className="p-2.5 text-slate-300">{trial.v1.toFixed(3)}</td>
-                                <td className="p-2.5 text-emerald-400">{trial.ek1.toFixed(4)}</td>
-                                <td className="p-2.5 text-amber-400">{trial.ep1.toFixed(4)}</td>
-                                <td className="p-2.5 font-bold text-purple-300">{trial.em1.toFixed(4)}</td>
-                                <td className="p-2.5 text-slate-300">{trial.v2.toFixed(3)}</td>
-                                <td className="p-2.5 text-emerald-400">{trial.ek2.toFixed(4)}</td>
-                                <td className="p-2.5 text-amber-400">{trial.ep2.toFixed(4)}</td>
-                                <td className="p-2.5 font-bold text-purple-300">{trial.em2.toFixed(4)}</td>
-                                <td className="p-2.5 font-bold text-emerald-300">
-                                  {Math.abs(trial.differencePercent).toFixed(2)}%
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
 
                 {/* Analysis Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
