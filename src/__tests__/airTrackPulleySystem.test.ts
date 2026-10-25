@@ -19,6 +19,9 @@ import {
   computeAirTrackTrial,
   energyAtState,
   validateHkemCalculation,
+  advanceSimTime,
+  photogateEventTimes,
+  photogateReadingsAtTime,
 } from "@/physics/airTrackPulleySystem";
 
 describe("airTrackPulleySystem physics engine", () => {
@@ -279,6 +282,72 @@ describe("airTrackPulleySystem physics engine", () => {
       expect(validateHkemCalculation("0.0074", nearZeroTruth)).toBe(true);
       // Distant value (|diff| = 0.00265 > 0.0015)
       expect(validateHkemCalculation("0.0100", nearZeroTruth)).toBe(false);
+    });
+  });
+
+  describe("playback speed invariance & analytical photogate readings", () => {
+    test("advanceSimTime scales simulation time at 1x, 0.75x, 0.5x, 0.25x", () => {
+      const wallDt = 0.016; // ~60fps
+      expect(advanceSimTime(1.0, wallDt, 1.0)).toBeCloseTo(1.016, 6);
+      expect(advanceSimTime(1.0, wallDt, 0.75)).toBeCloseTo(1.012, 6);
+      expect(advanceSimTime(1.0, wallDt, 0.5)).toBeCloseTo(1.008, 6);
+      expect(advanceSimTime(1.0, wallDt, 0.25)).toBeCloseTo(1.004, 6);
+
+      // Clamps lag spikes to maxWallDt (default 0.05s)
+      expect(advanceSimTime(1.0, 1.0, 1.0)).toBeCloseTo(1.05, 6);
+      // Fallback for invalid speed
+      expect(advanceSimTime(1.0, wallDt, 0)).toBeCloseTo(1.016, 6);
+    });
+
+    test("photogateReadingsAtTime and computeAirTrackTrial yield identical readings across all 4 speeds", () => {
+      const params = { cartMass: 0.15, hangingMass: 0.015 };
+      const geometry = { dropHeight: 0.8, railTravel: 1.2 };
+      const gates = { gate1Position: 0.3, gate2Position: 0.65, flagWidth: 0.03 };
+
+      const trial = computeAirTrackTrial(params, geometry, gates);
+      const events = photogateEventTimes(params, geometry, gates);
+      expect(events.gate1Out).not.toBeNull();
+      expect(events.gate2Out).not.toBeNull();
+
+      const speeds = [1.0, 0.75, 0.5, 0.25];
+
+      for (const speed of speeds) {
+        let simTime = 0;
+        let finalReadings = photogateReadingsAtTime(params, geometry, gates, 0, events);
+        const wallDt = 0.016; // wall clock frame delta
+
+        // Step through until past gate 2
+        while (simTime < (events.gate2Out ?? 0) + 0.1) {
+          simTime = advanceSimTime(simTime, wallDt, speed);
+          const r = photogateReadingsAtTime(params, geometry, gates, simTime, events);
+          if (r.t2 !== null) {
+            finalReadings = r;
+            break;
+          }
+        }
+
+        // Must match analytical computeAirTrackTrial exactly regardless of speed
+        expect(finalReadings.t1).toBeCloseTo(trial.t1!, 6);
+        expect(finalReadings.t2).toBeCloseTo(trial.t2!, 6);
+        expect(finalReadings.t12).toBeCloseTo(trial.t12!, 6);
+      }
+    });
+
+    test("trial calculation (Table 6.1 and 6.2) is strictly independent of playback speed", () => {
+      const params = { cartMass: 0.15, hangingMass: 0.015 };
+      const geometry = { dropHeight: 0.8, railTravel: 1.2 };
+      const gates = { gate1Position: 0.3, gate2Position: 0.65, flagWidth: 0.03 };
+
+      // computeAirTrackTrial does not take speed as an argument; physics is pure and deterministic
+      const trial1 = computeAirTrackTrial(params, geometry, gates);
+      const trial2 = computeAirTrackTrial(params, geometry, gates);
+      expect(trial1.t1).toBe(trial2.t1);
+      expect(trial1.v1).toBe(trial2.v1);
+      expect(trial1.v2).toBe(trial2.v2);
+      expect(trial1.ek1).toBe(trial2.ek1);
+      expect(trial1.ep1).toBe(trial2.ep1);
+      expect(trial1.em1).toBe(trial2.em1);
+      expect(trial1.differencePercent).toBe(trial2.differencePercent);
     });
   });
 });

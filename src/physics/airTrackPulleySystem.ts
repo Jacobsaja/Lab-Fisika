@@ -385,6 +385,99 @@ export function computeAirTrackTrial(
   };
 }
 
+// ─── Photogate readings as a function of simulation time ─────────────────────
+
+/** Analytic simulation times at which the flag starts/stops blocking each gate (null = never). */
+export interface PhotogateEventTimes {
+  gate1In: number | null;
+  gate1Out: number | null;
+  gate2In: number | null;
+  gate2Out: number | null;
+}
+
+/** What the Timer Counter (ACCELERATION mode) shows at a given simulation time. */
+export interface PhotogateReadings {
+  gate1Active: boolean;
+  gate2Active: boolean;
+  /** Gate 1 transit time; null until the flag has fully left gate 1. */
+  t1: number | null;
+  /** Gate 2 transit time; null until the flag has fully left gate 2. */
+  t2: number | null;
+  /** Gate 1 start → gate 2 start; null until the flag reaches gate 2. */
+  t12: number | null;
+}
+
+/**
+ * Exact (closed-form) gate event times. A gate at x_g is blocked while the
+ * flag's leading edge is in [x_g, x_g + w] — the same convention used by
+ * `computeAirTrackTrial`, so the counter and the trial table always agree.
+ */
+export function photogateEventTimes(
+  params: AirTrackPulleyParams,
+  geometry: AirTrackGeometry,
+  gates: GateSetup
+): PhotogateEventTimes {
+  return {
+    gate1In: timeAtPosition(params, geometry, gates.gate1Position),
+    gate1Out: timeAtPosition(params, geometry, gates.gate1Position + gates.flagWidth),
+    gate2In: timeAtPosition(params, geometry, gates.gate2Position),
+    gate2Out: timeAtPosition(params, geometry, gates.gate2Position + gates.flagWidth),
+  };
+}
+
+function isBlocked(t: number, tIn: number | null, tOut: number | null): boolean {
+  if (tIn === null || t < tIn) return false;
+  return tOut === null || t < tOut;
+}
+
+/**
+ * Timer Counter state at simulation time t. Readings depend only on t (never
+ * on frame timing or playback speed); each reading is revealed once its event
+ * time has passed and then equals the value reported by `computeAirTrackTrial`.
+ */
+export function photogateReadingsAtTime(
+  params: AirTrackPulleyParams,
+  geometry: AirTrackGeometry,
+  gates: GateSetup,
+  t: number,
+  events: PhotogateEventTimes = photogateEventTimes(params, geometry, gates)
+): PhotogateReadings {
+  const time = finiteOr(t, 0);
+  const { gate1In, gate1Out, gate2In, gate2Out } = events;
+
+  const t1 =
+    gate1Out !== null && time >= gate1Out
+      ? gateTransitTimeTwoPhase(params, geometry, gates.gate1Position, gates.flagWidth)
+      : null;
+  const t2 =
+    gate2Out !== null && time >= gate2Out
+      ? gateTransitTimeTwoPhase(params, geometry, gates.gate2Position, gates.flagWidth)
+      : null;
+  const t12 =
+    gate1In !== null && gate2In !== null && gate2In > gate1In && time >= gate2In
+      ? gate2In - gate1In
+      : null;
+
+  return {
+    gate1Active: isBlocked(time, gate1In, gate1Out),
+    gate2Active: isBlocked(time, gate2In, gate2Out),
+    t1,
+    t2,
+    t12,
+  };
+}
+
+/**
+ * Advances simulation time by one rendered frame. Only the rate is scaled:
+ * the wall-clock delta is clamped (tab-switch lag) and multiplied by the
+ * playback speed. Physics stays analytic, so results are speed-independent.
+ */
+export function advanceSimTime(simTime: number, wallDtSec: number, speed: number, maxWallDt = 0.05): number {
+  const dt = Math.min(Math.max(finiteOr(wallDtSec, 0), 0), maxWallDt);
+  const s = finiteOr(speed, 1) > 0 ? speed : 1;
+  return finiteOr(simTime, 0) + dt * s;
+}
+
 /**
  * Energy of the system at an arbitrary instant (for the energy–time graph).
  * Uses the TRUE instantaneous speed. After the hanging mass lands it is at rest

@@ -5,11 +5,14 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useMemo,
   useImperativeHandle,
   forwardRef,
   useId,
 } from "react";
 import { TimerCounter } from "./TimerCounter";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
@@ -26,8 +29,12 @@ import {
   motionStateAtTime,
   computeAirTrackTrial,
   energyAtState,
+  advanceSimTime,
+  photogateEventTimes,
+  photogateReadingsAtTime,
   AirTrackTrialResult,
   MotionState,
+  GateSetup,
 } from "@/physics/airTrackPulleySystem";
 import { Play, RotateCcw, Wind, Pause } from "lucide-react";
 
@@ -60,6 +67,10 @@ export interface AirTrackPulleyApparatusProps {
     state: MotionState,
     energy: { ek: number; ep: number; em: number }
   ) => void;
+  /** Simulation playback speed (1.0, 0.75, 0.5, 0.25) */
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  speedStorageKey?: string;
   /** Vector lock props */
   isVectorLocked?: boolean;
   vectorLockMessage?: string;
@@ -119,6 +130,9 @@ export const AirTrackPulleyApparatus = forwardRef<
       pulleyEffectiveMass = 0,
       onTrialComplete,
       onStateUpdate,
+      speed: propSpeed,
+      onSpeedChange: propOnSpeedChange,
+      speedStorageKey,
       isVectorLocked = false,
       vectorLockMessage,
       hideVectorControls = false,
@@ -134,6 +148,13 @@ export const AirTrackPulleyApparatus = forwardRef<
     onTrialCompleteRef.current = onTrialComplete;
     const onStateUpdateRef = useRef(onStateUpdate);
     onStateUpdateRef.current = onStateUpdate;
+
+    const defaultSpeedKey = speedStorageKey ?? (mode === "explore" ? "hkem-explore" : "hkem-practicum");
+    const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(defaultSpeedKey, 1.0);
+    const activeSpeed = propSpeed ?? internalSpeed;
+    const handleSpeedChange = propOnSpeedChange ?? setInternalSpeed;
+    const speedRef = useRef(activeSpeed);
+    speedRef.current = activeSpeed;
 
     const effectiveCartMass = cartMass + (cartHasAddedMass ? 0.0125 : 0);
 
@@ -162,9 +183,6 @@ export const AirTrackPulleyApparatus = forwardRef<
     const [t2, setT2] = useState<number | null>(null);
     const [t12, setT12] = useState<number | null>(null);
 
-    const gate1EnterTimeRef = useRef<number | null>(null);
-    const gate2EnterTimeRef = useRef<number | null>(null);
-
     // Vector toggles
     const [vectorToggles, setVectorToggles] = useState<Record<string, boolean>>({
       velocity: true,
@@ -177,16 +195,37 @@ export const AirTrackPulleyApparatus = forwardRef<
     const [showValues, setShowValues] = useState(mode === "explore");
 
     // Dynamic physics parameters
-    const params = {
-      cartMass: effectiveCartMass,
-      hangingMass,
-      frictionForce: compressorOn ? frictionForce : Math.max(frictionForce, 0.25),
-      pulleyEffectiveMass,
-    };
-    const geometry = {
-      dropHeight,
-      railTravel,
-    };
+    const params = useMemo(
+      () => ({
+        cartMass: effectiveCartMass,
+        hangingMass,
+        frictionForce: compressorOn ? frictionForce : Math.max(frictionForce, 0.25),
+        pulleyEffectiveMass,
+      }),
+      [effectiveCartMass, hangingMass, compressorOn, frictionForce, pulleyEffectiveMass]
+    );
+
+    const geometry = useMemo(
+      () => ({
+        dropHeight,
+        railTravel,
+      }),
+      [dropHeight, railTravel]
+    );
+
+    const gates: GateSetup = useMemo(
+      () => ({
+        gate1Position: gate1Pos,
+        gate2Position: gate2Pos,
+        flagWidth,
+      }),
+      [gate1Pos, gate2Pos, flagWidth]
+    );
+
+    const gateEvents = useMemo(
+      () => photogateEventTimes(params, geometry, gates),
+      [params, geometry, gates]
+    );
 
     const handleToggleCategory = (id: string) => {
       setVectorToggles((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -201,8 +240,6 @@ export const AirTrackPulleyApparatus = forwardRef<
       lastAnimTimeRef.current = null;
       simTimeRef.current = 0;
       trialCompletedRef.current = false;
-      gate1EnterTimeRef.current = null;
-      gate2EnterTimeRef.current = null;
 
       setIsSimulating(false);
       setIsPaused(false);
@@ -260,11 +297,10 @@ export const AirTrackPulleyApparatus = forwardRef<
 
       const loop = (now: number) => {
         if (!lastAnimTimeRef.current) lastAnimTimeRef.current = now;
-        let dt = (now - lastAnimTimeRef.current) / 1000;
+        const dt = (now - lastAnimTimeRef.current) / 1000;
         lastAnimTimeRef.current = now;
 
-        if (dt > 0.05) dt = 0.05; // clamp tab lag
-        simTimeRef.current += dt;
+        simTimeRef.current = advanceSimTime(simTimeRef.current, dt, speedRef.current, 0.05);
         const curTime = simTimeRef.current;
 
         const state = motionStateAtTime(params, geometry, curTime);
@@ -276,31 +312,13 @@ export const AirTrackPulleyApparatus = forwardRef<
 
         onStateUpdateRef.current?.(state, energy);
 
-        // Check photogate 1
-        const flagLeft = state.x;
-        const flagRight = state.x + flagWidth;
-        const inGate1 = flagLeft <= gate1Pos && flagRight >= gate1Pos;
-        const inGate2 = flagLeft <= gate2Pos && flagRight >= gate2Pos;
-
-        setGate1Active(inGate1);
-        setGate2Active(inGate2);
-
-        if (inGate1 && gate1EnterTimeRef.current === null && state.v > 0) {
-          gate1EnterTimeRef.current = curTime;
-        } else if (!inGate1 && gate1EnterTimeRef.current !== null && t1 === null) {
-          const transitT = Math.max(0.001, curTime - gate1EnterTimeRef.current);
-          setT1(transitT);
-        }
-
-        if (inGate2 && gate2EnterTimeRef.current === null && state.v > 0) {
-          gate2EnterTimeRef.current = curTime;
-          if (gate1EnterTimeRef.current !== null) {
-            setT12(Math.max(0.001, curTime - gate1EnterTimeRef.current));
-          }
-        } else if (!inGate2 && gate2EnterTimeRef.current !== null && t2 === null) {
-          const transitT = Math.max(0.001, curTime - gate2EnterTimeRef.current);
-          setT2(transitT);
-        }
+        // Analytical, playback-speed-invariant photogate readings
+        const readings = photogateReadingsAtTime(params, geometry, gates, curTime, gateEvents);
+        setGate1Active(readings.gate1Active);
+        setGate2Active(readings.gate2Active);
+        if (readings.t1 !== null) setT1(readings.t1);
+        if (readings.t2 !== null) setT2(readings.t2);
+        if (readings.t12 !== null) setT12(readings.t12);
 
         // Completion check
         if (
@@ -308,7 +326,6 @@ export const AirTrackPulleyApparatus = forwardRef<
           (state.x >= gate2Pos + flagWidth || state.phase === "stopped")
         ) {
           trialCompletedRef.current = true;
-          const gates = { gate1Position: gate1Pos, gate2Position: gate2Pos, flagWidth };
           const result = computeAirTrackTrial(params, geometry, gates);
           onTrialCompleteRef.current?.(result);
         }
@@ -326,7 +343,7 @@ export const AirTrackPulleyApparatus = forwardRef<
       return () => {
         if (animReqRef.current) cancelAnimationFrame(animReqRef.current);
       };
-    }, [isSimulating, isPaused, compressorOn, frictionForce, effectiveCartMass, hangingMass, dropHeight, railTravel, gate1Pos, gate2Pos, flagWidth, pulleyEffectiveMass, t1, t2]);
+    }, [isSimulating, isPaused, params, geometry, gates, gateEvents, gate2Pos, flagWidth]);
 
     // ── SVG Coordinates Calculation ──
     const cartX = TRACK_X1 + renderX * PX_PER_M;
@@ -522,8 +539,8 @@ export const AirTrackPulleyApparatus = forwardRef<
               </div>
             </div>
 
-            {/* Buttons */}
-            <div className="flex items-center gap-2">
+            {/* Buttons & Speed Control */}
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setCompressorOn((prev) => !prev)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
@@ -536,6 +553,11 @@ export const AirTrackPulleyApparatus = forwardRef<
                 <Wind className={`w-3.5 h-3.5 ${compressorOn ? "animate-spin text-cyan-400" : ""}`} />
                 Kompresor: {compressorOn ? "ON" : "OFF"}
               </button>
+
+              <PlaybackSpeedControl
+                speed={activeSpeed}
+                onSpeedChange={handleSpeedChange}
+              />
 
               <button
                 data-testid="btn-play"
