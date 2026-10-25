@@ -22,3 +22,10 @@ Callback dari parent (`onXxx`, misal `onStateUpdate`, `onTimeChange`, `onPosChan
   onStateUpdateRef.current?.(t, angle, omega);
   ```
 - Wajib diterapkan pada semua apparatus baru dan yang dimodifikasi untuk mencegah loop re-render (`Maximum update depth exceeded`).
+
+## Permanent Rule: Simulation Playback Speed & Pure Simulation Clock
+- Moving simulation apparatuses MUST support playback speed scaling via `usePersistedPlaybackSpeed` and `PlaybackSpeedControl` (or `SimulationContainer`).
+- **Data integrity**: Sensor readings, photogates, stopwatches, and data tables MUST use accumulated simulation time (`simTime`), NOT wall-clock `performance.now()` or `Date.now()`. Physical results must be 100% invariant across all speeds ($1\times, 0.75\times, 0.5\times, 0.25\times$).
+- The student experiment timer (`ExperimentTimer`) MUST remain real-time (unscaled).
+- Fixed-step loops must clamp wall delta time and cap substeps per frame to prevent spiral lag on background tab resumes.
+
