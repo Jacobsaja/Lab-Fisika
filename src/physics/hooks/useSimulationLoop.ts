@@ -3,10 +3,13 @@ import { SimulationModel } from "../core";
 
 export interface UseSimulationLoopResult<TState> {
   state: TState;
-  /** Simulation time in seconds (backward compatibility alias for simTime) */
-  time: number;
-  /** Accumulated simulation time in seconds */
+  /** Accumulated simulation time in seconds (scaled strictly by playback speed). */
   simTime: number;
+  /**
+   * Simulation time in seconds.
+   * @deprecated Backward-compatibility alias for `simTime`. Prefer `simTime` in new code to explicitly denote simulation clock.
+   */
+  time: number;
   isPlaying: boolean;
   play: () => void;
   pause: () => void;

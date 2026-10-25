@@ -93,7 +93,7 @@ export function CircularMotionApparatus({
     [setSpeed, sim]
   );
 
-  const snapshot = computeSnapshot(params, sim.time);
+  const snapshot = computeSnapshot(params, sim.simTime);
 
   const localGmbVectors = useMemo(() => {
     const speed = Math.abs(actualOmega) * r;
@@ -226,7 +226,7 @@ export function CircularMotionApparatus({
       v: round(derived.v, 3),
       a_c: round(derived.a_c, 3),
     });
-    setLastRecordedTime(sim.time);
+    setLastRecordedTime(sim.simTime);
   };
 
   const thetaDeg = (snapshot.thetaWrapped * 180) / Math.PI;
@@ -237,7 +237,7 @@ export function CircularMotionApparatus({
       <div className="flex-1 min-w-0 min-h-[480px] flex flex-col">
         <SimulationContainer
           title={mode === "explore" ? "Eksplorasi Gerak Melingkar (Meja Putar Presisi)" : "Alat Gerak Melingkar Beraturan"}
-          time={sim.time}
+          time={sim.simTime}
           isPlaying={sim.isPlaying}
           onPlay={sim.play}
           onPause={sim.pause}
@@ -251,7 +251,7 @@ export function CircularMotionApparatus({
               className={`w-2 h-2 rounded-full ${
                 sim.isPlaying
                   ? "bg-cyan-400 animate-ping"
-                  : sim.time > 0
+                  : sim.simTime > 0
                   ? "bg-amber-400"
                   : "bg-emerald-400"
               }`}
@@ -363,7 +363,7 @@ export function CircularMotionApparatus({
 
         <ReadoutPanel
           items={[
-            { id: "t", label: "Waktu Tempuh", symbol: "t", value: formatReadout(sim.time, 2), unit: "s", color: "#60A5FA" },
+            { id: "t", label: "Waktu Tempuh", symbol: "t", value: formatReadout(sim.simTime, 2), unit: "s", color: "#60A5FA" },
             { id: "rev", label: "Putaran Selesai", symbol: "n", value: String(snapshot.completedRevolutions), color: UCM_COLORS.particle },
             { id: "theta", label: "Posisi Sudut", symbol: "θ", value: formatReadout(thetaDeg, 1), unit: "°", color: UCM_COLORS.angle },
             { id: "r", label: "Jari-jari Sensor", symbol: "r", value: formatReadout(r, 2), unit: "m" },
@@ -401,7 +401,7 @@ export function CircularMotionApparatus({
               aria-live="polite"
             >
               <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              {blockReason ?? `Siap dicatat: r = ${r.toFixed(2)} m, N = ${targetN}, t = ${sim.time.toFixed(2)} s.`}
+              {blockReason ?? `Siap dicatat: r = ${r.toFixed(2)} m, N = ${targetN}, t = ${sim.simTime.toFixed(2)} s.`}
             </p>
             <p className="text-[0.7rem] text-slate-400/70 leading-relaxed border-t border-slate-800/80 pt-2">
               Tips: Gunakan kecepatan 0.5x atau 0.25x agar lebih mudah menjeda tepat di garis START. Mengubah r atau menekan Reset (↺) mengembalikan jam ke 0.

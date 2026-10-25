@@ -23,7 +23,7 @@ export default function AtwoodExplorePage() {
   const [simTime, setSimTime] = useState(0);
   const [isFalling, setIsFalling] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [speed, setSpeed] = usePersistedPlaybackSpeed("atwood-explore", 1);
+  const [speed, setSpeed] = usePersistedPlaybackSpeed("atwood-speed-cache", 1);
 
   const g = 9.81;
 

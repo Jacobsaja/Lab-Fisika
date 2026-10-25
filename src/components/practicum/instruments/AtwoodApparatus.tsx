@@ -383,7 +383,7 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
   const [draggingItem, setDraggingItem] = useState<"B" | "C" | null>(null);
 
   // Playback speed state & persistence
-  const defaultSpeedKey = playbackSpeedKey ?? (mode === "explore" ? "atwood-explore" : mode === "GLBB" ? "atwood-glbb" : "atwood-glb");
+  const defaultSpeedKey = playbackSpeedKey ?? "atwood-speed-cache";
   const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(defaultSpeedKey, 1);
   const activeSpeed = propSpeed ?? internalSpeed;
   const setActiveSpeed = onSpeedChange ?? setInternalSpeed;

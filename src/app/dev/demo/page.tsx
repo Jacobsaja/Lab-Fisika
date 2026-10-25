@@ -52,20 +52,20 @@ export default function DemoSimulationPage() {
     velocityX: 2,
   });
 
-  const { state, time, isPlaying, play, pause, reset, speed, setSpeed } =
+  const { state, simTime, isPlaying, play, pause, reset, speed, setSpeed } =
     useSimulationLoop(DemoModel, params);
 
   // Collect history for the graph
   const [history, setHistory] = useState<DataPoint[]>([]);
   
   useEffect(() => {
-    if (time === 0) {
+    if (simTime === 0) {
       setHistory([{ t: 0, val: state.particle.position.x }]);
     } else {
       // Throttle graph updates slightly to avoid massive arrays, or just push every frame since it's a demo
-      setHistory(prev => [...prev, { t: time, val: state.particle.position.x }]);
+      setHistory(prev => [...prev, { t: simTime, val: state.particle.position.x }]);
     }
-  }, [time, state.particle.position.x]);
+  }, [simTime, state.particle.position.x]);
 
   return (
     <div className="p-8 max-w-6xl mx-auto h-screen flex flex-col gap-6">
@@ -116,7 +116,7 @@ export default function DemoSimulationPage() {
         {/* Right Column: Simulation View */}
         <div className="flex-1">
           <SimulationContainer
-            time={time}
+            time={simTime}
             isPlaying={isPlaying}
             onPlay={play}
             onPause={pause}
