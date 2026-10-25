@@ -12,6 +12,11 @@ import {
   simulateModulTrial,
   calculateKSR,
   createMulberry32,
+  createInitialHkmState,
+  stepHkm,
+  advanceHkmSimulation,
+  DEFAULT_HKM_FIXED_DT,
+  HkmSimulationConfig,
 } from "../physics/momentum/momentum";
 
 describe("Linear Momentum Physics Core", () => {
@@ -251,4 +256,161 @@ describe("Linear Momentum Physics Core", () => {
       expect(calculateKSR(0, 0)).toBe(0);
     });
   });
+
+  describe("Fixed-step substepping & playback speed invariance", () => {
+    const baseConfig: HkmSimulationConfig = {
+      effectiveMA: 0.20, // 200g
+      effectiveMB: 0.15, // 150g
+      restitution: 1.0, // Elastic (Case B) -> Cart A continues moving (P22)
+      launchSpeed: 0.42,
+      compressorOn: true,
+      hasP22Expected: true,
+    };
+
+    it("yields 100% identical photogate readings P11, P21, P22 across all 4 playback speeds", () => {
+      const speeds = [1.0, 0.75, 0.5, 0.25];
+      const results: { p11: number | null; p21: number | null; p22: number | null }[] = [];
+
+      for (const speed of speeds) {
+        let state = createInitialHkmState(baseConfig);
+        let acc = 0;
+        const frameDt = 0.016; // 60 fps frame delta
+
+        // Run until state is completed or 20s sim time
+        while (!state.completed && state.t < 15) {
+          const stepRes = advanceHkmSimulation(state, baseConfig, frameDt, speed, acc, DEFAULT_HKM_FIXED_DT);
+          state = stepRes.state;
+          acc = stepRes.accumulator;
+        }
+
+        expect(state.p11).not.toBeNull();
+        expect(state.p21).not.toBeNull();
+        expect(state.p22).not.toBeNull();
+
+        results.push({
+          p11: state.p11,
+          p21: state.p21,
+          p22: state.p22,
+        });
+      }
+
+      // Check all 4 speeds give exactly the same gate readings down to microsecond precision
+      const baseline = results[0];
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i].p11).toBeCloseTo(baseline.p11!, 5);
+        expect(results[i].p21).toBeCloseTo(baseline.p21!, 5);
+        expect(results[i].p22).toBeCloseTo(baseline.p22!, 5);
+      }
+    });
+
+    it("yields identical photogate readings independent of frame render rate (30 fps vs 60 fps vs 120 fps)", () => {
+      const frameRates = [
+        1 / 30, // 30 fps
+        1 / 60, // 60 fps
+        1 / 120, // 120 fps
+      ];
+      const results: { p11: number | null; p21: number | null; p22: number | null }[] = [];
+
+      for (const frameDt of frameRates) {
+        let state = createInitialHkmState(baseConfig);
+        let acc = 0;
+
+        while (!state.completed && state.t < 15) {
+          const stepRes = advanceHkmSimulation(state, baseConfig, frameDt, 1.0, acc, DEFAULT_HKM_FIXED_DT);
+          state = stepRes.state;
+          acc = stepRes.accumulator;
+        }
+
+        results.push({
+          p11: state.p11,
+          p21: state.p21,
+          p22: state.p22,
+        });
+      }
+
+      const baseline = results[0];
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i].p11).toBeCloseTo(baseline.p11!, 4);
+        expect(results[i].p21).toBeCloseTo(baseline.p21!, 4);
+        expect(results[i].p22).toBeCloseTo(baseline.p22!, 4);
+      }
+    });
+
+    it("prevents tunneling and double collisions across extreme velocities", () => {
+      const launchSpeeds = [0.2, 0.5, 0.8, 1.2];
+
+      for (const v0 of launchSpeeds) {
+        const config: HkmSimulationConfig = {
+          ...baseConfig,
+          launchSpeed: v0,
+          restitution: 0.8,
+        };
+
+        let state = createInitialHkmState(config);
+        let acc = 0;
+        let collisionCount = 0;
+
+        while (!state.completed && state.t < 10) {
+          const prevState = state;
+          const stepRes = advanceHkmSimulation(state, config, 0.016, 1.0, acc, DEFAULT_HKM_FIXED_DT);
+          state = stepRes.state;
+          acc = stepRes.accumulator;
+
+          if (!prevState.collided && state.collided) {
+            collisionCount++;
+          }
+        }
+
+        // Must collide exactly once
+        expect(collisionCount).toBe(1);
+        expect(state.p11).toBeGreaterThan(0);
+        expect(state.p21).toBeGreaterThan(0);
+      }
+    });
+
+    it("supports perfectly inelastic collisions (e = 0, Case C/D) without cart overlap", () => {
+      const inelasticConfig: HkmSimulationConfig = {
+        effectiveMA: 0.15,
+        effectiveMB: 0.15,
+        restitution: 0.0,
+        launchSpeed: 0.40,
+        compressorOn: true,
+        hasP22Expected: true,
+      };
+
+      let state = createInitialHkmState(inelasticConfig);
+      let acc = 0;
+
+      while (!state.completed && state.t < 10) {
+        const stepRes = advanceHkmSimulation(state, inelasticConfig, 0.016, 1.0, acc, DEFAULT_HKM_FIXED_DT);
+        state = stepRes.state;
+        acc = stepRes.accumulator;
+
+        // After collision, carts must move with equal velocity and stick together
+        if (state.collided) {
+          expect(state.vA).toBeCloseTo(state.vB, 4);
+          expect(state.xB - state.xA).toBeCloseTo(0.12, 4); // cart length = 0.12 m
+        }
+      }
+
+      expect(state.p11).not.toBeNull();
+      expect(state.p21).not.toBeNull();
+      expect(state.p22).not.toBeNull();
+    });
+
+    it("validates student question hkm-q4 expected theoretical value (v' = 0.2286 ± 0.015 m/s)", () => {
+      const q4Theory = getModulCaseTheory({
+        caseId: "D",
+        baseMass: 0.150,
+        addedMass: 0.050,
+        vA: 0.400,
+        flagWidth: 0.03,
+      });
+
+      expect(q4Theory.vAPrime).toBeCloseTo(0.2286, 3);
+      expect(q4Theory.vBPrime).toBeCloseTo(0.2286, 3);
+      expect(Math.abs(q4Theory.vAPrime - 0.2286)).toBeLessThanOrEqual(0.015);
+    });
+  });
 });
+

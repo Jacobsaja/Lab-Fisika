@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef, useId } from "react";
+import React, { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef, useId, useMemo } from "react";
 import { TimerCounter } from "./TimerCounter";
+import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
@@ -17,6 +19,11 @@ import {
   momentum,
   velocityFromGate,
   getHkmVectors,
+  HkmSimulationConfig,
+  HkmSimulationState,
+  createInitialHkmState,
+  advanceHkmSimulation,
+  DEFAULT_HKM_FIXED_DT,
 } from "@/physics/momentum/momentum";
 import { ModulCase } from "@/physics/momentum/types";
 import { Play, RotateCcw, Wind } from "lucide-react";
@@ -47,6 +54,10 @@ export interface AirTrackApparatusProps {
   customRestitution?: number; // for explore mode [0, 1]
   // Launch properties
   launchSpeed?: number; // m/s, default 0.4
+  // Playback speed control
+  speed?: number;
+  onSpeedChange?: (speed: number) => void;
+  speedStorageKey?: string;
   // Callbacks
   onCollisionComplete?: (data: CollisionCompleteData) => void;
   // Vector overlay & controls props
@@ -99,6 +110,9 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   bumperType = "elastic",
   customRestitution,
   launchSpeed = 0.42,
+  speed: propSpeed,
+  onSpeedChange: propOnSpeedChange,
+  speedStorageKey,
   onCollisionComplete,
   vectorControls,
   onVectorControlsChange,
@@ -115,6 +129,13 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   onCollisionCompleteRef.current = onCollisionComplete;
   const onVectorControlsChangeRef = useRef(onVectorControlsChange);
   onVectorControlsChangeRef.current = onVectorControlsChange;
+
+  const defaultSpeedKey = speedStorageKey ?? (mode === "practicum" ? "hkm-practicum" : "hkm-explore");
+  const [internalSpeed, setInternalSpeed] = usePersistedPlaybackSpeed(defaultSpeedKey, 1.0);
+  const activeSpeed = propSpeed ?? internalSpeed;
+  const handleSpeedChange = propOnSpeedChange ?? setInternalSpeed;
+  const speedRef = useRef(activeSpeed);
+  speedRef.current = activeSpeed;
 
   const [localVectorControls, setLocalVectorControls] = useState<VectorControlsState>({
     showVelocity: true,
@@ -158,15 +179,39 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
       ? 1.0
       : 0.0;
 
+  const hasP22Expected =
+    mode === "practicum"
+      ? activeCase !== "A"
+      : effectiveRestitution > 0 && effectiveMA > effectiveMB;
+
   // Equipment states
   const [compressorOn, setCompressorOn] = useState(true);
   const [isSimulating, setIsSimulating] = useState(false);
 
-  // Gliders physics states in meters
-  const posARef = useRef(CART_A_INIT_M);
-  const posBRef = useRef(CART_B_INIT_M);
-  const velARef = useRef(0);
-  const velBRef = useRef(0);
+  // Configuration for fixed-step physics engine
+  const config = useMemo<HkmSimulationConfig>(() => ({
+    effectiveMA,
+    effectiveMB,
+    restitution: effectiveRestitution,
+    launchSpeed,
+    compressorOn,
+    frictionDecel: compressorOn ? 0.005 : 0.85,
+    trackLength: TRACK_LEN_M,
+    cartLength: CART_LEN_M,
+    flagWidth: FLAG_WIDTH_M,
+    gate1Pos: GATE1_POS_M,
+    gate2Pos: GATE2_POS_M,
+    cartAInitPos: CART_A_INIT_M,
+    cartBInitPos: CART_B_INIT_M,
+    hasP22Expected,
+  }), [effectiveMA, effectiveMB, effectiveRestitution, launchSpeed, compressorOn, hasP22Expected]);
+
+  // Fixed-step simulation engine state & accumulator
+  const simStateRef = useRef<HkmSimulationState>(createInitialHkmState(config));
+  const accumulatorRef = useRef<number>(0);
+  const animReqRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number | null>(null);
+  const callbackFiredRef = useRef(false);
 
   // Visual state for React re-render
   const [renderPosA, setRenderPosA] = useState(CART_A_INIT_M);
@@ -175,38 +220,18 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
   const [renderVelB, setRenderVelB] = useState(0);
 
   useEffect(() => {
-    if (!isSimulating && posARef.current === CART_A_INIT_M) {
+    if (!isSimulating && simStateRef.current.xA === CART_A_INIT_M) {
       setRenderVelA(launchSpeed);
       setRenderVelB(0);
     }
   }, [launchSpeed, isSimulating]);
 
-  // Photogate trigger tracking
+  // Photogate indicators and readings
   const [gate1Active, setGate1Active] = useState(false);
   const [gate2Active, setGate2Active] = useState(false);
-
-  // Digital Timer Counter values (s)
   const [p11, setP11] = useState<number | null>(null);
   const [p21, setP21] = useState<number | null>(null);
   const [p22, setP22] = useState<number | null>(null);
-
-  // Animation frame ref
-  const animReqRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number | null>(null);
-
-  // Photogate timing registers in ref to avoid closure issues
-  const g1EnterTimeRef = useRef<number | null>(null);
-  const g2EnterTimeBRef = useRef<number | null>(null);
-  const g2EnterTimeARef = useRef<number | null>(null);
-  const p11CalculatedRef = useRef<number | null>(null);
-  const p21CalculatedRef = useRef<number | null>(null);
-  const p22CalculatedRef = useRef<number | null>(null);
-  const callbackFiredRef = useRef(false);
-
-  const hasP22Expected =
-    mode === "practicum"
-      ? activeCase !== "A"
-      : effectiveRestitution > 0 && effectiveMA > effectiveMB;
 
   // ── Reset function ──
   const handleReset = useCallback(() => {
@@ -215,14 +240,12 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
       animReqRef.current = null;
     }
     lastTimeRef.current = null;
+    accumulatorRef.current = 0;
+    simStateRef.current = createInitialHkmState(config);
+
     setIsSimulating(false);
     setGate1Active(false);
     setGate2Active(false);
-
-    posARef.current = CART_A_INIT_M;
-    posBRef.current = CART_B_INIT_M;
-    velARef.current = 0;
-    velBRef.current = 0;
 
     setRenderPosA(CART_A_INIT_M);
     setRenderPosB(CART_B_INIT_M);
@@ -233,28 +256,21 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
     setP21(null);
     setP22(null);
 
-    g1EnterTimeRef.current = null;
-    g2EnterTimeBRef.current = null;
-    g2EnterTimeARef.current = null;
-    p11CalculatedRef.current = null;
-    p21CalculatedRef.current = null;
-    p22CalculatedRef.current = null;
     callbackFiredRef.current = false;
-  }, [launchSpeed]);
+  }, [config, launchSpeed]);
 
   // ── Launch function ──
   const handleLaunch = useCallback(() => {
     if (isSimulating) return;
     handleReset();
 
-    // Start cart A moving rightward
-    velARef.current = launchSpeed;
-    velBRef.current = 0;
+    simStateRef.current = createInitialHkmState(config);
+    accumulatorRef.current = 0;
+    lastTimeRef.current = null;
     setRenderVelA(launchSpeed);
     setRenderVelB(0);
     setIsSimulating(true);
-    lastTimeRef.current = performance.now();
-  }, [isSimulating, handleReset, launchSpeed]);
+  }, [isSimulating, handleReset, config, launchSpeed]);
 
   useImperativeHandle(ref, () => ({
     launch: handleLaunch,
@@ -266,134 +282,48 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
     handleReset();
   }, [activeCase, handleReset]);
 
-  // ── Physics & Animation Loop ──
+  // ── Fixed-step Substepping Physics & Animation Loop ──
   useEffect(() => {
     if (!isSimulating) return;
 
-    let localCollided = false;
-
     const loop = (now: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = now;
-      let dt = (now - lastTimeRef.current) / 1000;
+      const dt = (now - lastTimeRef.current) / 1000;
       lastTimeRef.current = now;
 
-      // Clamp dt to avoid huge jumps on tab lag
-      if (dt > 0.05) dt = 0.05;
+      // Advance physics with fixed substeps scaled strictly by playback speed
+      const result = advanceHkmSimulation(
+        simStateRef.current,
+        config,
+        dt,
+        speedRef.current,
+        accumulatorRef.current,
+        DEFAULT_HKM_FIXED_DT,
+        0.05
+      );
+      simStateRef.current = result.state;
+      accumulatorRef.current = result.accumulator;
+      const cur = result.state;
 
-      // Air resistance / friction if compressor is OFF
-      const frictionDecel = compressorOn ? 0.005 : 0.85;
+      // Update render positions and velocities
+      setRenderPosA(cur.xA);
+      setRenderPosB(cur.xB);
+      setRenderVelA(cur.vA);
+      setRenderVelB(cur.vB);
+      setGate1Active(cur.gate1Active);
+      setGate2Active(cur.gate2Active);
 
-      let vA = velARef.current;
-      let vB = velBRef.current;
+      if (cur.p11 !== null) setP11(cur.p11);
+      if (cur.p21 !== null) setP21(cur.p21);
+      if (cur.p22 !== null) setP22(cur.p22);
 
-      if (Math.abs(vA) > 1e-4) {
-        vA = vA > 0 ? Math.max(0, vA - frictionDecel * dt) : Math.min(0, vA + frictionDecel * dt);
-      }
-      if (Math.abs(vB) > 1e-4) {
-        vB = vB > 0 ? Math.max(0, vB - frictionDecel * dt) : Math.min(0, vB + frictionDecel * dt);
-      }
-
-      let xA = posARef.current + vA * dt;
-      let xB = posBRef.current + vB * dt;
-
-      // 1. Collision detection between Cart A and Cart B
-      // Carts touch when (xA + CART_LEN_M) >= xB
-      if (!localCollided && xA + CART_LEN_M >= xB) {
-        localCollided = true;
-
-        const col = solve1DCollision(
-          effectiveMA,
-          effectiveMB,
-          vA,
-          vB,
-          effectiveRestitution
-        );
-
-        vA = col.vAPrime;
-        vB = col.vBPrime;
-
-        // Separate carts slightly so they don't overlap
-        xA = xB - CART_LEN_M;
-      }
-
-      // If perfectly inelastic and collided, clamp positions together
-      if (localCollided && effectiveRestitution === 0) {
-        vA = vB;
-        xA = xB - CART_LEN_M;
-      }
-
-      // 2. Track bounds (right end stop at TRACK_LEN_M - CART_LEN_M)
-      if (xB >= TRACK_LEN_M - CART_LEN_M - 0.02) {
-        xB = TRACK_LEN_M - CART_LEN_M - 0.02;
-        vB = 0;
-        if (effectiveRestitution === 0) {
-          xA = xB - CART_LEN_M;
-          vA = 0;
-        }
-      }
-
-      posARef.current = xA;
-      posBRef.current = xB;
-      velARef.current = vA;
-      velBRef.current = vB;
-
-      // 3. Photogate 1 checks (Cart A passing Gate 1 before collision)
-      // Flag center is at cart center: xA + CART_LEN_M/2
-      const flagALeft = xA + (CART_LEN_M - FLAG_WIDTH_M) / 2;
-      const flagARight = flagALeft + FLAG_WIDTH_M;
-      const inGate1 = flagALeft <= GATE1_POS_M && flagARight >= GATE1_POS_M;
-      setGate1Active(inGate1);
-
-      if (inGate1 && g1EnterTimeRef.current === null && vA > 0) {
-        g1EnterTimeRef.current = now;
-      } else if (!inGate1 && g1EnterTimeRef.current !== null && p11CalculatedRef.current === null) {
-        const measuredT = (now - g1EnterTimeRef.current) / 1000;
-        const finalT = Math.max(0.01, measuredT);
-        p11CalculatedRef.current = finalT;
-        setP11(finalT);
-      }
-
-      // 4. Photogate 2 checks (Cart B passing Gate 2, then Cart A passing Gate 2)
-      const flagBLeft = xB + (CART_LEN_M - FLAG_WIDTH_M) / 2;
-      const flagBRight = flagBLeft + FLAG_WIDTH_M;
-      const bInGate2 = flagBLeft <= GATE2_POS_M && flagBRight >= GATE2_POS_M;
-      const aInGate2 = flagALeft <= GATE2_POS_M && flagARight >= GATE2_POS_M;
-      setGate2Active(bInGate2 || aInGate2);
-
-      // Gate 2 - Pulse P21 for Cart B
-      if (bInGate2 && g2EnterTimeBRef.current === null && vB > 0) {
-        g2EnterTimeBRef.current = now;
-      } else if (!bInGate2 && g2EnterTimeBRef.current !== null && p21CalculatedRef.current === null) {
-        const measuredT = (now - g2EnterTimeBRef.current) / 1000;
-        const finalT = Math.max(0.01, measuredT);
-        p21CalculatedRef.current = finalT;
-        setP21(finalT);
-      }
-
-      // Gate 2 - Pulse P22 for Cart A (if moving and following)
-      if (hasP22Expected && p21CalculatedRef.current !== null) {
-        if (aInGate2 && g2EnterTimeARef.current === null && vA > 0) {
-          g2EnterTimeARef.current = now;
-        } else if (!aInGate2 && g2EnterTimeARef.current !== null && p22CalculatedRef.current === null) {
-          const measuredT = (now - g2EnterTimeARef.current) / 1000;
-          const finalT = Math.max(0.01, measuredT);
-          p22CalculatedRef.current = finalT;
-          setP22(finalT);
-        }
-      }
-
-      // 5. Complete notification check
-      const readyToComplete =
-        p11CalculatedRef.current !== null &&
-        p21CalculatedRef.current !== null &&
-        (!hasP22Expected || p22CalculatedRef.current !== null || xB >= TRACK_LEN_M - CART_LEN_M - 0.05);
-
-      if (readyToComplete && !callbackFiredRef.current) {
+      // Notification upon trial completion
+      if (cur.completed && !callbackFiredRef.current) {
         callbackFiredRef.current = true;
         if (onCollisionCompleteRef.current) {
-          const finalP11 = p11CalculatedRef.current!;
-          const finalP21 = p21CalculatedRef.current!;
-          const finalP22 = hasP22Expected ? p22CalculatedRef.current : null;
+          const finalP11 = cur.p11!;
+          const finalP21 = cur.p21!;
+          const finalP22 = hasP22Expected ? cur.p22 : null;
 
           const measuredVA = velocityFromGate(FLAG_WIDTH_M, finalP11);
           const measuredVBPrime = velocityFromGate(FLAG_WIDTH_M, finalP21);
@@ -417,14 +347,8 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
         }
       }
 
-      // Update render positions and velocities
-      setRenderPosA(xA);
-      setRenderPosB(xB);
-      setRenderVelA(vA);
-      setRenderVelB(vB);
-
       // Stop condition: both carts stopped or at end
-      if ((Math.abs(vA) < 1e-4 && Math.abs(vB) < 1e-4) && localCollided) {
+      if (cur.stopped) {
         setIsSimulating(false);
         setRenderVelA(0);
         setRenderVelB(0);
@@ -441,10 +365,9 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
     };
   }, [
     isSimulating,
-    compressorOn,
+    config,
     effectiveMA,
     effectiveMB,
-    effectiveRestitution,
     hasP22Expected,
   ]);
 
@@ -573,7 +496,7 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
           </div>
 
           {/* Controls button row */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Air Compressor Toggle */}
             <button
               onClick={() => setCompressorOn((prev) => !prev)}
@@ -587,6 +510,11 @@ export const AirTrackApparatus = forwardRef<AirTrackApparatusRef, AirTrackAppara
               <Wind className={`w-3.5 h-3.5 ${compressorOn ? "animate-spin text-cyan-400" : ""}`} />
               Kompresor: {compressorOn ? "ON" : "OFF"}
             </button>
+
+            <PlaybackSpeedControl
+              speed={activeSpeed}
+              onSpeedChange={handleSpeedChange}
+            />
 
             {/* Launch Cart Button */}
             <button

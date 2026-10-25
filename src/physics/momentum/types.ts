@@ -90,3 +90,42 @@ export interface ModulTrialData {
   ksrP: number; // percentage error of momentum conservation
   restitution: number;
 }
+
+export interface HkmSimulationConfig {
+  effectiveMA: number; // in kg
+  effectiveMB: number; // in kg
+  restitution: number; // [0, 1]
+  launchSpeed: number; // in m/s
+  compressorOn: boolean;
+  frictionDecel?: number; // default 0.005 if compressorOn else 0.85
+  trackLength?: number; // default 1.4 m
+  cartLength?: number; // default 0.12 m
+  flagWidth?: number; // default 0.03 m
+  gate1Pos?: number; // default 0.40 m
+  gate2Pos?: number; // default 0.90 m
+  cartAInitPos?: number; // default 0.15 m
+  cartBInitPos?: number; // default 0.65 m
+  hasP22Expected?: boolean;
+}
+
+export interface HkmSimulationState {
+  t: number; // simulation time in seconds
+  xA: number; // cart A position (m)
+  xB: number; // cart B position (m)
+  vA: number; // cart A velocity (m/s)
+  vB: number; // cart B velocity (m/s)
+  collided: boolean;
+  gate1Active: boolean;
+  gate2Active: boolean;
+  g1EnterTime: number | null;
+  g1ExitTime: number | null;
+  p11: number | null;
+  g2EnterTimeB: number | null;
+  g2ExitTimeB: number | null;
+  p21: number | null;
+  g2EnterTimeA: number | null;
+  g2ExitTimeA: number | null;
+  p22: number | null;
+  completed: boolean;
+  stopped: boolean;
+}
