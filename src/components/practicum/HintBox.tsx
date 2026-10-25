@@ -22,6 +22,13 @@ export function HintBox({ hints, className = "", onHintRevealed }: HintBoxProps)
   const canRevealMore = revealedCount < hints.length;
   const revealedHints = hints.slice(0, revealedCount);
 
+  const handleReveal = () => {
+    if (!canRevealMore) return;
+    const next = revealedCount + 1;
+    setRevealedCount(next);
+    onHintRevealed?.(next);
+  };
+
   return (
     <div
       className={className}
@@ -110,13 +117,7 @@ export function HintBox({ hints, className = "", onHintRevealed }: HintBoxProps)
       {/* Reveal button */}
       {canRevealMore ? (
         <button
-          onClick={() =>
-            setRevealedCount((c) => {
-              const next = c + 1;
-              onHintRevealed?.(next);
-              return next;
-            })
-          }
+          onClick={handleReveal}
           style={{
             alignSelf: "flex-start",
             display: "inline-flex",
