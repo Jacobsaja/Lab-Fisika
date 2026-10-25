@@ -411,6 +411,37 @@ describe("Linear Momentum Physics Core", () => {
       expect(q4Theory.vBPrime).toBeCloseTo(0.2286, 3);
       expect(Math.abs(q4Theory.vAPrime - 0.2286)).toBeLessThanOrEqual(0.015);
     });
+
+    it("caps substeps and resets accumulator under extreme background tab delay to prevent spiral lag", () => {
+      const config: HkmSimulationConfig = {
+        effectiveMA: 0.15,
+        effectiveMB: 0.15,
+        launchSpeed: 0.4,
+        compressorOn: true,
+        restitution: 1.0,
+        gate1Pos: 0.45,
+        gate2Pos: 1.05,
+        flagWidth: 0.03,
+        cartLength: 0.12,
+        trackLength: 1.5,
+        hasP22Expected: false,
+      };
+
+      const initialState = createInitialHkmState(config);
+
+      // 1. Simulate a tab suspended for 15 seconds returning to active
+      const res = advanceHkmSimulation(initialState, config, 15.0, 1.0, 0, DEFAULT_HKM_FIXED_DT);
+
+      // maxWallDt (0.05s) should clamp advance to 50ms (50 substeps)
+      expect(res.state.t).toBeCloseTo(0.05, 4);
+      expect(res.accumulator).toBeLessThan(DEFAULT_HKM_FIXED_DT);
+
+      // 2. When accumulator is artificially huge (> 0.25s), MAX_SUBSTEPS = 250 clamps execution and clears acc
+      const hugeAccRes = advanceHkmSimulation(initialState, config, 0.016, 1.0, 2.0, DEFAULT_HKM_FIXED_DT);
+      expect(hugeAccRes.state.t).toBeCloseTo(250 * DEFAULT_HKM_FIXED_DT, 4);
+      expect(hugeAccRes.accumulator).toBe(0); // debt dropped to prevent spiral lag
+    });
   });
 });
+
 

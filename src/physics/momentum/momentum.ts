@@ -714,10 +714,14 @@ export function advanceHkmSimulation(
   const MAX_SUBSTEPS = 250;
   let steps = 0;
 
-  while (acc >= fixedDt && steps < MAX_SUBSTEPS) {
+  while (acc >= fixedDt - 1e-9 && steps < MAX_SUBSTEPS) {
     curState = stepHkm(curState, config, fixedDt);
-    acc -= fixedDt;
+    acc = Math.max(0, acc - fixedDt);
     steps++;
+  }
+
+  if (steps >= MAX_SUBSTEPS) {
+    acc = 0; // Discard leftover lag debt to avoid spiral of death
   }
 
   return { state: curState, accumulator: acc };
