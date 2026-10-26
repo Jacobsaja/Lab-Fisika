@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import {
   MarkerPoint,
 } from "./ScreenPatternView";
@@ -72,6 +72,22 @@ export function VirtualRulerMarkerTool({
   const activeResolution = isZoomActive
     ? ZOOM_READING_RESOLUTION_MM
     : READING_RESOLUTION_MM;
+
+  // Permanent rule: callback props stored in useRef
+  const onResetMarkersRef = useRef(onResetMarkers);
+  onResetMarkersRef.current = onResetMarkers;
+  const onSelectTnRef = useRef(onSelectTn);
+  onSelectTnRef.current = onSelectTn;
+
+  // Auto-reset when N changes
+  const prevNRef = useRef(N);
+  useEffect(() => {
+    if (prevNRef.current !== N) {
+      prevNRef.current = N;
+      onResetMarkersRef.current?.();
+      onSelectTnRef.current?.(1);
+    }
+  }, [N]);
 
   const activeMarker = useMemo(
     () =>

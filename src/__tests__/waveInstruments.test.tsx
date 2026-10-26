@@ -64,6 +64,58 @@ describe("Wave Optics UI Instruments (Langkah 2)", () => {
       fireEvent.change(slider, { target: { value: "3.2" } });
       expect(handleExposure).toHaveBeenCalledWith(3.2);
     });
+
+    it("calls onResetMarkers and resets active marker when N changes", () => {
+      const handleReset = jest.fn();
+      const handleSelect = jest.fn();
+      const { rerender } = render(
+        <ScreenPatternView
+          N={2}
+          onResetMarkers={handleReset}
+          onSelectMarker={handleSelect}
+        />
+      );
+
+      // Slit changes from N=2 to N=3
+      rerender(
+        <ScreenPatternView
+          N={3}
+          onResetMarkers={handleReset}
+          onSelectMarker={handleSelect}
+        />
+      );
+
+      expect(handleReset).toHaveBeenCalledTimes(1);
+      expect(handleSelect).toHaveBeenCalledWith(1);
+    });
+
+    it("renders light point classification tags (Pusat, Primer, Sekunder) for pins", () => {
+      render(
+        <ScreenPatternView
+          N={3}
+          markers={[
+            { id: "m0", tn: 0, label: "T0", yMm: 0 },
+            { id: "m1", tn: 1, label: "T1", yMm: 1.0 },
+            { id: "m2", tn: 2, label: "T2", yMm: 2.0 },
+          ]}
+        />
+      );
+
+      expect(screen.getByText("Pusat")).toBeInTheDocument();
+      expect(screen.getByText("Sekunder")).toBeInTheDocument();
+      expect(screen.getByText("Primer")).toBeInTheDocument();
+    });
+
+    it("renders standby overlay when laser is turned off (dimmer = 0)", () => {
+      render(
+        <ScreenPatternView
+          N={2}
+          dimmer={0}
+        />
+      );
+
+      expect(screen.getByText(/Laser Nonaktif \(Standby\)/i)).toBeInTheDocument();
+    });
   });
 
   describe("VirtualRulerMarkerTool", () => {

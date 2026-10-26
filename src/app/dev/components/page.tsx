@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Tabs } from "@/components/ui/Tabs";
 import { Modal } from "@/components/ui/Modal";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -115,11 +115,27 @@ export default function DevComponentsPage() {
   const [waveZoomActive, setWaveZoomActive] = useState<boolean>(false);
   const [waveMarkers, setWaveMarkers] = useState<MarkerPoint[]>([
     { id: "m0", tn: 0, label: "T0", yMm: 0 },
-    { id: "m1", tn: 1, label: "T1", yMm: 2.0 },
-    { id: "m2", tn: 2, label: "T2", yMm: 4.0 },
-    { id: "m3", tn: 3, label: "T3", yMm: 6.0 },
-    { id: "m4", tn: 4, label: "T4", yMm: 8.0 },
+    { id: "m1", tn: 1, label: "T1", yMm: 0 },
+    { id: "m2", tn: 2, label: "T2", yMm: 0 },
+    { id: "m3", tn: 3, label: "T3", yMm: 0 },
+    { id: "m4", tn: 4, label: "T4", yMm: 0 },
   ]);
+
+  const handleResetWaveMarkers = useCallback(() => {
+    setWaveMarkers([
+      { id: "m0", tn: 0, label: "T0", yMm: 0 },
+      { id: "m1", tn: 1, label: "T1", yMm: 0 },
+      { id: "m2", tn: 2, label: "T2", yMm: 0 },
+      { id: "m3", tn: 3, label: "T3", yMm: 0 },
+      { id: "m4", tn: 4, label: "T4", yMm: 0 },
+    ]);
+    setWaveActiveTn(1);
+  }, []);
+
+  const handleSelectWaveSlit = useCallback((key: "slit2" | "slit3" | "slit5") => {
+    setWaveSlitKey(key);
+    handleResetWaveMarkers();
+  }, [handleResetWaveMarkers]);
 
   return (
     <div
@@ -384,7 +400,7 @@ export default function DevComponentsPage() {
             <Subsection title="1. Bangku Optik (OpticalBenchApparatus)">
               <OpticalBenchApparatus
                 slitKey={waveSlitKey}
-                onSelectSlit={setWaveSlitKey}
+                onSelectSlit={handleSelectWaveSlit}
                 isLaserOn={waveLaserOn}
                 onToggleLaser={() => setWaveLaserOn(!waveLaserOn)}
                 dimmer={waveDimmer}
@@ -407,6 +423,7 @@ export default function DevComponentsPage() {
                   );
                 }}
                 onSelectMarker={setWaveActiveTn}
+                onResetMarkers={handleResetWaveMarkers}
                 isZoomActive={waveZoomActive}
                 onToggleZoom={() => setWaveZoomActive((prev) => !prev)}
               />
@@ -424,15 +441,7 @@ export default function DevComponentsPage() {
                     prev.map((m) => (m.tn === tn ? { ...m, yMm, isAssisted } : m))
                   );
                 }}
-                onResetMarkers={() => {
-                  setWaveMarkers([
-                    { id: "m0", tn: 0, label: "T0", yMm: 0 },
-                    { id: "m1", tn: 1, label: "T1", yMm: 0 },
-                    { id: "m2", tn: 2, label: "T2", yMm: 0 },
-                    { id: "m3", tn: 3, label: "T3", yMm: 0 },
-                    { id: "m4", tn: 4, label: "T4", yMm: 0 },
-                  ]);
-                }}
+                onResetMarkers={handleResetWaveMarkers}
               />
             </Subsection>
 

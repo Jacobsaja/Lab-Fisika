@@ -9,8 +9,9 @@ import {
   SSG_SLIT_PRESETS,
   fraunhoferIntensity,
   quantizeToResolution,
+  getPatternClassification,
 } from "@/physics/waveOptics";
-import { ZoomIn, Eye, Sun, Maximize2, Crosshair, Sparkles } from "lucide-react";
+import { ZoomIn, Eye, Sun, Maximize2, Crosshair, Sparkles, RotateCcw } from "lucide-react";
 
 export interface MarkerPoint {
   id: string;
@@ -33,6 +34,7 @@ export interface ScreenPatternViewProps {
   activeMarkerTn?: number;
   onMarkerChange?: (tn: number, yMm: number) => void;
   onSelectMarker?: (tn: number) => void;
+  onResetMarkers?: () => void;
   isZoomActive?: boolean;
   onToggleZoom?: () => void;
   readOnly?: boolean;
@@ -58,6 +60,7 @@ export function ScreenPatternView({
   activeMarkerTn = 1,
   onMarkerChange,
   onSelectMarker,
+  onResetMarkers,
   isZoomActive: controlledZoom,
   onToggleZoom,
   readOnly = false,
@@ -85,6 +88,30 @@ export function ScreenPatternView({
 
   const [hoverYMm, setHoverYMm] = useState<number | null>(null);
   const [draggingTn, setDraggingTn] = useState<number | null>(null);
+
+  // Permanent rule: callback props stored in useRef
+  const onMarkerChangeRef = useRef(onMarkerChange);
+  onMarkerChangeRef.current = onMarkerChange;
+  const onSelectMarkerRef = useRef(onSelectMarker);
+  onSelectMarkerRef.current = onSelectMarker;
+  const onResetMarkersRef = useRef(onResetMarkers);
+  onResetMarkersRef.current = onResetMarkers;
+
+  // Auto-reset marker positions and classifications immediately when slit N changes
+  const prevNRef = useRef(N);
+  useEffect(() => {
+    if (prevNRef.current !== N) {
+      prevNRef.current = N;
+      if (onResetMarkersRef.current) {
+        onResetMarkersRef.current();
+      } else if (onMarkerChangeRef.current) {
+        for (let tn = 1; tn <= 4; tn++) {
+          onMarkerChangeRef.current(tn, 0);
+        }
+      }
+      onSelectMarkerRef.current?.(1);
+    }
+  }, [N]);
 
   // Current active resolution
   const activeResolutionMm = isZoomActive
@@ -189,8 +216,9 @@ export function ScreenPatternView({
       const yMeters = yMm * 1e-3;
 
       const physicalI = fraunhoferIntensity(yMeters, lambda, L, a, d, N);
-      // Intensity scaled by laser dimmer (power) and exposure (camera / visual contrast)
-      const visibleI = Math.min(1.0, physicalI * dimmer * exposure);
+      // Perceptual gamma compression (gamma = 0.55) makes secondary peaks easily discernible
+      const gammaI = Math.pow(Math.max(0, physicalI), 0.55);
+      const visibleI = Math.min(1.0, gammaI * dimmer * exposure);
 
       if (visibleI > 0.003) {
         // Core vertical diffraction streak with bloom gradient
@@ -285,23 +313,24 @@ export function ScreenPatternView({
       const yMeters = curMm * 1e-3;
 
       const physicalI = fraunhoferIntensity(yMeters, lambda, L, a, d, N);
-      const visibleI = Math.min(1.0, physicalI * dimmer * exposure);
+      const gammaI = Math.pow(Math.max(0, physicalI), 0.55);
+      const visibleI = Math.min(1.0, gammaI * dimmer * exposure);
 
       if (visibleI > 0.003) {
         const grad = ctx.createLinearGradient(px, centerY - beamHalfH, px, centerY + beamHalfH);
         grad.addColorStop(0, `rgba(${laserRgb}, 0)`);
-        grad.addColorStop(0.3, `rgba(${laserRgb}, ${visibleI * 0.4})`);
+        grad.addColorStop(0.25, `rgba(${laserRgb}, ${visibleI * 0.45})`);
         grad.addColorStop(0.5, `rgba(${laserRgb}, ${visibleI * 0.95})`);
-        grad.addColorStop(0.7, `rgba(${laserRgb}, ${visibleI * 0.4})`);
+        grad.addColorStop(0.75, `rgba(${laserRgb}, ${visibleI * 0.45})`);
         grad.addColorStop(1, `rgba(${laserRgb}, 0)`);
 
         ctx.fillStyle = grad;
         ctx.fillRect(px, centerY - beamHalfH, 1, beamHalfH * 2);
 
-        if (visibleI > 0.5) {
+        if (visibleI > 0.45) {
           const coreH = beamHalfH * 0.35;
-          const coreAlpha = (visibleI - 0.5) * 2;
-          ctx.fillStyle = `rgba(255, 255, 255, ${coreAlpha * 0.8})`;
+          const coreAlpha = (visibleI - 0.45) * 1.8;
+          ctx.fillStyle = `rgba(255, 255, 255, ${coreAlpha * 0.85})`;
           ctx.fillRect(px, centerY - coreH, 1, coreH * 2);
         }
       }
@@ -309,13 +338,19 @@ export function ScreenPatternView({
 
     // Center reticle
     ctx.strokeStyle = "#38bdf8";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.2;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(originX, 0);
     ctx.lineTo(originX, height);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Reticle Center Readout Tag
+    ctx.fillStyle = "rgba(6, 182, 212, 0.9)";
+    ctx.font = "bold 9px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`Target: ${centerFocusMm.toFixed(1)} mm`, originX, 12);
   }, [isZoomActive, hoverYMm, activeMarkerTn, markers, lambda, L, a, d, N, dimmer, exposure, laserRgb]);
 
   // Updates marker position based on a clientX coordinate
@@ -428,6 +463,22 @@ export function ScreenPatternView({
             )}
           </div>
 
+          {/* Reset Markers Button */}
+          {onResetMarkers && (
+            <button
+              type="button"
+              onClick={() => {
+                onResetMarkersRef.current?.();
+                onSelectMarkerRef.current?.(1);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+              title="Reset seluruh posisi penanda ke 0 mm"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+              <span>Reset</span>
+            </button>
+          )}
+
           {/* Toggle Zoom Button */}
           <button
             type="button"
@@ -460,12 +511,75 @@ export function ScreenPatternView({
           className="w-full h-full block"
         />
 
+        {/* Laser Standby Overlay (when laser is turned off) */}
+        {dimmer <= 0 && (
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 text-center p-4 z-40 select-none">
+            <div className="p-2.5 rounded-full bg-slate-900 border border-slate-700 text-slate-400">
+              <Sun className="w-5 h-5 opacity-40" />
+            </div>
+            <div className="text-xs font-bold text-slate-200">
+              Laser Nonaktif (Standby)
+            </div>
+            <p className="text-[11px] text-slate-400 max-w-sm">
+              Nyalakan tombol laser pada Bangku Optik (Instrumen 1) untuk memproyeksikan pola interferensi-difraksi cahaya.
+            </p>
+          </div>
+        )}
+
         {/* Render Markers Overlay */}
         {markers.map((m) => {
           const pct = 50 + (m.yMm / (2 * spanMm)) * 100;
           if (pct < 0 || pct > 100) return null;
           const isSelected = m.tn === activeMarkerTn;
           const isT0 = m.tn === 0;
+          const type = getPatternClassification(m.tn, N);
+          const isSekunder = !isT0 && type === "sekunder";
+          const typeLabel = isT0 ? "Pusat" : isSekunder ? "Sekunder" : "Primer";
+
+          // Dedicated 5-tier vertical stagger guarantees ZERO horizontal collision:
+          // T0: Top row 1 (top: 4px)
+          // T2: Top row 2 (top: 25px)
+          // T4: Top row 3 (top: 46px)
+          // T1: Bottom row 1 (bottom: 4px)
+          // T3: Bottom row 2 (bottom: 25px)
+          const isTopTier = m.tn % 2 === 0;
+          const tierStyle: React.CSSProperties = isTopTier
+            ? { top: m.tn === 0 ? 4 : m.tn === 2 ? 25 : 46 }
+            : { bottom: m.tn === 1 ? 4 : 25 };
+
+          // Theme colors based on light point type (Pusat / Primer / Sekunder)
+          const colorClasses = isT0
+            ? {
+                badge: isSelected
+                  ? "bg-emerald-500 text-black border-emerald-300 ring-2 ring-emerald-400/50 shadow-emerald-500/30"
+                  : "bg-slate-950/95 text-emerald-300 border-emerald-500/60 hover:border-emerald-400",
+                line: isSelected ? "bg-emerald-400 shadow-[0_0_8px_#10b981]" : "bg-emerald-500/50",
+                diamond: isSelected
+                  ? "bg-emerald-400 border-emerald-200 shadow-[0_0_10px_#10b981]"
+                  : "bg-emerald-500/80 border-emerald-400/60",
+                typeTag: "bg-emerald-900/60 text-emerald-200 border-emerald-500/40",
+              }
+            : isSekunder
+            ? {
+                badge: isSelected
+                  ? "bg-purple-500 text-white border-purple-300 ring-2 ring-purple-400/50 shadow-purple-500/30 font-bold"
+                  : "bg-slate-950/95 text-purple-300 border-purple-500/60 hover:border-purple-400",
+                line: isSelected ? "bg-purple-400 shadow-[0_0_8px_#c084fc]" : "bg-purple-500/50",
+                diamond: isSelected
+                  ? "bg-purple-400 border-purple-200 shadow-[0_0_10px_#c084fc]"
+                  : "bg-purple-500/80 border-purple-400/60",
+                typeTag: "bg-purple-900/60 text-purple-200 border-purple-500/40",
+              }
+            : {
+                badge: isSelected
+                  ? "bg-amber-500 text-black border-amber-300 ring-2 ring-amber-400/50 shadow-amber-500/30 font-bold"
+                  : "bg-slate-950/95 text-amber-300 border-amber-500/60 hover:border-amber-400",
+                line: isSelected ? "bg-amber-400 shadow-[0_0_8px_#f59e0b]" : "bg-amber-500/50",
+                diamond: isSelected
+                  ? "bg-amber-400 border-amber-200 shadow-[0_0_10px_#f59e0b]"
+                  : "bg-amber-500/80 border-amber-400/60",
+                typeTag: "bg-amber-900/60 text-amber-200 border-amber-500/40",
+              };
 
           return (
             <div
@@ -476,39 +590,44 @@ export function ScreenPatternView({
                 e.stopPropagation();
                 onSelectMarker?.(m.tn);
               }}
-              className={`absolute top-0 bottom-0 -translate-x-1/2 pointer-events-auto flex flex-col items-center justify-between group/marker ${
-                isT0 ? "cursor-default" : "cursor-ew-resize"
-              }`}
+              className={`absolute top-0 bottom-0 -translate-x-1/2 pointer-events-auto flex flex-col items-center group/marker ${
+                isSelected ? "z-30" : "z-20"
+              } ${isT0 ? "cursor-default" : "cursor-ew-resize"}`}
               title={
                 isT0
-                  ? "T0 (Terang Pusat): titik acuan 0 mm (terkunci)"
-                  : `T${m.tn}: seret untuk mengubah posisi (saat ini ${m.yMm.toFixed(1)} mm)`
+                  ? "T0 (Terang Pusat): titik acuan 0.0 mm (terkunci)"
+                  : `T${m.tn} (${typeLabel}): seret untuk mengubah posisi (saat ini ${m.yMm.toFixed(1)} mm)`
               }
             >
-              {/* Top Pin Label */}
+              {/* Vertical Guide Line through screen */}
               <div
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border shadow-md transition-transform select-none ${
-                  isSelected
-                    ? "bg-amber-500 text-black border-amber-300 scale-110 z-20 shadow-amber-500/30"
-                    : "bg-slate-900/90 text-amber-300 border-amber-500/40 hover:scale-105 z-10"
-                }`}
+                className={`absolute top-0 bottom-0 w-0.5 transition-colors ${colorClasses.line}`}
+              />
+
+              {/* Central Reticle Diamond (aligned exactly with laser optical axis at 50% height) */}
+              <div
+                className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 border transition-transform ${
+                  colorClasses.diamond
+                } ${isSelected ? "scale-125 ring-2 ring-white/50" : "group-hover/marker:scale-110"}`}
+              />
+
+              {/* Dedicated Tiered Flag Badge (Alternating Top / Bottom, Never Overlaps!) */}
+              <div
+                style={tierStyle}
+                className={`absolute px-2 py-0.5 rounded-md text-[10px] font-mono border shadow-lg transition-transform select-none flex items-center gap-1.5 whitespace-nowrap ${
+                  colorClasses.badge
+                } ${isSelected ? "scale-105 z-30" : "group-hover/marker:scale-105"}`}
               >
-                {m.label} ({m.yMm.toFixed(isZoomActive ? 1 : 1)} mm)
+                <span className="font-bold">T{m.tn}</span>
+                <span className="text-[10px] opacity-90">{m.yMm.toFixed(1)} mm</span>
+                <span
+                  className={`text-[8px] px-1 py-0.1 rounded font-sans uppercase font-bold border ${
+                    isSelected ? "bg-black/30 text-white border-white/20" : colorClasses.typeTag
+                  }`}
+                >
+                  {typeLabel}
+                </span>
               </div>
-
-              {/* Vertical Marker Line */}
-              <div
-                className={`w-0.5 flex-1 transition-colors ${
-                  isSelected ? "bg-amber-400 shadow-[0_0_8px_#f59e0b]" : "bg-amber-500/50"
-                }`}
-              />
-
-              {/* Bottom Marker Triangle */}
-              <div
-                className={`w-2.5 h-2.5 rotate-45 mb-1 ${
-                  isSelected ? "bg-amber-400 shadow-[0_0_6px_#f59e0b]" : "bg-amber-500/60"
-                }`}
-              />
             </div>
           );
         })}
@@ -558,11 +677,11 @@ export function ScreenPatternView({
 
       {/* Bottom Controls: Exposure / Contrast & Marker Quick Guidance */}
       <div className="flex flex-wrap items-center justify-between gap-4 pt-1 border-t border-slate-800/60 text-xs">
-        {/* Exposure / Contrast Slider (Available in Explore AND Practicum) */}
-        <div className="flex items-center gap-3">
+        {/* Exposure / Contrast Slider with Quick Presets */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-1.5 text-slate-300">
             <Sun className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-medium">Kontras / Eksposur Layar:</span>
+            <span className="font-medium">Kontras Layar:</span>
           </div>
           <input
             type="range"
@@ -571,21 +690,45 @@ export function ScreenPatternView({
             step={0.1}
             value={exposure}
             onChange={(e) => onExposureChange?.(parseFloat(e.target.value))}
-            className="w-32 accent-amber-500 cursor-pointer"
+            className="w-28 accent-amber-500 cursor-pointer"
             title="Atur kontras kamera untuk memperjelas terang sekunder celah majemuk"
           />
-          <span className="font-mono text-slate-400 text-[11px] w-10">
+          <span className="font-mono text-slate-400 text-[11px] w-8">
             {exposure.toFixed(1)}×
           </span>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">
-            (Naikkan kontras jika terang sekunder N=5 redup)
-          </span>
+
+          {/* Quick presets */}
+          <div className="flex items-center gap-1">
+            {[
+              { label: "1.0× Normal", val: 1.0 },
+              { label: "1.8× Praktikum", val: 1.8 },
+              { label: "3.0× Terang N=5", val: 3.0 },
+            ].map((p) => (
+              <button
+                key={p.val}
+                type="button"
+                onClick={() => onExposureChange?.(p.val)}
+                className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors cursor-pointer ${
+                  Math.abs(exposure - p.val) < 0.05
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/50 font-bold"
+                    : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Tip / Guidance for Marking */}
-        <div className="text-[11px] text-slate-400 italic">
-          💡 Klik pada layar milimeter blok untuk meletakkan penanda titik terang{" "}
-          <strong className="text-amber-400 font-bold">T{activeMarkerTn}</strong>.
+        {/* Dynamic Tip / Guidance with Classification */}
+        <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+          <span className="text-amber-400">💡</span>
+          <span>
+            Klik pada layar atau seret pin untuk memposisikan penanda{" "}
+            <strong className="text-amber-300 font-bold">
+              T{activeMarkerTn} ({activeMarkerTn === 0 ? "Pusat" : getPatternClassification(activeMarkerTn, N)})
+            </strong>.
+          </span>
         </div>
       </div>
     </div>
