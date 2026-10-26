@@ -33,6 +33,8 @@ export interface ScreenPatternViewProps {
   activeMarkerTn?: number;
   onMarkerChange?: (tn: number, yMm: number) => void;
   onSelectMarker?: (tn: number) => void;
+  isZoomActive?: boolean;
+  onToggleZoom?: () => void;
   readOnly?: boolean;
   showSecondaryHighlight?: boolean;
   className?: string;
@@ -41,7 +43,7 @@ export interface ScreenPatternViewProps {
 /**
  * Millimeter block projection screen visualizing physical Fraunhofer diffraction
  * and multi-slit interference patterns with optical bloom, exposure/contrast scaling,
- * digital millimeter ruler, and interactive 0.1 mm precision zoom lens.
+ * digital millimeter ruler, draggable pin markers, and interactive 0.1 mm precision zoom lens.
  */
 export function ScreenPatternView({
   lambda = DEFAULT_LASER_WAVELENGTH,
@@ -53,22 +55,36 @@ export function ScreenPatternView({
   exposure = 1.8, // Default praktikum: secondary peaks N=5 are faint but visible
   onExposureChange,
   markers = [],
-  activeMarkerTn = 0,
+  activeMarkerTn = 1,
   onMarkerChange,
   onSelectMarker,
+  isZoomActive: controlledZoom,
+  onToggleZoom,
   readOnly = false,
   showSecondaryHighlight = false,
   className = "",
 }: ScreenPatternViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const screenRef = useRef<HTMLDivElement | null>(null);
 
   // Screen horizontal span: -12.0 mm to +12.0 mm
   const spanMm = 12.0;
 
-  // Zoom magnifier state
-  const [isZoomActive, setIsZoomActive] = useState<boolean>(false);
+  // Zoom magnifier state (controlled or uncontrolled fallback)
+  const [internalZoomActive, setInternalZoomActive] = useState<boolean>(false);
+  const isZoomActive = controlledZoom !== undefined ? controlledZoom : internalZoomActive;
+
+  const handleToggleZoom = useCallback(() => {
+    if (onToggleZoom) {
+      onToggleZoom();
+    } else {
+      setInternalZoomActive((prev) => !prev);
+    }
+  }, [onToggleZoom]);
+
   const [hoverYMm, setHoverYMm] = useState<number | null>(null);
+  const [draggingTn, setDraggingTn] = useState<number | null>(null);
 
   // Current active resolution
   const activeResolutionMm = isZoomActive
@@ -302,21 +318,61 @@ export function ScreenPatternView({
     ctx.setLineDash([]);
   }, [isZoomActive, hoverYMm, activeMarkerTn, markers, lambda, L, a, d, N, dimmer, exposure, laserRgb]);
 
-  // Handle click on screen to place / move active marker
-  const handleScreenClick = useCallback(
+  // Updates marker position based on a clientX coordinate
+  const updateMarkerFromClientX = useCallback(
+    (clientX: number, targetTn: number) => {
+      if (!screenRef.current || readOnly || onMarkerChange === undefined || targetTn === 0) return;
+      const rect = screenRef.current.getBoundingClientRect();
+      const clickX = clientX - rect.left;
+      const normalizedRatio = Math.max(0, Math.min(1, clickX / rect.width));
+      const rawYMm = (normalizedRatio - 0.5) * (2 * spanMm);
+      const quantizedMm = quantizeToResolution(Math.max(0, rawYMm), activeResolutionMm);
+      onMarkerChange(targetTn, quantizedMm);
+    },
+    [readOnly, onMarkerChange, spanMm, activeResolutionMm]
+  );
+
+  // Global mousemove and mouseup listeners when dragging a marker pin
+  useEffect(() => {
+    if (draggingTn === null) return;
+
+    const handleGlobalMove = (e: MouseEvent) => {
+      updateMarkerFromClientX(e.clientX, draggingTn);
+    };
+
+    const handleGlobalUp = () => {
+      setDraggingTn(null);
+    };
+
+    window.addEventListener("mousemove", handleGlobalMove);
+    window.addEventListener("mouseup", handleGlobalUp);
+    return () => {
+      window.removeEventListener("mousemove", handleGlobalMove);
+      window.removeEventListener("mouseup", handleGlobalUp);
+    };
+  }, [draggingTn, updateMarkerFromClientX]);
+
+  // Handle clicking / dragging directly on the screen
+  const handleScreenMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (readOnly || onMarkerChange === undefined) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const normalizedRatio = clickX / rect.width; // 0 to 1
-      const rawYMm = (normalizedRatio - 0.5) * (2 * spanMm);
-
-      // Quantize to active resolution
-      const quantizedMm = quantizeToResolution(Math.max(0, rawYMm), activeResolutionMm);
-      onMarkerChange(activeMarkerTn, quantizedMm);
+      // If T0 is currently selected, switch to T1 so T0 isn't shifted
+      const targetTn = activeMarkerTn === 0 ? 1 : activeMarkerTn;
+      if (activeMarkerTn === 0) {
+        onSelectMarker?.(1);
+      }
+      updateMarkerFromClientX(e.clientX, targetTn);
+      setDraggingTn(targetTn);
     },
-    [readOnly, onMarkerChange, activeMarkerTn, spanMm, activeResolutionMm]
+    [readOnly, onMarkerChange, activeMarkerTn, onSelectMarker, updateMarkerFromClientX]
   );
+
+  const handlePinMouseDown = (e: React.MouseEvent, tn: number) => {
+    e.stopPropagation();
+    if (readOnly || tn === 0) return;
+    onSelectMarker?.(tn);
+    setDraggingTn(tn);
+  };
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -349,7 +405,7 @@ export function ScreenPatternView({
               </span>
             </h3>
             <p className="text-[11px] text-slate-400">
-              Pola interferensi-difraksi cahaya laser (λ = {(lambda * 1e9).toFixed(0)} nm)
+              Pola interferensi-difraksi cahaya laser (λ = {(lambda * 1e9).toFixed(0)} nm). Klik atau seret jarum penanda langsung pada layar.
             </p>
           </div>
         </div>
@@ -375,8 +431,8 @@ export function ScreenPatternView({
           {/* Toggle Zoom Button */}
           <button
             type="button"
-            onClick={() => setIsZoomActive(!isZoomActive)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+            onClick={handleToggleZoom}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
               isZoomActive
                 ? "bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-400"
                 : "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
@@ -391,8 +447,9 @@ export function ScreenPatternView({
 
       {/* Main Millimeter Block Projection Screen */}
       <div
+        ref={screenRef}
         className="relative w-full h-44 bg-slate-950 rounded-lg overflow-hidden border border-slate-800 shadow-inner cursor-crosshair group select-none"
-        onClick={handleScreenClick}
+        onMouseDown={handleScreenMouseDown}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
@@ -405,27 +462,34 @@ export function ScreenPatternView({
 
         {/* Render Markers Overlay */}
         {markers.map((m) => {
-          // Convert m.yMm to screen percentage:
-          // origin is at 50%
           const pct = 50 + (m.yMm / (2 * spanMm)) * 100;
           if (pct < 0 || pct > 100) return null;
           const isSelected = m.tn === activeMarkerTn;
+          const isT0 = m.tn === 0;
 
           return (
             <div
               key={m.id || `marker-${m.tn}`}
               style={{ left: `${pct}%` }}
+              onMouseDown={(e) => handlePinMouseDown(e, m.tn)}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectMarker?.(m.tn);
               }}
-              className="absolute top-0 bottom-0 -translate-x-1/2 pointer-events-auto flex flex-col items-center justify-between group/marker"
+              className={`absolute top-0 bottom-0 -translate-x-1/2 pointer-events-auto flex flex-col items-center justify-between group/marker ${
+                isT0 ? "cursor-default" : "cursor-ew-resize"
+              }`}
+              title={
+                isT0
+                  ? "T0 (Terang Pusat): titik acuan 0 mm (terkunci)"
+                  : `T${m.tn}: seret untuk mengubah posisi (saat ini ${m.yMm.toFixed(1)} mm)`
+              }
             >
               {/* Top Pin Label */}
               <div
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border shadow-md transition-transform ${
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border shadow-md transition-transform select-none ${
                   isSelected
-                    ? "bg-amber-500 text-black border-amber-300 scale-110 z-20"
+                    ? "bg-amber-500 text-black border-amber-300 scale-110 z-20 shadow-amber-500/30"
                     : "bg-slate-900/90 text-amber-300 border-amber-500/40 hover:scale-105 z-10"
                 }`}
               >
@@ -441,8 +505,8 @@ export function ScreenPatternView({
 
               {/* Bottom Marker Triangle */}
               <div
-                className={`w-2 h-2 rotate-45 mb-1 ${
-                  isSelected ? "bg-amber-400" : "bg-amber-500/60"
+                className={`w-2.5 h-2.5 rotate-45 mb-1 ${
+                  isSelected ? "bg-amber-400 shadow-[0_0_6px_#f59e0b]" : "bg-amber-500/60"
                 }`}
               />
             </div>

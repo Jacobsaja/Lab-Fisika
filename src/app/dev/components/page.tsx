@@ -112,6 +112,7 @@ export default function DevComponentsPage() {
   const [waveDimmer, setWaveDimmer] = useState<number>(1.0);
   const [waveLaserOn, setWaveLaserOn] = useState<boolean>(true);
   const [waveActiveTn, setWaveActiveTn] = useState<number>(1);
+  const [waveZoomActive, setWaveZoomActive] = useState<boolean>(false);
   const [waveMarkers, setWaveMarkers] = useState<MarkerPoint[]>([
     { id: "m0", tn: 0, label: "T0", yMm: 0 },
     { id: "m1", tn: 1, label: "T1", yMm: 2.0 },
@@ -406,6 +407,8 @@ export default function DevComponentsPage() {
                   );
                 }}
                 onSelectMarker={setWaveActiveTn}
+                isZoomActive={waveZoomActive}
+                onToggleZoom={() => setWaveZoomActive((prev) => !prev)}
               />
             </Subsection>
 
@@ -415,6 +418,7 @@ export default function DevComponentsPage() {
                 markers={waveMarkers}
                 activeTn={waveActiveTn}
                 onSelectTn={setWaveActiveTn}
+                isZoomActive={waveZoomActive}
                 onUpdateMarker={(tn, yMm, isAssisted) => {
                   setWaveMarkers((prev) =>
                     prev.map((m) => (m.tn === tn ? { ...m, yMm, isAssisted } : m))

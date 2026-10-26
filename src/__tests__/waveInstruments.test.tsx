@@ -117,6 +117,78 @@ describe("Wave Optics UI Instruments (Langkah 2)", () => {
       // For N = 2, T1 is 2.0181 mm -> quantized to 0.5 mm is 2.0 mm
       expect(handleUpdate).toHaveBeenCalledWith(1, 2.0, true);
     });
+
+    it("displays locked message when T0 is active and navigates to T1", () => {
+      const handleSelectTn = jest.fn();
+      render(
+        <VirtualRulerMarkerTool
+          N={2}
+          activeTn={0}
+          markers={[
+            { id: "m0", tn: 0, label: "T0", yMm: 0 },
+            { id: "m1", tn: 1, label: "T1", yMm: 0 },
+          ]}
+          onSelectTn={handleSelectTn}
+          onUpdateMarker={jest.fn()}
+          onResetMarkers={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText(/Terang Pusat \(T₀\) = 0.0 mm/i)).toBeInTheDocument();
+      const nextBtn = screen.getByRole("button", { name: /Mulai Ukur Terang T₁/i });
+      fireEvent.click(nextBtn);
+      expect(handleSelectTn).toHaveBeenCalledWith(1);
+    });
+
+    it("updates position via interactive range slider", () => {
+      const handleUpdate = jest.fn();
+      render(
+        <VirtualRulerMarkerTool
+          N={2}
+          activeTn={1}
+          markers={[
+            { id: "m0", tn: 0, label: "T0", yMm: 0 },
+            { id: "m1", tn: 1, label: "T1", yMm: 0 },
+          ]}
+          onSelectTn={jest.fn()}
+          onUpdateMarker={handleUpdate}
+          onResetMarkers={jest.fn()}
+        />
+      );
+
+      const slider = screen.getByTitle(/Geser posisi T1/i);
+      fireEvent.change(slider, { target: { value: "3.5" } });
+      expect(handleUpdate).toHaveBeenCalledWith(1, 3.5, false);
+    });
+
+    it("triggers Bantu Semua Puncak and auto-calculates all peaks", () => {
+      const handleUpdate = jest.fn();
+      render(
+        <VirtualRulerMarkerTool
+          N={2}
+          activeTn={1}
+          markers={[
+            { id: "m0", tn: 0, label: "T0", yMm: 0 },
+            { id: "m1", tn: 1, label: "T1", yMm: 0 },
+            { id: "m2", tn: 2, label: "T2", yMm: 0 },
+            { id: "m3", tn: 3, label: "T3", yMm: 0 },
+            { id: "m4", tn: 4, label: "T4", yMm: 0 },
+          ]}
+          onSelectTn={jest.fn()}
+          onUpdateMarker={handleUpdate}
+          onResetMarkers={jest.fn()}
+        />
+      );
+
+      const assistAllBtn = screen.getByRole("button", { name: /Bantu Semua Puncak/i });
+      fireEvent.click(assistAllBtn);
+      // Should update T0 to 0, and T1 to T4 with quantized peaks
+      expect(handleUpdate).toHaveBeenCalledWith(0, 0, true);
+      expect(handleUpdate).toHaveBeenCalledWith(1, 2.0, true);
+      expect(handleUpdate).toHaveBeenCalledWith(2, 4.0, true);
+      expect(handleUpdate).toHaveBeenCalledWith(3, 6.0, true);
+      expect(handleUpdate).toHaveBeenCalledWith(4, 8.0, true);
+    });
   });
 
   describe("IntensityProfileGraph", () => {
