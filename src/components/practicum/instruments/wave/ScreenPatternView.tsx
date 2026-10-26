@@ -109,7 +109,30 @@ export function ScreenPatternView({
     const pxPerMm = width / (2 * spanMm);
     const originX = width / 2;
 
-    // Sub-millimeter & millimeter lines
+    // Draw millimeter horizontal grid lines (authentic millimeter block paper grid)
+    for (let mmH = -10; mmH <= 10; mmH++) {
+      const y = centerY + mmH * pxPerMm;
+      if (y >= 0 && y <= height) {
+        const isCenter = mmH === 0;
+        const isFive = mmH % 5 === 0;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        if (isCenter) {
+          ctx.strokeStyle = "rgba(6, 182, 212, 0.35)";
+          ctx.lineWidth = 1;
+        } else if (isFive) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+          ctx.lineWidth = 0.8;
+        } else {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
+          ctx.lineWidth = 0.5;
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Sub-millimeter & millimeter vertical lines
     for (let mm = -Math.floor(spanMm); mm <= Math.floor(spanMm); mm++) {
       const x = originX + mm * pxPerMm;
       const isOrigin = mm === 0;
@@ -120,33 +143,25 @@ export function ScreenPatternView({
       ctx.lineTo(x, height);
 
       if (isOrigin) {
-        ctx.strokeStyle = "rgba(6, 182, 212, 0.7)"; // Cyan center line
+        ctx.strokeStyle = "rgba(6, 182, 212, 0.75)"; // Cyan center origin line
         ctx.lineWidth = 1.5;
       } else if (isFiveMm) {
         ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
         ctx.lineWidth = 1;
       } else {
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.045)";
         ctx.lineWidth = 0.5;
       }
       ctx.stroke();
 
       // Millimeter numbers along bottom
       if (isFiveMm || isOrigin) {
-        ctx.fillStyle = isOrigin ? "#38bdf8" : "rgba(255, 255, 255, 0.4)";
+        ctx.fillStyle = isOrigin ? "#38bdf8" : "rgba(255, 255, 255, 0.5)";
         ctx.font = isOrigin ? "bold 10px monospace" : "9px monospace";
         ctx.textAlign = "center";
         ctx.fillText(`${mm > 0 ? "+" : ""}${mm}`, x, height - 6);
       }
     }
-
-    // Horizontal center beam track
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(width, centerY);
-    ctx.stroke();
 
     // Render Fraunhofer diffraction/interference pattern
     // Compute intensity per pixel column
