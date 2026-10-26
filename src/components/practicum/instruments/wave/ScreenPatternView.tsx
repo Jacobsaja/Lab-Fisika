@@ -10,6 +10,7 @@ import {
   fraunhoferIntensity,
   quantizeToResolution,
   getPatternClassification,
+  wavelengthToRgb,
 } from "@/physics/waveOptics";
 import { ZoomIn, Eye, Sun, Maximize2, Crosshair, Sparkles, RotateCcw } from "lucide-react";
 
@@ -27,6 +28,7 @@ export interface ScreenPatternViewProps {
   a?: number;
   d?: number;
   N?: number;
+  spanMm?: number; // Screen horizontal span (-spanMm to +spanMm, default 12.0 mm)
   dimmer?: number; // 0.1 to 1.0
   exposure?: number; // 0.5 to 5.0 (gain / contrast multiplier)
   onExposureChange?: (val: number) => void;
@@ -53,6 +55,7 @@ export function ScreenPatternView({
   a = SSG_SLIT_PRESETS.slit2.a,
   d = SSG_SLIT_PRESETS.slit2.d,
   N = 2,
+  spanMm = 12.0,
   dimmer = 1.0,
   exposure = 1.8, // Default praktikum: secondary peaks N=5 are faint but visible
   onExposureChange,
@@ -70,9 +73,6 @@ export function ScreenPatternView({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const screenRef = useRef<HTMLDivElement | null>(null);
-
-  // Screen horizontal span: -12.0 mm to +12.0 mm
-  const spanMm = 12.0;
 
   // Zoom magnifier state (controlled or uncontrolled fallback)
   const [internalZoomActive, setInternalZoomActive] = useState<boolean>(false);
@@ -119,15 +119,7 @@ export function ScreenPatternView({
     : READING_RESOLUTION_MM;
 
   // Converts wavelength in meters to RGB string for visual realism
-  const laserRgb = useMemo(() => {
-    const nm = lambda * 1e9;
-    if (nm < 480) return "139, 92, 246"; // Violet / blue
-    if (nm < 510) return "6, 182, 212";  // Cyan
-    if (nm < 560) return "34, 197, 94";  // Green
-    if (nm < 590) return "234, 179, 8";  // Yellow
-    if (nm < 620) return "249, 115, 22"; // Orange
-    return "239, 68, 68";                // Red 632 nm
-  }, [lambda]);
+  const laserRgb = useMemo(() => wavelengthToRgb(lambda * 1e9), [lambda]);
 
   // Main canvas rendering
   useEffect(() => {

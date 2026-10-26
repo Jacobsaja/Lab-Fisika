@@ -472,3 +472,60 @@ export function findFraunhoferPeakNumerical(
   const yContinuousMm = yContinuousMeters * 1000;
   return quantizeToResolution(yContinuousMm, resolutionMm);
 }
+
+// ─── Visual Rendering Helpers (Wavelength Mapping & Adaptive Screen Span) ────
+
+/**
+ * Maps optical wavelength in nanometers (400 - 700 nm) to an RGB color string "r, g, b".
+ *
+ * NOTE: This is a simplified perceptual color approximation for educational UI visualization,
+ * mapping visible spectrum bands (violet, cyan, green, yellow, orange, red).
+ */
+export function wavelengthToRgb(lambdaNm: number): string {
+  if (lambdaNm < 480) return "139, 92, 246"; // Violet / Blue (e.g. 405 nm)
+  if (lambdaNm < 510) return "6, 182, 212";  // Cyan (e.g. 488 nm)
+  if (lambdaNm < 560) return "34, 197, 94";  // Green (e.g. 532 nm)
+  if (lambdaNm < 590) return "234, 179, 8";  // Yellow (e.g. 589 nm)
+  if (lambdaNm < 620) return "249, 115, 22"; // Orange (e.g. 605 nm)
+  return "239, 68, 68";                      // Red (e.g. 632.8 nm He-Ne)
+}
+
+/**
+ * Maps optical wavelength in nanometers to a Hex color string "#rrggbb".
+ */
+export function wavelengthToHex(lambdaNm: number): string {
+  if (lambdaNm < 480) return "#8b5cf6";
+  if (lambdaNm < 510) return "#06b6d4";
+  if (lambdaNm < 560) return "#22c55e";
+  if (lambdaNm < 590) return "#eab308";
+  if (lambdaNm < 620) return "#f97316";
+  return "#ef4444";
+}
+
+/**
+ * Calculates optimal projection screen horizontal span (+/- spanMm)
+ * so that multiple interference / diffraction orders remain clearly visible
+ * across wide parameter variations (lambda 400-700nm, L 0.5-3.0m, a 0.02-0.2mm, d 0.1-1.0mm).
+ *
+ * Scaling Rules:
+ * - For N = 1 (single-slit): scaled by diffraction width y_diff = lambda * L / a
+ * - For N >= 2 (multi-slit): scaled by primary interference order y_interf = lambda * L / d
+ * - Clamped within safe visual range [6.0 mm, 30.0 mm] to preserve digital millimeter paper readability.
+ */
+export function calculateAdaptiveScreenSpanMm(
+  lambda: number,
+  L: number,
+  a: number,
+  d: number,
+  N: number
+): number {
+  if (N <= 1) {
+    const yDark1Mm = ((lambda * L) / Math.max(1e-6, a)) * 1000;
+    const target = yDark1Mm * 2.5;
+    return Math.max(6.0, Math.min(30.0, Math.round(target)));
+  }
+  const yPrim1Mm = ((lambda * L) / Math.max(1e-6, d)) * 1000;
+  const target = yPrim1Mm * 3.5;
+  return Math.max(6.0, Math.min(30.0, Math.round(target)));
+}
+

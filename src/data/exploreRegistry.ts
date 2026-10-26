@@ -95,6 +95,14 @@ export const EXPLORE_REGISTRY: Record<string, ExploreModule> = {
     available: true,
     desc: "Eksplorasi hubungan antara gaya tarik, massa total, dan percepatan (F = m·a) serta tegangan tali pada sistem rel udara dan katrol.",
     category: "mekanika"
+  },
+  "ssg": {
+    id: "ssg",
+    title: "Sifat-Sifat Gelombang",
+    route: "/explore/gelombang/ssg",
+    available: true,
+    desc: "Eksplorasi interferensi dan difraksi cahaya laser melalui celah tunggal dan celah majemuk (N = 1-6). Amati profil intensitas Fraunhofer dan pola proyeksi milimeter blok.",
+    category: "gelombang"
   }
 };
 
