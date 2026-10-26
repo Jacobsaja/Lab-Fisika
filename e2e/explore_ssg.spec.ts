@@ -39,35 +39,63 @@ test.describe("Explore Wave Optics (SSG) - E2E Smoke & Responsiveness", () => {
       await expect(page.getByRole("heading", { name: /Sifat-Sifat Gelombang/i })).toBeVisible();
       await expect(page.getByText("Panel Keluaran Numerik")).toBeVisible();
 
+      // Verify ScreenPatternView has single clean header and NO marker pins/presets in Explore
+      await expect(page.getByText("Layar Proyeksi", { exact: true })).toBeVisible();
+      await expect(page.getByText(/1 kotak = 1 mm/i)).toBeVisible();
+      await expect(page.getByText("1.0× Normal")).toHaveCount(0);
+      await expect(page.getByText(/Klik atau seret jarum penanda/i)).toHaveCount(0);
+
       // Ensure zero unhandled console errors
       expect(consoleErrors).toHaveLength(0);
     });
   }
 
-  test("interactive controls: N selection, slider bounds, formula comparison toggle", async ({ page }) => {
+  test("interactive controls: N selection, slider bounds, formula comparison toggle, hover readout, and zoom", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/explore/gelombang/ssg");
     await page.waitForLoadState("domcontentloaded");
 
-    // 1. Switch to N = 1 (Single Slit)
+    // 1. Verify hover over screen canvas displays hairline and coordinate readout
+    const screenCanvas = page.locator(".cursor-crosshair canvas").first();
+    await expect(screenCanvas).toBeVisible();
+    await screenCanvas.hover({ position: { x: 500, y: 80 } });
+    await expect(page.getByText(/y = /i).first()).toBeVisible();
+    await expect(page.getByText(/I\/I0 = /i).first()).toBeVisible();
+
+    // 2. Toggle Kaca Pembesar -> shows "Reset zoom" and "resolusi aktif: 0,1 mm"
+    const zoomBtn = page.getByRole("button", { name: /Kaca pembesar/i });
+    await zoomBtn.click();
+    await expect(page.getByRole("button", { name: /Reset zoom/i })).toBeVisible();
+    await expect(page.getByText(/resolusi aktif: 0,1 mm/i)).toBeVisible();
+
+    // Click Reset zoom
+    const resetZoomBtn = page.getByRole("button", { name: /Reset zoom/i });
+    await resetZoomBtn.click();
+    await expect(resetZoomBtn).toBeVisible();
+
+    // Close zoom
+    await page.getByRole("button", { name: /Tutup zoom/i }).click();
+    await expect(page.getByRole("button", { name: /Reset zoom/i })).toHaveCount(0);
+
+    // 3. Switch to N = 1 (Single Slit)
     const btnN1 = page.getByRole("button", { name: "1", exact: true });
     await btnN1.click();
     await expect(page.getByText(/N = 1 \(Celah Tunggal\)/i)).toBeVisible();
     await expect(page.getByLabel(/Jarak Antar-Celah/i)).toBeDisabled();
 
-    // 2. Switch to N = 5 (5 Slits)
+    // 4. Switch to N = 5 (5 Slits)
     const btnN5 = page.getByRole("button", { name: "5", exact: true });
     await btnN5.click();
     await expect(page.getByText(/N = 5 \(Celah Majemuk\)/i)).toBeVisible();
     await expect(page.getByLabel(/Jarak Antar-Celah/i)).toBeEnabled();
 
-    // 3. Toggle "Bandingkan dengan Rumus Modul"
+    // 5. Toggle "Bandingkan dengan Rumus Modul"
     const compareCheckbox = page.getByLabel(/Bandingkan dengan Rumus Modul/i);
     await compareCheckbox.check();
     await expect(page.getByText(/Perbandingan: Puncak Fraunhofer vs Rumus Modul/i)).toBeVisible();
     await expect(page.getByText(/Catatan Fisika Penting:/i)).toBeVisible();
 
-    // 4. Reset Button restores defaults
+    // 6. Reset Button restores defaults
     const resetBtn = page.getByRole("button", { name: /Reset Parameter/i });
     await resetBtn.click();
     await expect(page.getByText(/N = 2 \(Celah Majemuk\)/i)).toBeVisible();

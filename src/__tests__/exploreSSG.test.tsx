@@ -149,4 +149,59 @@ describe("Explore SSG Page UI & Invariants", () => {
     expect(screen.getByText(/Perbandingan: Puncak Fraunhofer vs Rumus Modul/i)).toBeInTheDocument();
     expect(screen.getByText(/Catatan Fisika Penting:/i)).toBeInTheDocument();
   });
+
+  it("presents clean projection screen in explore mode without markers, preset buttons, or drag tips", () => {
+    render(<SSGExplorePage />);
+
+    // Single unified header
+    expect(screen.getByText("Layar Proyeksi")).toBeInTheDocument();
+    expect(screen.getByText(/1 kotak = 1 mm/i)).toBeInTheDocument();
+
+    // No marker pins T0-T4 or drag instructions in Explore
+    expect(screen.queryByText(/T0 \(Terang Pusat\)/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Klik atau seret jarum penanda/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1.0× Normal/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1.8× Praktikum/i)).not.toBeInTheDocument();
+
+    // Only "Kaca pembesar" toggle present initially
+    const zoomToggle = screen.getByRole("button", { name: /Kaca pembesar/i });
+    expect(zoomToggle).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Reset zoom/i })).not.toBeInTheDocument();
+
+    // Toggle zoom -> "Reset zoom" and "resolusi aktif: 0,1 mm" appear
+    fireEvent.click(zoomToggle);
+    expect(screen.getByRole("button", { name: /Reset zoom/i })).toBeInTheDocument();
+    expect(screen.getByText(/resolusi aktif: 0,1 mm/i)).toBeInTheDocument();
+  });
+
+  it("renders single hairline readout on cursor hover/touch over screen canvas", () => {
+    const { container } = render(<SSGExplorePage />);
+
+    const screenCanvasDiv = container.querySelector(".cursor-crosshair") as HTMLDivElement;
+    expect(screenCanvasDiv).toBeInTheDocument();
+
+    // Mock bounding rect: width = 800, left = 0
+    screenCanvasDiv.getBoundingClientRect = jest.fn(() => ({
+      width: 800,
+      height: 176,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 176,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    }));
+
+    // Hover over canvas
+    fireEvent.mouseMove(screenCanvasDiv, { clientX: 480 });
+
+    // Expect floating hairline readout with coordinate y and normalized intensity I/I0
+    expect(screen.getByText(/y = /i)).toBeInTheDocument();
+    expect(screen.getByText(/I\/I0 =/i)).toBeInTheDocument();
+
+    // Mouse leave removes the hairline
+    fireEvent.mouseLeave(screenCanvasDiv);
+    expect(screen.queryByText(/y = /i)).not.toBeInTheDocument();
+  });
 });

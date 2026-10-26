@@ -116,6 +116,44 @@ describe("Wave Optics UI Instruments (Langkah 2)", () => {
 
       expect(screen.getByText(/Laser Nonaktif \(Standby\)/i)).toBeInTheDocument();
     });
+
+    it("distinguishes mode 'practicum' (renders markers, presets, drag tip) vs mode 'explore' (no markers, clean header)", () => {
+      // 1. Practicum mode
+      const { rerender } = render(
+        <ScreenPatternView
+          mode="practicum"
+          N={2}
+          markers={[
+            { id: "m0", tn: 0, label: "T0", yMm: 0 },
+            { id: "m1", tn: 1, label: "T1", yMm: 2.0 },
+          ]}
+        />
+      );
+
+      expect(screen.getByText("T0")).toBeInTheDocument();
+      expect(screen.getByText("T1")).toBeInTheDocument();
+      expect(screen.getByText("1.0× Normal")).toBeInTheDocument();
+      expect(screen.getByText(/Klik pada layar atau seret pin/i)).toBeInTheDocument();
+
+      // 2. Explore mode
+      rerender(
+        <ScreenPatternView
+          mode="explore"
+          N={2}
+          markers={[
+            { id: "m0", tn: 0, label: "T0", yMm: 0 },
+            { id: "m1", tn: 1, label: "T1", yMm: 2.0 },
+          ]}
+        />
+      );
+
+      // In explore mode, markers, presets, and drag instructions are NOT rendered
+      expect(screen.queryByText("T0")).not.toBeInTheDocument();
+      expect(screen.queryByText("T1")).not.toBeInTheDocument();
+      expect(screen.queryByText("1.0× Normal")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Klik pada layar atau seret pin/i)).not.toBeInTheDocument();
+      expect(screen.getByText("Layar Proyeksi")).toBeInTheDocument();
+    });
   });
 
   describe("VirtualRulerMarkerTool", () => {

@@ -625,40 +625,21 @@ export default function SSGExplorePage() {
             </div>
 
             {/* 2. Projection Screen (ScreenPatternView) */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                <span className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-cyan-400" />
-                  <span>2. Layar Proyeksi Milimeter Blok</span>
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">
-                  Rentang Layar: ±{activeSpanMm.toFixed(1)} mm
-                </span>
-              </div>
-              <ScreenPatternView
-                lambda={lambdaSI}
-                L={LM}
-                a={aSI}
-                d={dSI}
-                N={N}
-                spanMm={activeSpanMm}
-                dimmer={laserOn ? dimmer : 0}
-                exposure={exposure}
-                onExposureChange={setExposure}
-                markers={markers}
-                activeMarkerTn={activeMarkerTn}
-                onMarkerChange={(tn, yMm) => {
-                  setMarkers((prev) =>
-                    prev.map((m) => (m.tn === tn ? { ...m, yMm } : m))
-                  );
-                }}
-                onSelectMarker={setActiveMarkerTn}
-                onResetMarkers={handleResetMarkers}
-                isZoomActive={zoomActive}
-                onToggleZoom={() => setZoomActive((prev) => !prev)}
-                showSecondaryHighlight={showSecondaryHighlight}
-              />
-            </div>
+            <ScreenPatternView
+              mode="explore"
+              lambda={lambdaSI}
+              L={LM}
+              a={aSI}
+              d={dSI}
+              N={N}
+              spanMm={activeSpanMm}
+              dimmer={laserOn ? dimmer : 0}
+              exposure={exposure}
+              onExposureChange={setExposure}
+              isZoomActive={zoomActive}
+              onToggleZoom={() => setZoomActive((prev) => !prev)}
+              showSecondaryHighlight={showSecondaryHighlight}
+            />
 
             {/* 3. Intensity Profile Graph (IntensityProfileGraph) */}
             <div className="flex flex-col gap-2">
