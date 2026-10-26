@@ -366,14 +366,17 @@ export function getKthNonMultipleOfN(m: number, N: number): number {
 }
 
 /**
- * Golden Section Search to find local maximum of fn(y) within interval [a, b].
+ * Golden Section Search to find the local maximum of fn(y) within interval [a, b].
+ *
+ * Uses strict x-axis bracket tolerance tol = 1e-12 (xatol) and up to 100 iterations,
+ * ensuring high precision (< 0.1 um) even on broad / gently-curved secondary peaks.
  */
-function goldenSectionMax(
+export function goldenSectionMax(
   fn: (y: number) => number,
   a: number,
   b: number,
-  tol = 1e-9,
-  maxIter = 60
+  tol = 1e-12,
+  maxIter = 100
 ): number {
   const phi = (1 + Math.sqrt(5)) / 2;
   const resphi = 2 - phi;
