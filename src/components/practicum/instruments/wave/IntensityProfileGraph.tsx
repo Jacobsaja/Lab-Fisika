@@ -136,20 +136,25 @@ export function IntensityProfileGraph({
     return { pathData, envelopePathData, peakPoints: peaks, minimaPoints: minima };
   }, [lambda, L, a, d, N, spanMm, plotW, plotH, padding.left, padding.top]);
 
-  // Handle mouse move to display (y, I) readout
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  // Handle mouse move to display (y, I) readout with exact SVG viewBox coordinate mapping
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
+    if (!rect || rect.width <= 0) return;
+    const clientX = e.clientX - rect.left;
+    const svgX = (clientX / rect.width) * graphW;
+
     const originX = padding.left + plotW / 2;
     const pxPerMm = (plotW / 2) / spanMm;
 
-    const yMm = (mouseX - originX) / pxPerMm;
+    const yMm = (svgX - originX) / pxPerMm;
     if (Math.abs(yMm) <= spanMm) {
       const yM = yMm * 1e-3;
       const I = fraunhoferIntensity(yM, lambda, L, a, d, N);
       const xPx = originX + yMm * pxPerMm;
       const yPx = padding.top + plotH * (1 - I);
       setHoverData({ yMm, I, xPx, yPx });
+    } else {
+      setHoverData(null);
     }
   };
 
@@ -218,12 +223,14 @@ export function IntensityProfileGraph({
       </div>
 
       {/* Main SVG Graph */}
-      <div className="relative w-full overflow-hidden bg-slate-950/80 rounded-lg border border-slate-800 select-none">
+      <div
+        className="relative w-full overflow-hidden bg-slate-950/80 rounded-lg border border-slate-800 select-none cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <svg
           viewBox={`0 0 ${graphW} ${graphH}`}
-          className="w-full h-auto block"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
+          className="w-full h-auto block pointer-events-none"
         >
           {/* Subtle Grid Lines */}
           {yTicks.map((t) => (

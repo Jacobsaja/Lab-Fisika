@@ -209,6 +209,31 @@ describe("Wave Optics UI Instruments (Langkah 2)", () => {
       expect(screen.getByText("T1")).toBeInTheDocument();
       expect(screen.getByText("T2")).toBeInTheDocument();
     });
+
+    it("handles mouse hover and displays scaled coordinate readout", () => {
+      const { container } = render(
+        <IntensityProfileGraph
+          N={2}
+          spanMm={10}
+        />
+      );
+
+      const graphDiv = container.querySelector(".cursor-crosshair")!;
+      graphDiv.getBoundingClientRect = jest.fn(() => ({
+        width: 1520,
+        height: 440,
+        top: 0,
+        left: 0,
+        right: 1520,
+        bottom: 440,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      }));
+
+      fireEvent.mouseMove(graphDiv, { clientX: 790, clientY: 100 });
+      expect(screen.getByText(/I\/I₀:/i)).toBeInTheDocument();
+    });
   });
 
   describe("OpticalBenchApparatus", () => {
