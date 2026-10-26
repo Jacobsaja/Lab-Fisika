@@ -11,6 +11,13 @@ import { ExperimentTimer } from "@/components/practicum/ExperimentTimer";
 import { DataTable, type ColumnDef } from "@/components/practicum/DataTable";
 import { QuestionCard, type Question } from "@/components/practicum/QuestionCard";
 import { Compass, FlaskConical } from "lucide-react";
+import {
+  ScreenPatternView,
+  VirtualRulerMarkerTool,
+  IntensityProfileGraph,
+  OpticalBenchApparatus,
+  MarkerPoint,
+} from "@/components/practicum/instruments/wave";
 
 // ─── DUMMY DATA (dev only) ─────────────────────────────────────────────────────
 
@@ -89,6 +96,7 @@ const NAV_TABS = [
   { id: "table", label: "DataTable" },
   { id: "questions", label: "QuestionCard" },
   { id: "cards", label: "ModeCard" },
+  { id: "wave", label: "Wave Optics (SSG)" },
 ];
 
 export default function DevComponentsPage() {
@@ -97,6 +105,20 @@ export default function DevComponentsPage() {
   const [numberValue, setNumberValue] = useState(9.8);
   const [sliderValue, setSliderValue] = useState(0.5);
   const [pendulumRows, setPendulumRows] = useState<PendulumRow[]>([]);
+
+  // Wave Optics (SSG) dev states
+  const [waveSlitKey, setWaveSlitKey] = useState<"slit2" | "slit3" | "slit5">("slit2");
+  const [waveExposure, setWaveExposure] = useState<number>(1.8);
+  const [waveDimmer, setWaveDimmer] = useState<number>(1.0);
+  const [waveLaserOn, setWaveLaserOn] = useState<boolean>(true);
+  const [waveActiveTn, setWaveActiveTn] = useState<number>(1);
+  const [waveMarkers, setWaveMarkers] = useState<MarkerPoint[]>([
+    { id: "m0", tn: 0, label: "T0", yMm: 0 },
+    { id: "m1", tn: 1, label: "T1", yMm: 2.0 },
+    { id: "m2", tn: 2, label: "T2", yMm: 4.0 },
+    { id: "m3", tn: 3, label: "T3", yMm: 6.0 },
+    { id: "m4", tn: 4, label: "T4", yMm: 8.0 },
+  ]);
 
   return (
     <div
@@ -352,6 +374,72 @@ export default function DevComponentsPage() {
                 isNew
               />
             </div>
+          </Section>
+        )}
+
+        {/* ── Wave Optics (SSG) Instruments ── */}
+        {activeTab === "wave" && (
+          <Section title="Wave Optics (SSG) Apparatus & Instruments">
+            <Subsection title="1. Bangku Optik (OpticalBenchApparatus)">
+              <OpticalBenchApparatus
+                slitKey={waveSlitKey}
+                onSelectSlit={setWaveSlitKey}
+                isLaserOn={waveLaserOn}
+                onToggleLaser={() => setWaveLaserOn(!waveLaserOn)}
+                dimmer={waveDimmer}
+                onDimmerChange={setWaveDimmer}
+                distanceL={1.6}
+              />
+            </Subsection>
+
+            <Subsection title="2. Layar Proyeksi Milimeter Blok (ScreenPatternView)">
+              <ScreenPatternView
+                N={waveSlitKey === "slit2" ? 2 : waveSlitKey === "slit3" ? 3 : 5}
+                dimmer={waveLaserOn ? waveDimmer : 0}
+                exposure={waveExposure}
+                onExposureChange={setWaveExposure}
+                markers={waveMarkers}
+                activeMarkerTn={waveActiveTn}
+                onMarkerChange={(tn, yMm) => {
+                  setWaveMarkers((prev) =>
+                    prev.map((m) => (m.tn === tn ? { ...m, yMm } : m))
+                  );
+                }}
+                onSelectMarker={setWaveActiveTn}
+              />
+            </Subsection>
+
+            <Subsection title="3. Alat Ukur Penanda Titik Terang (VirtualRulerMarkerTool)">
+              <VirtualRulerMarkerTool
+                N={waveSlitKey === "slit2" ? 2 : waveSlitKey === "slit3" ? 3 : 5}
+                markers={waveMarkers}
+                activeTn={waveActiveTn}
+                onSelectTn={setWaveActiveTn}
+                onUpdateMarker={(tn, yMm, isAssisted) => {
+                  setWaveMarkers((prev) =>
+                    prev.map((m) => (m.tn === tn ? { ...m, yMm, isAssisted } : m))
+                  );
+                }}
+                onResetMarkers={() => {
+                  setWaveMarkers([
+                    { id: "m0", tn: 0, label: "T0", yMm: 0 },
+                    { id: "m1", tn: 1, label: "T1", yMm: 0 },
+                    { id: "m2", tn: 2, label: "T2", yMm: 0 },
+                    { id: "m3", tn: 3, label: "T3", yMm: 0 },
+                    { id: "m4", tn: 4, label: "T4", yMm: 0 },
+                  ]);
+                }}
+              />
+            </Subsection>
+
+            <Subsection title="4. Grafik Profil Intensitas Fraunhofer (IntensityProfileGraph)">
+              <IntensityProfileGraph
+                N={waveSlitKey === "slit2" ? 2 : waveSlitKey === "slit3" ? 3 : 5}
+                spanMm={10}
+                showEnvelope={true}
+                showPeakLabels={true}
+              />
+            </Subsection>
           </Section>
         )}
       </div>
