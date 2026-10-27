@@ -10,13 +10,14 @@ export interface StudentCalcColumn {
   precision?: number;
   highlightHeaderClass?: string;
   placeholder?: string;
+  readOnly?: boolean;
 }
 
 export interface StudentCalcRow {
   rowId: string | number;
   label: string;
   values: Record<string, string>;
-  expected?: Record<string, number | undefined>;
+  expected?: Record<string, number | null | undefined>;
 }
 
 export interface StudentCalculationTableProps {
@@ -61,13 +62,20 @@ export function StudentCalculationTable({
 
     rows.forEach((row) => {
       columns.forEach((col) => {
+        if (col.readOnly) return;
+        if (row.expected && row.expected[col.key] === null) return;
+
         totalFields++;
         const cellId = `${row.rowId}_${col.key}`;
         const enteredVal = row.values[col.key] ?? "";
         const expectedVal = row.expected?.[col.key];
         const isAssisted = !!assistedCells[cellId];
 
-        if (expectedVal !== undefined && validateStudentCalculation(enteredVal, expectedVal)) {
+        if (
+          expectedVal !== undefined &&
+          expectedVal !== null &&
+          validateStudentCalculation(enteredVal, expectedVal)
+        ) {
           if (isAssisted) {
             assistedCount++;
           } else {
@@ -181,13 +189,36 @@ export function StudentCalculationTable({
                   {columns.map((col) => {
                     const cellId = `${row.rowId}_${col.key}`;
                     const val = row.values[col.key] ?? "";
+
+                    if (col.readOnly) {
+                      return (
+                        <td key={col.key} className="p-2 text-slate-300 font-mono">
+                          <span className="px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg inline-block min-w-[70px] text-center">
+                            {val || "-"}
+                          </span>
+                        </td>
+                      );
+                    }
+
+                    const isNotApplicable = row.expected && row.expected[col.key] === null;
+                    if (isNotApplicable) {
+                      return (
+                        <td key={col.key} className="p-2 text-center text-slate-500 font-mono">
+                          <span className="px-2.5 py-1 bg-slate-950/50 border border-slate-800/60 text-slate-500 rounded-lg inline-block min-w-[70px] text-center">
+                            -
+                          </span>
+                        </td>
+                      );
+                    }
+
                     const expectedNum = row.expected?.[col.key];
                     const isAssisted = !!assistedCells[cellId];
                     const accurate =
-                      hasValidated && expectedNum !== undefined
+                      hasValidated && expectedNum !== undefined && expectedNum !== null
                         ? validateStudentCalculation(val, expectedNum)
                         : false;
-                    const hasError = hasValidated && expectedNum !== undefined && !accurate;
+                    const hasError =
+                      hasValidated && expectedNum !== undefined && expectedNum !== null && !accurate;
 
                     let visualStyle = "bg-slate-950 border-slate-700 text-white focus:border-cyan-400";
                     if (hasValidated) {
@@ -203,7 +234,9 @@ export function StudentCalculationTable({
                     }
 
                     const placeholderText =
-                      process.env.NODE_ENV === "development" && expectedNum !== undefined
+                      process.env.NODE_ENV === "development" &&
+                      expectedNum !== undefined &&
+                      expectedNum !== null
                         ? `K: ${expectedNum.toFixed(col.precision ?? 3)}`
                         : col.placeholder ?? "0.000";
 

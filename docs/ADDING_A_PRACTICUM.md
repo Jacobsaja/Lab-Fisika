@@ -38,6 +38,7 @@ All animated physics simulations (both in **Explore** and **Practicum** modes) M
 ### 3. Default Speeds by Module Type
 - High-acceleration or gravity drop simulations (e.g., GJB Free Fall, Rolling Motion): default `0.5×` for immediate visual clarity.
 - Standard dynamics (e.g., Atwood, GMB, HKM, HKEM, Torsional Oscillations): default `1.0×`.
+- Static optical and measurement experiments (e.g., Sifat-Sifat Gelombang - SSG): Static optical apparatus without moving dynamic bodies. The student header timer (`ExperimentTimer`) operates in real-world wall clock time, and playback speed controls are omitted by design as there is no moving mechanical time dimension.
 
 ### 4. Background Tab Lag & Substep Clamping
 - When fixed-step substepping is used (e.g., HKM with $dt = 1\text{ ms}$), clamp `dtWall` per frame (e.g., `Math.min(dtWall, 0.05)`) and cap substeps per frame (e.g., `MAX_SUBSTEPS = 250`).

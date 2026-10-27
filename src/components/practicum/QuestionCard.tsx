@@ -72,7 +72,12 @@ export function checkNumeric(
 export function checkText(answer: string, keywords: string[], minLength = 0): boolean {
   if (answer.trim().length < minLength) return false;
   const lower = answer.toLowerCase();
-  return keywords.every((kw) => lower.includes(kw.toLowerCase()));
+  return keywords.every((kw) => {
+    if (kw.includes("|")) {
+      return kw.split("|").some((syn) => lower.includes(syn.trim().toLowerCase()));
+    }
+    return lower.includes(kw.toLowerCase());
+  });
 }
 
 export function checkMultipleChoice(selectedIndex: number, correctIndex: number): boolean {
