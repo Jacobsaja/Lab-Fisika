@@ -96,7 +96,8 @@ describe("SSG Practicum - Question Keyword Validation (Tahap 5)", () => {
       checkText(
         "Pola interferensi akan melebar karena jarak terang berbanding lurus dengan L",
         q1.keywords,
-        q1.minLength
+        q1.minLength,
+        q1.forbiddenKeywords
       )
     ).toBe(true);
 
@@ -104,18 +105,39 @@ describe("SSG Practicum - Question Keyword Validation (Tahap 5)", () => {
       checkText(
         "Jarak antar terang bertambah lebar sebanding dengan pertambahan jarak layar L",
         q1.keywords,
-        q1.minLength
+        q1.minLength,
+        q1.forbiddenKeywords
       )
     ).toBe(true);
 
-    // Incorrect variations
+    // Incorrect / irrelevant variations
     expect(
-      checkText("Pola menyempit dan semakin rapat", q1.keywords, q1.minLength)
+      checkText("Pola menyempit dan semakin rapat", q1.keywords, q1.minLength, q1.forbiddenKeywords)
     ).toBe(false);
 
-    expect(checkText("Tidak ada pengaruh sama sekali", q1.keywords, q1.minLength)).toBe(
-      false
-    );
+    expect(
+      checkText("Tidak ada pengaruh sama sekali", q1.keywords, q1.minLength, q1.forbiddenKeywords)
+    ).toBe(false);
+
+    // Contradictory / opposite answers (using 'menyempit' for L diperbesar)
+    expect(
+      checkText(
+        "Pola interferensi akan menyempit karena jarak terang berbanding lurus dengan L",
+        q1.keywords,
+        q1.minLength,
+        q1.forbiddenKeywords
+      )
+    ).toBe(false);
+
+    // Keyword stuffing / dumping all keywords without consistent direction
+    expect(
+      checkText(
+        "Pola interferensi melebar dan menyempit karena jarak terang sebanding dengan L",
+        q1.keywords,
+        q1.minLength,
+        q1.forbiddenKeywords
+      )
+    ).toBe(false);
   });
 
   test("Q2 (L diperkecil) accepts honest reasoning with 'menyempit/rapat' and 'sebanding'", () => {
@@ -124,7 +146,8 @@ describe("SSG Practicum - Question Keyword Validation (Tahap 5)", () => {
       checkText(
         "Pola akan menyempit karena jarak pita terang sebanding dengan L",
         q2.keywords,
-        q2.minLength
+        q2.minLength,
+        q2.forbiddenKeywords
       )
     ).toBe(true);
 
@@ -132,13 +155,34 @@ describe("SSG Practicum - Question Keyword Validation (Tahap 5)", () => {
       checkText(
         "Garis terang semakin rapat dan mengecil berbanding lurus dengan L",
         q2.keywords,
-        q2.minLength
+        q2.minLength,
+        q2.forbiddenKeywords
       )
     ).toBe(true);
 
+    // Opposite answer (claiming 'melebar' when L diperkecil) must be strictly rejected
+    expect(
+      checkText(
+        "Pola interferensi akan melebar karena jarak terang berbanding lurus dengan L",
+        q2.keywords,
+        q2.minLength,
+        q2.forbiddenKeywords
+      )
+    ).toBe(false);
+
+    // Keyword stuffing / dumping both 'melebar' and 'menyempit'
+    expect(
+      checkText(
+        "Pola interferensi melebar dan menyempit karena jarak terang sebanding dengan L",
+        q2.keywords,
+        q2.minLength,
+        q2.forbiddenKeywords
+      )
+    ).toBe(false);
+
     // Incorrect variations
     expect(
-      checkText("Pola semakin melebar dan membesar", q2.keywords, q2.minLength)
+      checkText("Pola semakin melebar dan membesar", q2.keywords, q2.minLength, q2.forbiddenKeywords)
     ).toBe(false);
   });
 });

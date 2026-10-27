@@ -243,7 +243,7 @@ export function estimatedPatternPosition(
 }
 
 /**
- * Relative Uncertainty Percentage (Kesalahan Relatif / KSR%):
+ * Relative Uncertainty Percentage (Ketidakpastian Relatif / KSR%):
  * KSR% = |y_teori - y_praktikum| / y_teori * 100%.
  *
  * Returns `null` if y_teori === 0 (or |y_teori| < 1e-9), such as at Tn = 0 (central maximum).

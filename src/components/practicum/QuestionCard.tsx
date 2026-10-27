@@ -27,6 +27,8 @@ export interface TextQuestion extends BaseQuestion {
   type: "text";
   /** Keywords that must appear (case-insensitive) */
   keywords: string[];
+  /** Optional forbidden keywords that must NOT appear (case-insensitive) to prevent contradictions or keyword dumping */
+  forbiddenKeywords?: string[];
   minLength?: number;
 }
 
@@ -69,9 +71,30 @@ export function checkNumeric(
   return Math.abs((userValue - expected) / expected) <= tolerance;
 }
 
-export function checkText(answer: string, keywords: string[], minLength = 0): boolean {
+export function checkText(
+  answer: string,
+  keywords: string[],
+  minLength = 0,
+  forbiddenKeywords?: string[]
+): boolean {
   if (answer.trim().length < minLength) return false;
   const lower = answer.toLowerCase();
+
+  // If forbidden keywords are specified, reject if ANY forbidden keyword appears in the answer
+  if (forbiddenKeywords && forbiddenKeywords.length > 0) {
+    const hasForbidden = forbiddenKeywords.some((kw) => {
+      if (kw.includes("|")) {
+        return kw.split("|").some((syn) => {
+          const s = syn.trim().toLowerCase();
+          return s.length > 0 && lower.includes(s);
+        });
+      }
+      const k = kw.trim().toLowerCase();
+      return k.length > 0 && lower.includes(k);
+    });
+    if (hasForbidden) return false;
+  }
+
   return keywords.every((kw) => {
     if (kw.includes("|")) {
       return kw.split("|").some((syn) => lower.includes(syn.trim().toLowerCase()));
@@ -121,7 +144,7 @@ export function QuestionCard({
       correct = checkNumeric(val, q.expectedValue, q.tolerance, q.toleranceType);
     } else if (question.type === "text") {
       const q = question as TextQuestion;
-      correct = checkText(textInput, q.keywords, q.minLength);
+      correct = checkText(textInput, q.keywords, q.minLength, q.forbiddenKeywords);
     } else if (question.type === "multiple-choice") {
       const q = question as MultipleChoiceQuestion;
       if (selectedOption === null) return;

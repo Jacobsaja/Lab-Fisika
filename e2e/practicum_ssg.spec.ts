@@ -156,7 +156,7 @@ test.describe("Practicum SSG (Wave Optics) - E2E Smoke & Responsiveness", () => 
 
     // Neutral explanation panel on N=5 secondary peak shift
     await expect(page.getByText(/Catatan Fisika: Mengapa KSR Terang Sekunder N = 5 Lebih Besar\?/i)).toBeVisible();
-    await expect(page.getByText(/\+81 µm pada T1/i)).toBeVisible();
+    await expect(page.getByText(/0,5869 mm \(T1\)/i)).toBeVisible();
 
     // Comparison table
     await expect(page.getByText(/Perbandingan Nilai: Fraunhofer Sebenarnya vs Rumus Modul/i)).toBeVisible();

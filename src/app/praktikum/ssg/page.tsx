@@ -60,11 +60,11 @@ export const SSG_CONFIG: PracticumConfig = {
   category: "Gelombang",
   recommendedDurationSec: 2400, // 40 mins
   introduction:
-    "Praktikum ini mempelajari karakteristik gelombang elektromagnetik melalui fenomena interferensi dan difraksi cahaya monokromatis pada celah ganda (N=2) dan celah majemuk (N=3, N=5). Dengan berkas laser semikonduktor (λ = 632 nm) pada jarak layar L = 1,6 m, Anda akan mengamati pita-pita terang pusat, utama, dan sekunder pada kertas milimeter blok, menentukan posisinya dengan penanda digital presisi, serta mengevaluasi kesesuaian rumus teoretis celah majemuk melalui perhitungan Kesalahan Relatif (KSR%).",
+    "Praktikum ini mempelajari karakteristik gelombang elektromagnetik melalui fenomena interferensi dan difraksi cahaya monokromatis pada celah ganda (N=2) dan celah majemuk (N=3, N=5). Dengan berkas laser semikonduktor (λ = 632 nm) pada jarak layar L = 1,6 m, Anda akan mengamati pita-pita terang pusat, primer, dan sekunder pada kertas milimeter blok, menentukan posisinya dengan penanda digital presisi, serta mengevaluasi kesesuaian rumus teoretis celah majemuk melalui perhitungan Ketidakpastian Relatif (KSR%).",
   objectives: [
-    "Mengamati dan menganalisis pola interferensi serta difraksi cahaya monokromatis pada celah ganda (N=2) dan celah majemuk (N=3, N=5).",
-    "Menentukan posisi garis terang pusat (T0), terang sekunder (Ts), dan terang utama (Tu) pada layar milimeter blok.",
-    "Menghitung nilai teoretis jarak terang y dan Kesalahan Relatif (KSR%) dari data pengukuran mandiri.",
+    "Mengetahui dan memahami konsep dasar gelombang berdasarkan sifat-sifat fisisnya.",
+    "Memahami fenomena interferensi dan difraksi cahaya melalui pengamatan pola garis terang dan gelap.",
+    "Menganalisis karakteristik posisi pola terang berdasarkan hasil percobaan menggunakan celah majemuk.",
   ],
   instructions: [
     "Tahap 1: Pahami tujuan modul dan formulasi celah majemuk.",
@@ -97,9 +97,12 @@ export const SSG_CONFIG: PracticumConfig = {
         "lebar|melebar|bertambah|besar",
         "sebanding|lurus|pembilang|proporsional",
       ],
+      forbiddenKeywords: [
+        "sempit|menyempit|rapat|merapat|mengecil|berkurang",
+      ],
       minLength: 15,
       feedbackHint:
-        "Ingat bahwa jarak terang y berbanding lurus dengan L (y ∝ L). Jika L diperbesar, jarak antar garis terang bertambah sehingga pola interferensi melebar.",
+        "Ingat bahwa jarak terang y berbanding lurus dengan L (y ∝ L). Jika L diperbesar, jarak antar garis terang bertambah sehingga pola interferensi melebar (bukan menyempit).",
     },
     {
       id: "ssg-q2",
@@ -107,12 +110,15 @@ export const SSG_CONFIG: PracticumConfig = {
       prompt:
         "Bagaimana pengaruh jarak celah ke layar (L) terhadap pola interferensi jika L diperkecil? Jelaskan hubungannya berdasarkan rumus jarak terang y!",
       keywords: [
-        "sempit|menyempit|rapat|merapat|berkurang|mengecil",
-        "sebanding|lurus|proporsional|berkurang",
+        "sempit|menyempit|rapat|merapat|mengecil",
+        "sebanding|lurus|proporsional|pembilang",
+      ],
+      forbiddenKeywords: [
+        "lebar|melebar|membesar|renggang",
       ],
       minLength: 15,
       feedbackHint:
-        "Karena y sebanding dengan L, memperkecil nilai L akan memperkecil jarak antar terang, menyebabkan pola garis terang menyempit atau semakin rapat.",
+        "Karena y sebanding dengan L, memperkecil nilai L akan memperkecil jarak antar terang, menyebabkan pola garis terang menyempit atau semakin rapat (bukan melebar).",
     },
   ],
   simulationType: "WaveOptics",
@@ -422,7 +428,7 @@ export default function SSGPracticumPage() {
 
       return [0, 1, 2, 3, 4].map((tn) => {
         const isPrimary = tn === 0 || tn % (slit.N - 1) === 0;
-        const polaLabel = tn === 0 ? "Terang Pusat" : isPrimary ? "Terang Utama (Primer)" : "Terang Sekunder";
+        const polaLabel = tn === 0 ? "Terang Pusat" : isPrimary ? "Terang Primer" : "Terang Sekunder";
 
         // y_praktikum from Tahap 3
         const yPrak = measurements ? measurements[tn] ?? 0 : 0;
@@ -548,7 +554,7 @@ export default function SSGPracticumPage() {
                 <div className="p-6 rounded-2xl bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-purple-950/40 border border-blue-500/20">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="p-2.5 rounded-xl bg-blue-500/20 border border-blue-500/40 text-blue-400">
-                      <BookOpen className="w-5 h-5" />
+                      <BookOpen className="w-7 h-7" />
                     </div>
                     <div>
                       <h2 className="text-xl font-bold text-white">Ringkasan Teori & Formulasi Celah Majemuk</h2>
@@ -567,7 +573,7 @@ export default function SSGPracticumPage() {
                       </div>
                       <div className="text-base text-cyan-200 font-bold">n(Ts) = N - 2</div>
                       <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
-                        Jumlah terang sekunder yang berada di antara dua terang utama yang berdekatan.
+                        Jumlah terang sekunder yang berada di antara dua terang primer yang berdekatan.
                       </p>
                     </div>
 
@@ -585,7 +591,7 @@ export default function SSGPracticumPage() {
                     <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
                       <div className="text-emerald-400 font-bold font-sans flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        Kesalahan Relatif
+                        Ketidakpastian Relatif
                       </div>
                       <div className="text-sm text-emerald-200 font-bold">KSR = |(yTeori - yPrak) / yTeori| × 100%</div>
                       <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
@@ -916,6 +922,16 @@ export default function SSGPracticumPage() {
                 </div>
               </div>
 
+              {/* Informational Guidance Banner if not all slits recorded */}
+              {!allSlitsRecorded && (
+                <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2 text-xs text-amber-300 font-mono">
+                  <Info className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>
+                    Tandai posisi T0 s/d T4 lalu klik <strong>&quot;Salin Hasil Pengukuran ke Tabel&quot;</strong> pada ketiga celah (Celah II, Celah III, Celah IIIII) untuk membuka tombol lanjut ke tahap perhitungan.
+                  </span>
+                </div>
+              )}
+
               {/* Success Notification Banner */}
               {copySuccessMessage && (
                 <div className="p-3 bg-emerald-950/80 border border-emerald-500/60 rounded-xl flex items-center gap-2 text-xs font-mono text-emerald-300 animate-slide-up">
@@ -1013,7 +1029,7 @@ export default function SSGPracticumPage() {
                     Tahap 4: Perhitungan Mandiri Siswa (Tabel 11.1, 11.2, 11.3)
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Hitung nilai teoretis y_teori = [Tn / (N - 1)] · (λL / d) dan Kesalahan Relatif KSR%. Validasi toleransi ±2% dievaluasi terhadap nilai y_praktikum Anda sendiri.
+                    Hitung nilai teoretis y_teori = [Tn / (N - 1)] · (λL / d) dan Ketidakpastian Relatif KSR%. Validasi toleransi ±2% dievaluasi terhadap nilai y_praktikum Anda sendiri.
                   </p>
                 </div>
 
@@ -1164,14 +1180,14 @@ export default function SSGPracticumPage() {
                   </p>
                   <ul className="list-disc list-inside space-y-1.5 pl-2 text-slate-400 font-mono text-[11px]">
                     <li>
-                      <strong className="text-slate-200">Model Rumus Modul:</strong> Mengasumsikan puncak-puncak sekunder membagi rata jarak antar terang utama secara linier: <span className="text-amber-300">y(T1, 5) = ¼·(λL/d) = 0,506 mm</span>.
+                      <strong className="text-slate-200">Model Rumus Modul:</strong> Mengasumsikan puncak-puncak sekunder membagi rata jarak antar terang primer secara linier: <span className="text-amber-300">y(T1, 5) = ¼·(λL/d) = 0,5056 mm</span> dan <span className="text-amber-300">y(T3, 5) = ¾·(λL/d) = 1,5168 mm</span>.
                     </li>
                     <li>
-                      <strong className="text-slate-200">Fisika Fraunhofer Nyata:</strong> Intensitas sesungguhnya merupakan perkalian faktor interferensi kisi dengan selubung difraksi celah tunggal: <span className="text-cyan-300">I(y) = sinc²(β) · [sin(Nα)/(N·sin α)]²</span>. Kemiringan selubung difraksi dan penyebut sin²(α) menggeser puncak sekunder fisik absolut ke arah luar sekitar <strong className="text-emerald-400">+81 µm pada T1 (y ≈ 0,587 mm)</strong> dan <strong className="text-emerald-400">-81 µm pada T3</strong>.
+                      <strong className="text-slate-200">Fisika Kisi & Fraunhofer Nyata:</strong> Faktor kisi murni <span className="text-cyan-300">[sin(Nα)/(N·sin α)]²</span> untuk N=5 secara analitis menghasilkan puncak sekunder di posisi <strong className="text-emerald-400">y = 0,5869 mm (T1)</strong> dan <strong className="text-emerald-400">y = 1,4355 mm (T3)</strong>. Nilai ini sama dengan profil Fraunhofer lengkap (selubung difraksi celah tunggal sinc²(β) hanya menggeser posisi puncak sebesar ~0,1 µm). Selisih terhadap rumus modul (0,5056 mm dan 1,5168 mm) murni berasal dari asumsi pembagian rata linier pada rumus modul, bukan akibat selubung difraksi.
                     </li>
                   </ul>
                   <p className="text-[11px] text-slate-400 italic">
-                    Pergeseran fisik ini membuktikan bahwa cahaya merambat dan berdifraksi secara kontinu sesuai optika gelombang Maxwell, bukan sekadar garis diskrit sederhana.
+                    Perbedaan ini menunjukkan bahwa puncak interferensi kisi multi-celah pada optika gelombang tidak terdistribusi merata secara linier.
                   </p>
                 </div>
               </div>
