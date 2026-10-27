@@ -90,6 +90,7 @@ export default function SSGExplorePage() {
   const [showSecondaryHighlight, setShowSecondaryHighlight] = useState<boolean>(true);
   const [showEnvelope, setShowEnvelope] = useState<boolean>(true);
   const [showMinimaMarkers, setShowMinimaMarkers] = useState<boolean>(true);
+  const [showGeometry, setShowGeometry] = useState<boolean>(false);
 
   // ─── Draggable Screen Markers ──────────────────────────────────────────────
   const [activeMarkerTn, setActiveMarkerTn] = useState<number>(1);
@@ -150,6 +151,7 @@ export default function SSGExplorePage() {
     setDimmer(DEFAULT_DIMMER);
     setLaserOn(true);
     setAutoScaleScreen(true);
+    setShowGeometry(false);
     handleResetMarkers();
   }, [handleResetMarkers]);
 
@@ -595,34 +597,22 @@ export default function SSGExplorePage() {
 
           {/* ════════ RIGHT COLUMN: Interactive Instruments (8 Cols) ════════ */}
           <div className="lg:col-span-8 flex flex-col gap-6">
-            {/* 1. Optical Bench Visual Overview */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                <span className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-amber-400" />
-                  <span>1. Bangku Optik Virtual (Optical Bench)</span>
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">
-                  L = {LM.toFixed(2)} m
-                </span>
-              </div>
-              <OpticalBenchApparatus
-                slitKey={slitKeyMapped}
-                onSelectSlit={(key) => {
-                  const preset = SSG_SLIT_PRESETS[key];
-                  if (preset) {
-                    setN(preset.N);
-                    setAMm(preset.a * 1000);
-                    setDMm(preset.d * 1000);
-                  }
-                }}
-                isLaserOn={laserOn}
-                onToggleLaser={() => setLaserOn(!laserOn)}
-                dimmer={dimmer}
-                onDimmerChange={setDimmer}
-                distanceL={LM}
-              />
-            </div>
+            {/* 1. Bangku Optik Virtual (Hero Apparatus) */}
+            <OpticalBenchApparatus
+              mode="explore"
+              slitKey={slitKeyMapped}
+              lambdaNm={lambdaNm}
+              N={N}
+              aMm={aMm}
+              dMm={dMm}
+              distanceL={LM}
+              isLaserOn={laserOn}
+              onToggleLaser={() => setLaserOn(!laserOn)}
+              dimmer={dimmer}
+              onDimmerChange={setDimmer}
+              showGeometry={showGeometry}
+              onToggleGeometry={() => setShowGeometry((prev) => !prev)}
+            />
 
             {/* 2. Projection Screen (ScreenPatternView) */}
             <ScreenPatternView

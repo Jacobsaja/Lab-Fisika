@@ -327,17 +327,18 @@ describe("Wave Optics UI Instruments (Langkah 2)", () => {
   });
 
   describe("OpticalBenchApparatus", () => {
-    it("renders bench rail, laser diode status, distance L = 1.60 m, and allows slit switching", () => {
+    it("renders bench rail, laser diode status, distance L = 1.60 m, and allows slit switching in practicum mode", () => {
       const handleSelectSlit = jest.fn();
       render(
         <OpticalBenchApparatus
           slitKey="slit2"
           onSelectSlit={handleSelectSlit}
           distanceL={1.6}
+          mode="practicum"
         />
       );
 
-      expect(screen.getByText(/Bangku Optik & Sumber Laser/i)).toBeInTheDocument();
+      expect(screen.getByText(/^Bangku Optik$/i)).toBeInTheDocument();
       expect(screen.getByText("L = 1.60 m")).toBeInTheDocument();
       expect(screen.getByText("Celah II (N=2)")).toBeInTheDocument();
 
@@ -345,6 +346,134 @@ describe("Wave Optics UI Instruments (Langkah 2)", () => {
       const slit3Btn = screen.getByRole("button", { name: /^Celah III \(N=3\)/i });
       fireEvent.click(slit3Btn);
       expect(handleSelectSlit).toHaveBeenCalledWith("slit3");
+    });
+
+    it("dynamically updates laser label, color, and badge based on lambdaNm", () => {
+      const { rerender } = render(
+        <OpticalBenchApparatus
+          lambdaNm={532}
+          isLaserOn={true}
+          distanceL={1.6}
+        />
+      );
+
+      // Verify label Laser 532 nm is present and NO static 632 nm is shown
+      expect(screen.getByText("Laser 532 nm")).toBeInTheDocument();
+      expect(screen.queryByText(/632 nm/i)).not.toBeInTheDocument();
+
+      // Rerender with 400 nm (violet)
+      rerender(
+        <OpticalBenchApparatus
+          lambdaNm={400}
+          isLaserOn={true}
+          distanceL={1.6}
+        />
+      );
+      expect(screen.getByText("Laser 400 nm")).toBeInTheDocument();
+      expect(screen.queryByText(/532 nm/i)).not.toBeInTheDocument();
+
+      // Rerender with 700 nm (red)
+      rerender(
+        <OpticalBenchApparatus
+          lambdaNm={700}
+          isLaserOn={true}
+          distanceL={1.6}
+        />
+      );
+      expect(screen.getByText("Laser 700 nm")).toBeInTheDocument();
+    });
+
+    it("turns off beam and updates status when isLaserOn is false or dimmer is 0", () => {
+      const handleToggle = jest.fn();
+      const { rerender } = render(
+        <OpticalBenchApparatus
+          isLaserOn={false}
+          onToggleLaser={handleToggle}
+          dimmer={1.0}
+        />
+      );
+
+      expect(screen.getByText(/Laser:\s*Mati/i)).toBeInTheDocument();
+      // Beam fan notice text should NOT be rendered when laser is off
+      expect(screen.queryByText("skema, tidak berskala")).not.toBeInTheDocument();
+
+      // Dimmer 0
+      rerender(
+        <OpticalBenchApparatus
+          isLaserOn={true}
+          onToggleLaser={handleToggle}
+          dimmer={0}
+        />
+      );
+      expect(screen.queryByText("skema, tidak berskala")).not.toBeInTheDocument();
+    });
+
+    it("renders slit count N dynamically for N = 1 through 6 in disc and inset", () => {
+      const { rerender } = render(
+        <OpticalBenchApparatus
+          N={1}
+          aMm={0.04}
+          dMm={0.5}
+        />
+      );
+
+      expect(screen.getByText("Celah Tunggal (N=1)")).toBeInTheDocument();
+      expect(screen.getByText("Perbesar Celah (N = 1)")).toBeInTheDocument();
+
+      // Test N = 4
+      rerender(
+        <OpticalBenchApparatus
+          N={4}
+          aMm={0.04}
+          dMm={0.5}
+        />
+      );
+      expect(screen.getByText("Piringan Celah (N=4)")).toBeInTheDocument();
+      expect(screen.getByText("Perbesar Celah (N = 4)")).toBeInTheDocument();
+
+      // Test N = 6
+      rerender(
+        <OpticalBenchApparatus
+          N={6}
+          aMm={0.04}
+          dMm={0.5}
+        />
+      );
+      expect(screen.getByText("Piringan Celah (N=6)")).toBeInTheDocument();
+      expect(screen.getByText("Perbesar Celah (N = 6)")).toBeInTheDocument();
+    });
+
+    it("hides slit pills in explore mode and toggles geometry diagram", () => {
+      const handleToggleGeom = jest.fn();
+      const { rerender } = render(
+        <OpticalBenchApparatus
+          mode="explore"
+          N={2}
+          showGeometry={false}
+          onToggleGeometry={handleToggleGeom}
+        />
+      );
+
+      // In explore mode, bottom pills "Pilih Piringan Celah:" should NOT be present
+      expect(screen.queryByText("Pilih Piringan Celah:")).not.toBeInTheDocument();
+
+      // Geometry toggle button is available
+      const geomBtn = screen.getByRole("button", { name: /diagram geometri/i });
+      expect(geomBtn).toBeInTheDocument();
+      fireEvent.click(geomBtn);
+      expect(handleToggleGeom).toHaveBeenCalledTimes(1);
+
+      // When showGeometry is true, ray optics annotations appear
+      rerender(
+        <OpticalBenchApparatus
+          mode="explore"
+          N={2}
+          showGeometry={true}
+          onToggleGeometry={handleToggleGeom}
+        />
+      );
+      expect(screen.getByText(/Δr = d·sin\(θ\) = λ/i)).toBeInTheDocument();
+      expect(screen.getByText("Titik P (Orde 1)")).toBeInTheDocument();
     });
   });
 });

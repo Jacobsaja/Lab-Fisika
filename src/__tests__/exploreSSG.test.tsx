@@ -88,7 +88,7 @@ describe("Explore SSG Page UI & Invariants", () => {
 
     // Default lambda 632 nm and N = 2
     expect(screen.getAllByText(/632 nm/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/N = 2/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/N = 2/i).length).toBeGreaterThanOrEqual(1);
 
     // Change wavelength
     const lambdaSlider = screen.getByLabelText(/Panjang Gelombang/i);
