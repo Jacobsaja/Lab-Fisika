@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { ExploreShell } from "@/components/explore/ExploreShell";
 import {
   ScreenPatternView,
@@ -38,7 +39,15 @@ import {
   HelpCircle,
   Sun,
   Maximize2,
+  Box,
 } from "lucide-react";
+
+export const SSG_BENCH_VIEW_STORAGE_KEY = "fisika_ssg_bench_view";
+
+const OpticalBench3D = dynamic(
+  () => import("@/components/practicum/instruments/wave/3d/OpticalBench3D"),
+  { ssr: false }
+);
 
 /**
  * Explore Mode: Sifat-Sifat Gelombang (Wave Optics - SSG)
@@ -92,6 +101,30 @@ export default function SSGExplorePage() {
   const [showMinimaMarkers, setShowMinimaMarkers] = useState<boolean>(true);
   const [showGeometry, setShowGeometry] = useState<boolean>(false);
   const [pointPYMm, setPointPYMm] = useState<number>(0);
+  const [benchViewMode, setBenchViewMode] = useState<"2.5D" | "3D">("2.5D");
+
+  // Restore saved 2.5D | 3D view preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SSG_BENCH_VIEW_STORAGE_KEY);
+      if (saved && saved.toUpperCase() === "3D") {
+        setBenchViewMode("3D");
+      } else if (saved && saved.toUpperCase() === "2.5D") {
+        setBenchViewMode("2.5D");
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }, []);
+
+  const handleBenchViewModeChange = useCallback((nextMode: "2.5D" | "3D") => {
+    setBenchViewMode(nextMode);
+    try {
+      window.localStorage.setItem(SSG_BENCH_VIEW_STORAGE_KEY, nextMode);
+    } catch {
+      // Ignore storage quota or private mode errors
+    }
+  }, []);
 
   // ─── Draggable Screen Markers ──────────────────────────────────────────────
   const [activeMarkerTn, setActiveMarkerTn] = useState<number>(1);
@@ -598,33 +631,106 @@ export default function SSGExplorePage() {
 
           {/* ════════ RIGHT COLUMN: Interactive Instruments (8 Cols) ════════ */}
           <div className="lg:col-span-8 flex flex-col gap-6">
-            {/* 1. Bangku Optik Virtual (Hero Apparatus) */}
-            <OpticalBenchApparatus
-              mode="explore"
-              slitKey={slitKeyMapped}
-              lambdaNm={lambdaNm}
-              N={N}
-              aMm={aMm}
-              dMm={dMm}
-              distanceL={LM}
-              isLaserOn={laserOn}
-              onToggleLaser={() => setLaserOn(!laserOn)}
-              dimmer={dimmer}
-              onDimmerChange={setDimmer}
-              showGeometry={showGeometry}
-              onToggleGeometry={() => {
-                setShowGeometry((prev) => {
-                  const nextVal = !prev;
-                  if (nextVal && pointPYMm === 0 && N > 1) {
-                    setPointPYMm(Math.round(outputs.exactOrder1Mm * 10) / 10);
-                  }
-                  return nextVal;
-                });
-              }}
-              pointPYMm={pointPYMm}
-              onPointPYChange={setPointPYMm}
-              spanMm={activeSpanMm}
-            />
+            {/* 1. Bangku Optik Virtual (Hero Apparatus) with 2.5D | 3D View Selector */}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-slate-300">
+                <span className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-cyan-400" />
+                  <span>1. Tampilan Bangku Optik</span>
+                </span>
+                <div
+                  className="inline-flex items-center rounded-xl bg-slate-900 p-1 border border-slate-800"
+                  role="group"
+                  aria-label="Pilihan tampilan Bangku Optik"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleBenchViewModeChange("2.5D")}
+                    aria-label="Tampilan Bangku Optik 2.5D"
+                    aria-pressed={benchViewMode === "2.5D"}
+                    className={`min-h-[34px] px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      benchViewMode === "2.5D"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/60 shadow-sm"
+                        : "text-slate-400 hover:text-slate-200 border border-transparent"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>2.5D</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBenchViewModeChange("3D")}
+                    aria-label="Tampilan Bangku Optik 3D"
+                    aria-pressed={benchViewMode === "3D"}
+                    className={`min-h-[34px] px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      benchViewMode === "3D"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/60 shadow-sm"
+                        : "text-slate-400 hover:text-slate-200 border border-transparent"
+                    }`}
+                  >
+                    <Box className="w-3.5 h-3.5" />
+                    <span>3D</span>
+                  </button>
+                </div>
+              </div>
+
+              {benchViewMode === "3D" ? (
+                <OpticalBench3D
+                  mode="explore"
+                  slitKey={slitKeyMapped}
+                  lambdaNm={lambdaNm}
+                  N={N}
+                  aMm={aMm}
+                  dMm={dMm}
+                  distanceL={LM}
+                  isLaserOn={laserOn}
+                  onToggleLaser={() => setLaserOn(!laserOn)}
+                  dimmer={dimmer}
+                  onDimmerChange={setDimmer}
+                  exposure={exposure}
+                  showGeometry={showGeometry}
+                  onToggleGeometry={() => {
+                    setShowGeometry((prev) => {
+                      const nextVal = !prev;
+                      if (nextVal && pointPYMm === 0 && N > 1) {
+                        setPointPYMm(Math.round(outputs.exactOrder1Mm * 10) / 10);
+                      }
+                      return nextVal;
+                    });
+                  }}
+                  pointPYMm={pointPYMm}
+                  onPointPYChange={setPointPYMm}
+                  spanMm={activeSpanMm}
+                />
+              ) : (
+                <OpticalBenchApparatus
+                  mode="explore"
+                  slitKey={slitKeyMapped}
+                  lambdaNm={lambdaNm}
+                  N={N}
+                  aMm={aMm}
+                  dMm={dMm}
+                  distanceL={LM}
+                  isLaserOn={laserOn}
+                  onToggleLaser={() => setLaserOn(!laserOn)}
+                  dimmer={dimmer}
+                  onDimmerChange={setDimmer}
+                  showGeometry={showGeometry}
+                  onToggleGeometry={() => {
+                    setShowGeometry((prev) => {
+                      const nextVal = !prev;
+                      if (nextVal && pointPYMm === 0 && N > 1) {
+                        setPointPYMm(Math.round(outputs.exactOrder1Mm * 10) / 10);
+                      }
+                      return nextVal;
+                    });
+                  }}
+                  pointPYMm={pointPYMm}
+                  onPointPYChange={setPointPYMm}
+                  spanMm={activeSpanMm}
+                />
+              )}
+            </div>
 
             {/* 2. Projection Screen (ScreenPatternView) */}
             <ScreenPatternView
