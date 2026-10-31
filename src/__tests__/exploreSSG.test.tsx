@@ -198,4 +198,108 @@ describe("Explore SSG Page UI & Invariants", () => {
     fireEvent.mouseLeave(screenCanvasDiv);
     expect(screen.queryByText(/y = /i)).not.toBeInTheDocument();
   });
+
+  describe("Interactive Titik P in Explore SSG (Item 2 & 3)", () => {
+    it("is off by default and toggles on via Geometri Sinar (Titik P)", () => {
+      render(<SSGExplorePage />);
+
+      // Default: clean view, no Point P slider, no mono panel
+      expect(screen.queryByRole("slider", { name: /Titik P/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId("point-p-mono-panel")).not.toBeInTheDocument();
+
+      // Find toggle button and activate
+      const toggleBtn = screen.getByRole("button", { name: /Geometri Sinar \(Titik P\)/i });
+      expect(toggleBtn).toBeInTheDocument();
+      fireEvent.click(toggleBtn);
+
+      // Now active: slider, mono panel, and ray geometry appear
+      expect(screen.getByRole("slider", { name: /Titik P/i })).toBeInTheDocument();
+      expect(screen.getByTestId("point-p-mono-panel")).toBeInTheDocument();
+      expect(screen.getByTestId("ray-geometry-group")).toBeInTheDocument();
+    });
+
+    it("moves Point P by step 0.1 mm via arrow keys", () => {
+      render(<SSGExplorePage />);
+
+      // Turn on Point P
+      fireEvent.click(screen.getByRole("button", { name: /Geometri Sinar \(Titik P\)/i }));
+
+      const pointPHandle = screen.getByRole("slider", { name: /Titik P/i });
+      const initialVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+
+      // Press ArrowRight -> increases by 0.1 mm
+      fireEvent.keyDown(pointPHandle, { key: "ArrowRight" });
+      const afterRightVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+      expect(afterRightVal).toBeCloseTo(initialVal + 0.1, 1);
+
+      // Press ArrowLeft -> decreases by 0.1 mm
+      fireEvent.keyDown(pointPHandle, { key: "ArrowLeft" });
+      const afterLeftVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+      expect(afterLeftVal).toBeCloseTo(initialVal, 1);
+    });
+
+    it("moves Point P by dragging on the screen canvas", () => {
+      const { container } = render(<SSGExplorePage />);
+
+      // Turn on Point P
+      fireEvent.click(screen.getByRole("button", { name: /Geometri Sinar \(Titik P\)/i }));
+
+      const screenCanvasDiv = container.querySelector(".cursor-crosshair") as HTMLDivElement;
+      screenCanvasDiv.getBoundingClientRect = jest.fn(() => ({
+        width: 800,
+        height: 176,
+        top: 0,
+        left: 0,
+        right: 800,
+        bottom: 176,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      }));
+
+      // Click at clientX = 480 (to the right of center 400)
+      fireEvent.mouseDown(screenCanvasDiv, { clientX: 480 });
+
+      const pointPHandle = screen.getByRole("slider", { name: /Titik P/i });
+      const newVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+      expect(newVal).toBeGreaterThan(0);
+    });
+
+    it("jumps to adjacent primary bright fringes using jumping buttons", () => {
+      render(<SSGExplorePage />);
+
+      // Turn on Point P
+      fireEvent.click(screen.getByRole("button", { name: /Geometri Sinar \(Titik P\)/i }));
+
+      const nextBtn = screen.getByRole("button", { name: /Lompat ke terang primer berikutnya/i });
+      const prevBtn = screen.getByRole("button", { name: /Lompat ke terang primer sebelumnya/i });
+      const pointPHandle = screen.getByRole("slider", { name: /Titik P/i });
+
+      // Jump Next
+      const startVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+      fireEvent.click(nextBtn);
+      const afterNextVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+      expect(afterNextVal).toBeGreaterThan(startVal);
+
+      // Jump Prev
+      fireEvent.click(prevBtn);
+      const afterPrevVal = parseFloat(pointPHandle.getAttribute("aria-valuenow") || "0");
+      expect(afterPrevVal).toBeLessThan(afterNextVal);
+    });
+
+    it("disables Point P feature when N = 1 (single slit)", () => {
+      render(<SSGExplorePage />);
+
+      // Switch to N = 1
+      fireEvent.click(screen.getByRole("button", { name: "1", exact: true }));
+
+      // Turn on geometry
+      fireEvent.click(screen.getByRole("button", { name: /Geometri Sinar \(Titik P\)/i }));
+
+      // Expect disabled notice
+      expect(screen.getByText(/Celah tunggal \(N = 1\): Fitur Titik P/i)).toBeInTheDocument();
+      // Jumping buttons should not be present
+      expect(screen.queryByRole("button", { name: /Lompat ke terang primer berikutnya/i })).not.toBeInTheDocument();
+    });
+  });
 });

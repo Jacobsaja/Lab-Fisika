@@ -100,4 +100,63 @@ test.describe("Explore Wave Optics (SSG) - E2E Smoke & Responsiveness", () => {
     await resetBtn.click();
     await expect(page.getByText(/N = 2 \(Celah Majemuk\)/i)).toBeVisible();
   });
+
+  test("Interactive Titik P in Explore SSG: toggle, arrow movement, jumping buttons, N=1 disable, and absence in Practicum", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/explore/gelombang/ssg");
+    await page.waitForLoadState("domcontentloaded");
+
+    const pointPSlider = page.getByRole("slider", { name: /Titik P/i });
+    const monoPanel = page.getByTestId("point-p-mono-panel");
+    const geomBtn = page.getByRole("button", { name: /Geometri Sinar/i });
+
+    // 1. Default OFF: initial view is completely clean
+    await expect(pointPSlider).toHaveCount(0);
+    await expect(monoPanel).toHaveCount(0);
+    await expect(geomBtn).toBeVisible();
+
+    // 2. Toggle ON: Point P handle, mono panel, and ray geometry appear
+    await geomBtn.click();
+    await expect(pointPSlider).toBeVisible();
+    await expect(monoPanel).toBeVisible();
+    await expect(page.getByTestId("ray-geometry-group")).toBeVisible();
+
+    // Verify mono panel contents (y, theta, delta, delta/lambda, I/I0)
+    await expect(monoPanel.getByText(/Δ = d·sin\(θ\):/i)).toBeVisible();
+    await expect(monoPanel.getByText(/Δ\/λ:/i)).toBeVisible();
+
+    // 3. Arrow key movement by 0.1 mm
+    await pointPSlider.focus();
+    const valBefore = parseFloat((await pointPSlider.getAttribute("aria-valuenow")) || "0");
+    await page.keyboard.press("ArrowRight");
+    const valAfterRight = parseFloat((await pointPSlider.getAttribute("aria-valuenow")) || "0");
+    expect(valAfterRight).toBeCloseTo(valBefore + 0.1, 1);
+
+    await page.keyboard.press("ArrowLeft");
+    const valAfterLeft = parseFloat((await pointPSlider.getAttribute("aria-valuenow")) || "0");
+    expect(valAfterLeft).toBeCloseTo(valBefore, 1);
+
+    // 4. Jumping buttons: jump to next/previous primary peaks
+    const jumpNextBtn = page.getByRole("button", { name: /terang.*berikutnya/i });
+    const jumpPrevBtn = page.getByRole("button", { name: /terang.*sebelumnya/i });
+    await jumpNextBtn.click();
+    const valAfterJumpNext = parseFloat((await pointPSlider.getAttribute("aria-valuenow")) || "0");
+    expect(valAfterJumpNext).toBeGreaterThan(valBefore);
+
+    await jumpPrevBtn.click();
+    const valAfterJumpPrev = parseFloat((await pointPSlider.getAttribute("aria-valuenow")) || "0");
+    expect(valAfterJumpPrev).toBeLessThan(valAfterJumpNext);
+
+    // 5. N = 1 disables Point P
+    await page.getByRole("button", { name: "1", exact: true }).click();
+    await expect(page.getByText(/Celah tunggal \(N = 1\): Fitur Titik P interferensi celah majemuk dinonaktifkan/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /terang.*berikutnya/i })).toHaveCount(0);
+
+    // 6. Practicum SSG check: Point P and Geometri Sinar must NOT appear in Practicum
+    await page.goto("/praktikum/ssg");
+    await page.waitForLoadState("domcontentloaded");
+    await expect(page.getByRole("slider", { name: /Titik P/i })).toHaveCount(0);
+    await expect(page.getByTestId("point-p-mono-panel")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Geometri Sinar/i })).toHaveCount(0);
+  });
 });

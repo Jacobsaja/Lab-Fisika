@@ -627,3 +627,36 @@ export function classifyInterference(
   };
 }
 
+/**
+ * Calculates the y position (in mm) of the adjacent primary interference peak
+ * (order m = ... -2, -1, 0, 1, 2 ...) in direction 'next' or 'prev'.
+ */
+export function getAdjacentPrimaryPeakYMm(
+  currentYMm: number,
+  direction: "prev" | "next",
+  lambda: number,
+  L: number,
+  d: number,
+  spanMm = 30
+): number {
+  if (d <= 0 || L <= 0 || lambda <= 0) return 0;
+  const yPrimMm = ((lambda * L) / d) * 1000;
+  if (yPrimMm <= 0) return 0;
+
+  const currentM = currentYMm / yPrimMm;
+  const roundedM = Math.round(currentM);
+  let targetM: number;
+
+  if (Math.abs(currentM - roundedM) < 0.15) {
+    targetM = direction === "next" ? roundedM + 1 : roundedM - 1;
+  } else if (direction === "next") {
+    targetM = Math.ceil(currentM);
+  } else {
+    targetM = Math.floor(currentM);
+  }
+
+  const targetYMm = targetM * yPrimMm;
+  const clampedMm = Math.max(-spanMm, Math.min(spanMm, targetYMm));
+  return Math.round(clampedMm * 10) / 10;
+}
+

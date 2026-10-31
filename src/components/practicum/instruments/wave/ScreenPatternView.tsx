@@ -11,6 +11,8 @@ import {
   quantizeToResolution,
   getPatternClassification,
   wavelengthToRgb,
+  pathDifferenceInWavelengths,
+  classifyInterference,
 } from "@/physics/waveOptics";
 import { ZoomIn, Eye, Sun, Maximize2, Crosshair, Sparkles, RotateCcw } from "lucide-react";
 
@@ -44,6 +46,9 @@ export interface ScreenPatternViewProps {
   readOnly?: boolean;
   showSecondaryHighlight?: boolean;
   className?: string;
+  isPointPActive?: boolean;
+  pointPYMm?: number;
+  onPointPYChange?: (yMm: number) => void;
 }
 
 /**
@@ -73,6 +78,9 @@ export function ScreenPatternView({
   readOnly = false,
   showSecondaryHighlight = false,
   className = "",
+  isPointPActive = false,
+  pointPYMm = 0,
+  onPointPYChange,
 }: ScreenPatternViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -93,6 +101,7 @@ export function ScreenPatternView({
   const [hoverYMm, setHoverYMm] = useState<number | null>(null);
   const [zoomFocusMm, setZoomFocusMm] = useState<number>(0);
   const [draggingTn, setDraggingTn] = useState<number | null>(null);
+  const [isDraggingPointP, setIsDraggingPointP] = useState<boolean>(false);
 
   // Permanent rule: callback props stored in useRef
   const onMarkerChangeRef = useRef(onMarkerChange);
@@ -103,6 +112,91 @@ export function ScreenPatternView({
   onResetMarkersRef.current = onResetMarkers;
   const onResetZoomRef = useRef(onResetZoom);
   onResetZoomRef.current = onResetZoom;
+  const onPointPYChangeRef = useRef(onPointPYChange);
+  onPointPYChangeRef.current = onPointPYChange;
+
+  const pIntensity = useMemo(() => {
+    if (!isPointPActive) return 0;
+    return fraunhoferIntensity((pointPYMm ?? 0) * 1e-3, lambda, L, a, d, N);
+  }, [isPointPActive, pointPYMm, lambda, L, a, d, N]);
+
+  const pClassification = useMemo(() => {
+    if (!isPointPActive) return null;
+    const deltaOverLambda = pathDifferenceInWavelengths((pointPYMm ?? 0) * 1e-3, d, L, lambda);
+    return classifyInterference(deltaOverLambda, N);
+  }, [isPointPActive, pointPYMm, d, L, lambda, N]);
+
+  const updatePointPFromClientX = useCallback(
+    (clientX: number) => {
+      if (!screenRef.current || !onPointPYChangeRef.current) return;
+      const rect = screenRef.current.getBoundingClientRect();
+      const clickX = clientX - rect.left;
+      const normalizedRatio = Math.max(0, Math.min(1, clickX / rect.width));
+      const rawYMm = (normalizedRatio - 0.5) * (2 * spanMm);
+      const quantizedMm = Math.round(rawYMm * 10) / 10;
+      const clampedMm = Math.max(-spanMm, Math.min(spanMm, quantizedMm));
+      onPointPYChangeRef.current(clampedMm);
+    },
+    [spanMm]
+  );
+
+  useEffect(() => {
+    if (!isDraggingPointP) return;
+
+    const handleGlobalMove = (e: MouseEvent) => {
+      updatePointPFromClientX(e.clientX);
+    };
+    const handleGlobalUp = () => {
+      setIsDraggingPointP(false);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        updatePointPFromClientX(e.touches[0].clientX);
+      }
+    };
+    const handleTouchEnd = () => {
+      setIsDraggingPointP(false);
+    };
+
+    window.addEventListener("mousemove", handleGlobalMove);
+    window.addEventListener("mouseup", handleGlobalUp);
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+    return () => {
+      window.removeEventListener("mousemove", handleGlobalMove);
+      window.removeEventListener("mouseup", handleGlobalUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isDraggingPointP, updatePointPFromClientX]);
+
+  const handlePointPKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!onPointPYChangeRef.current) return;
+      const currentY = pointPYMm ?? 0;
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const nextY = Math.max(-spanMm, Math.round((currentY - 0.1) * 10) / 10);
+        onPointPYChangeRef.current(nextY);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const nextY = Math.min(spanMm, Math.round((currentY + 0.1) * 10) / 10);
+        onPointPYChangeRef.current(nextY);
+      } else if (e.key === "PageDown") {
+        e.preventDefault();
+        const nextY = Math.max(-spanMm, Math.round((currentY - 1.0) * 10) / 10);
+        onPointPYChangeRef.current(nextY);
+      } else if (e.key === "PageUp") {
+        e.preventDefault();
+        const nextY = Math.min(spanMm, Math.round((currentY + 1.0) * 10) / 10);
+        onPointPYChangeRef.current(nextY);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        onPointPYChangeRef.current(0);
+      }
+    },
+    [pointPYMm, spanMm]
+  );
 
   const handleResetZoom = useCallback(() => {
     setZoomFocusMm(0);
@@ -418,7 +512,14 @@ export function ScreenPatternView({
   // Handle clicking / dragging directly on the screen
   const handleScreenMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (mode === "explore" || readOnly || onMarkerChange === undefined) return;
+      if (mode === "explore") {
+        if (isPointPActive) {
+          updatePointPFromClientX(e.clientX);
+          setIsDraggingPointP(true);
+        }
+        return;
+      }
+      if (readOnly || onMarkerChange === undefined) return;
       // If T0 is currently selected, switch to T1 so T0 isn't shifted
       const targetTn = activeMarkerTn === 0 ? 1 : activeMarkerTn;
       if (activeMarkerTn === 0) {
@@ -427,7 +528,7 @@ export function ScreenPatternView({
       updateMarkerFromClientX(e.clientX, targetTn);
       setDraggingTn(targetTn);
     },
-    [mode, readOnly, onMarkerChange, activeMarkerTn, onSelectMarker, updateMarkerFromClientX]
+    [mode, isPointPActive, updatePointPFromClientX, readOnly, onMarkerChange, activeMarkerTn, onSelectMarker, updateMarkerFromClientX]
   );
 
   const handlePinMouseDown = (e: React.MouseEvent, tn: number) => {
@@ -730,8 +831,57 @@ export function ScreenPatternView({
             );
           })}
 
-        {/* Explore Mode: Single Hairline with Floating Readout following cursor */}
-        {mode === "explore" && hoverYMm !== null && (
+        {/* Explore Mode: Interactive Point P (saat fitur aktif) */}
+        {mode === "explore" && isPointPActive && (
+          <div
+            style={{ left: `${Math.max(2, Math.min(98, 50 + ((pointPYMm ?? 0) / (2 * spanMm)) * 100))}%` }}
+            className="absolute top-0 bottom-0 -translate-x-1/2 flex flex-col items-center z-30 pointer-events-none select-none"
+          >
+            {/* Top Interactive Draggable Handle */}
+            <div
+              role="slider"
+              tabIndex={0}
+              data-testid="point-p-handle"
+              aria-label="Titik P (posisi pada layar)"
+              aria-valuenow={pointPYMm ?? 0}
+              aria-valuemin={-spanMm}
+              aria-valuemax={spanMm}
+              aria-valuetext={`Posisi Titik P: ${(pointPYMm ?? 0).toFixed(1)} mm, status: ${pClassification?.label ?? ""}`}
+              onKeyDown={handlePointPKeyDown}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setIsDraggingPointP(true);
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                setIsDraggingPointP(true);
+              }}
+              className="pointer-events-auto cursor-ew-resize bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full font-mono text-xs font-black shadow-lg border border-amber-300 flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-slate-950 active:scale-95"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-950" />
+              <span>P: {(pointPYMm ?? 0) >= 0 ? `+${(pointPYMm ?? 0).toFixed(1)}` : (pointPYMm ?? 0).toFixed(1)} mm</span>
+            </div>
+
+            {/* Dashed Guideline */}
+            <div className="w-px flex-1 border-r border-dashed border-amber-400" />
+
+            {/* Bottom Floating Readout */}
+            <div className="bg-slate-900/95 text-amber-300 border border-amber-400/60 text-[11px] font-mono px-2 py-0.5 rounded shadow-lg backdrop-blur-sm whitespace-nowrap mb-1 flex items-center gap-1.5">
+              <span>y = {(pointPYMm ?? 0).toFixed(2).replace(".", ",")} mm</span>
+              <span className="text-slate-500">·</span>
+              <span>I/I₀ = {pIntensity.toFixed(2).replace(".", ",")}</span>
+              {pClassification && (
+                <>
+                  <span className="text-slate-500">·</span>
+                  <span className="font-sans font-semibold text-amber-200">{pClassification.label}</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Explore Mode: Single Hairline with Floating Readout following cursor (saat Point P tidak aktif) */}
+        {mode === "explore" && !isPointPActive && hoverYMm !== null && (
           <div
             style={{ left: `${Math.max(2, Math.min(98, 50 + (hoverYMm / (2 * spanMm)) * 100))}%` }}
             className="absolute top-0 bottom-0 -translate-x-1/2 pointer-events-none flex flex-col items-center z-30"

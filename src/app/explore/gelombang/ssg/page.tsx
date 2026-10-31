@@ -91,6 +91,7 @@ export default function SSGExplorePage() {
   const [showEnvelope, setShowEnvelope] = useState<boolean>(true);
   const [showMinimaMarkers, setShowMinimaMarkers] = useState<boolean>(true);
   const [showGeometry, setShowGeometry] = useState<boolean>(false);
+  const [pointPYMm, setPointPYMm] = useState<number>(0);
 
   // ─── Draggable Screen Markers ──────────────────────────────────────────────
   const [activeMarkerTn, setActiveMarkerTn] = useState<number>(1);
@@ -611,7 +612,18 @@ export default function SSGExplorePage() {
               dimmer={dimmer}
               onDimmerChange={setDimmer}
               showGeometry={showGeometry}
-              onToggleGeometry={() => setShowGeometry((prev) => !prev)}
+              onToggleGeometry={() => {
+                setShowGeometry((prev) => {
+                  const nextVal = !prev;
+                  if (nextVal && pointPYMm === 0 && N > 1) {
+                    setPointPYMm(Math.round(outputs.exactOrder1Mm * 10) / 10);
+                  }
+                  return nextVal;
+                });
+              }}
+              pointPYMm={pointPYMm}
+              onPointPYChange={setPointPYMm}
+              spanMm={activeSpanMm}
             />
 
             {/* 2. Projection Screen (ScreenPatternView) */}
@@ -629,6 +641,9 @@ export default function SSGExplorePage() {
               isZoomActive={zoomActive}
               onToggleZoom={() => setZoomActive((prev) => !prev)}
               showSecondaryHighlight={showSecondaryHighlight}
+              isPointPActive={showGeometry}
+              pointPYMm={pointPYMm}
+              onPointPYChange={setPointPYMm}
             />
 
             {/* 3. Intensity Profile Graph (IntensityProfileGraph) */}

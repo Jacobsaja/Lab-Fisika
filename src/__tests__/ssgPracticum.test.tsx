@@ -274,5 +274,10 @@ describe("SSG Practicum - Component & Stage Progression Flow", () => {
     expect(
       screen.queryByText(/Profil Intensitas Fraunhofer Berlabel \(Pembanding Analitik\)/i)
     ).not.toBeInTheDocument();
+
+    // Point P (Explore-only feature) must strictly NOT appear in Practicum
+    expect(screen.queryByRole("slider", { name: /Titik P/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("point-p-mono-panel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Geometri Sinar/i })).not.toBeInTheDocument();
   });
 });

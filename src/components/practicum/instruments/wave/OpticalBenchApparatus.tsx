@@ -1,14 +1,19 @@
 "use client";
 
-import React, { useId, useMemo } from "react";
+import React, { useId, useMemo, useRef, useCallback } from "react";
 import {
   DEFAULT_LASER_WAVELENGTH,
   DEFAULT_SCREEN_DISTANCE_L,
   SSG_SLIT_PRESETS,
   wavelengthToRgb,
   wavelengthToHex,
+  pathDifference,
+  pathDifferenceInWavelengths,
+  classifyInterference,
+  getAdjacentPrimaryPeakYMm,
+  fraunhoferIntensity,
 } from "@/physics/waveOptics";
-import { Sliders, Layers, Check, Eye } from "lucide-react";
+import { Sliders, Layers, Check, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface OpticalBenchApparatusProps {
   slitKey?: "slit2" | "slit3" | "slit5";
@@ -31,6 +36,9 @@ export interface OpticalBenchApparatusProps {
   mode?: "explore" | "practicum";
   showGeometry?: boolean;
   onToggleGeometry?: () => void;
+  pointPYMm?: number;
+  onPointPYChange?: (yMm: number) => void;
+  spanMm?: number;
 }
 
 /**
@@ -64,9 +72,15 @@ export function OpticalBenchApparatus({
   mode = "practicum",
   showGeometry = false,
   onToggleGeometry,
+  pointPYMm,
+  onPointPYChange,
+  spanMm = 15,
 }: OpticalBenchApparatusProps) {
   const instanceId = useId().replace(/[:]/g, "_");
   const currentSlit = SSG_SLIT_PRESETS[slitKey];
+
+  const onPointPYChangeRef = useRef(onPointPYChange);
+  onPointPYChangeRef.current = onPointPYChange;
 
   // Dynamic wavelength & color mapping
   const activeLambdaNm = lambdaNm ?? Math.round(DEFAULT_LASER_WAVELENGTH * 1e9);
@@ -77,6 +91,33 @@ export function OpticalBenchApparatus({
   const activeN = N ?? currentSlit.N;
   const activeAMm = aMm ?? currentSlit.a * 1e3;
   const activeDMm = dMm ?? currentSlit.d * 1e3;
+
+  // Geometric ray and interference values for Point P
+  const lambdaSI = activeLambdaNm * 1e-9;
+  const dSI = activeDMm * 1e-3;
+  const aSI = activeAMm * 1e-3;
+  const currentYMm = pointPYMm ?? (dSI > 0 ? ((lambdaSI * distanceL) / dSI) * 1000 : 2.0);
+  const currentYM = currentYMm * 1e-3;
+
+  const thetaRad = Math.atan(currentYM / distanceL);
+  const thetaDeg = (thetaRad * 180) / Math.PI;
+  const deltaM = pathDifference(currentYM, dSI, distanceL);
+  const deltaNm = deltaM * 1e9;
+  const deltaOverLambda = pathDifferenceInWavelengths(currentYM, dSI, distanceL, lambdaSI);
+  const pClassification = classifyInterference(deltaOverLambda, activeN);
+  const pIntensity = fraunhoferIntensity(currentYM, lambdaSI, distanceL, aSI, dSI, activeN);
+
+  const handleJumpPrev = useCallback(() => {
+    if (!onPointPYChangeRef.current) return;
+    const nextY = getAdjacentPrimaryPeakYMm(currentYMm, "prev", lambdaSI, distanceL, dSI, spanMm);
+    onPointPYChangeRef.current(nextY);
+  }, [currentYMm, lambdaSI, distanceL, dSI, spanMm]);
+
+  const handleJumpNext = useCallback(() => {
+    if (!onPointPYChangeRef.current) return;
+    const nextY = getAdjacentPrimaryPeakYMm(currentYMm, "next", lambdaSI, distanceL, dSI, spanMm);
+    onPointPYChangeRef.current(nextY);
+  }, [currentYMm, lambdaSI, distanceL, dSI, spanMm]);
 
   // Optical axis height in 2.5D canvas
   const yOpt = 140;
@@ -1078,73 +1119,119 @@ export function OpticalBenchApparatus({
             </g>
 
             {/* ═════════════════════════════════════════════════════════════════ */}
-            {/* 9. OPTIONAL GEOMETRY RAY DIAGRAM (Explore Only)                   */}
+            {/* 9. GEOMETRY RAY DIAGRAM & TITIK P (Explore Only)                  */}
             {/* ═════════════════════════════════════════════════════════════════ */}
             {mode === "explore" && showGeometry && (
-              <g>
-                {/* Rays from upper and lower slit edges to Point P (first fringe) */}
-                <line
-                  x1={xSlit}
-                  y1={yOpt - 4}
-                  x2={xScreen}
-                  y2={yOpt - 18}
-                  stroke="#f59e0b"
-                  strokeWidth={1.4}
-                  strokeDasharray="4 3"
-                  opacity={0.85}
-                />
-                <line
-                  x1={xSlit}
-                  y1={yOpt + 4}
-                  x2={xScreen}
-                  y2={yOpt - 18}
-                  stroke="#f59e0b"
-                  strokeWidth={1.4}
-                  strokeDasharray="4 3"
-                  opacity={0.85}
-                />
+              <g data-testid="ray-geometry-group">
+                {activeN <= 1 ? (
+                  <g>
+                    <rect x={xSlit + 20} y={yOpt - 25} width={280} height={22} rx="4" fill="#020617" stroke="#f59e0b" strokeWidth="1" />
+                    <text x={xSlit + 160} y={yOpt - 10} fill="#f59e0b" fontSize="12" fontFamily="sans-serif" textAnchor="middle">
+                      Celah tunggal (N=1): Titik P dinonaktifkan
+                    </text>
+                  </g>
+                ) : (
+                  <>
+                    {(() => {
+                      const effSpan = spanMm ?? 15;
+                      const yScreenThumb = yOpt - Math.max(-42, Math.min(42, (currentYMm / effSpan) * 36));
 
-                {/* Point P marker on screen */}
-                <circle cx={xScreen} cy={yOpt - 18} r={3.5} fill="#f59e0b" stroke="#ffffff" strokeWidth="1" />
-                {(() => {
-                  // Label Titik P: kiri layar bila ruang cukup, kanan layar bila L pendek (hindari kotak Δr)
-                  const pX = benchSpan >= 280 ? xScreen - 132 : xScreen + 44;
-                  return (
-                    <>
-                      <rect x={pX} y={yOpt - 32} width={116} height={20} rx="3" fill="#020617" stroke="#f59e0b" strokeWidth="0.8" />
-                      <text x={pX + 58} y={yOpt - 18} fill="#f59e0b" fontSize="12" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
-                        Titik P (Orde 1)
-                      </text>
-                    </>
-                  );
-                })()}
+                      return (
+                        <>
+                          {/* Rays from upper and lower slit edges to Point P */}
+                          <line
+                            x1={xSlit}
+                            y1={yOpt - 4}
+                            x2={xScreen}
+                            y2={yScreenThumb}
+                            stroke="#f59e0b"
+                            strokeWidth={1.5}
+                            strokeDasharray="4 3"
+                            opacity={0.9}
+                          />
+                          <line
+                            x1={xSlit}
+                            y1={yOpt + 4}
+                            x2={xScreen}
+                            y2={yScreenThumb}
+                            stroke="#f59e0b"
+                            strokeWidth={1.5}
+                            strokeDasharray="4 3"
+                            opacity={0.9}
+                          />
 
-                {/* Path difference perpendicular leg */}
-                <line
-                  x1={xSlit + 4}
-                  y1={yOpt - 4}
-                  x2={xSlit + 4}
-                  y2={yOpt + 4}
-                  stroke="#38bdf8"
-                  strokeWidth={1.4}
-                />
+                          {/* Point P marker on screen thumbnail */}
+                          <circle cx={xScreen} cy={yScreenThumb} r={4} fill="#f59e0b" stroke="#ffffff" strokeWidth="1.2" />
 
-                {/* Path difference callout box */}
-                <rect x={xSlit + 12} y={yOpt - 25} width={120} height={22} rx="4" fill="#020617" stroke="#f59e0b" strokeWidth="1" />
-                <text x={xSlit + 72} y={yOpt - 10} fill="#f59e0b" fontSize="12" fontFamily="monospace" fontWeight="bold" textAnchor="middle">
-                  Δr = d·sin(θ) = λ
-                </text>
+                          {/* Label Titik P near screen */}
+                          {(() => {
+                            const pX = benchSpan >= 280 ? xScreen - 145 : xScreen + 36;
+                            const pY = Math.max(68, Math.min(170, yScreenThumb - 10));
+                            const pOrderLabel =
+                              pointPYMm === undefined || pClassification.order === 1
+                                ? "Titik P (Orde 1)"
+                                : pClassification.order !== null
+                                ? `Titik P (Orde ${pClassification.order})`
+                                : `Titik P (y = ${currentYMm >= 0 ? `+${currentYMm.toFixed(1)}` : currentYMm.toFixed(1)} mm)`;
+                            return (
+                              <g>
+                                <rect x={pX} y={pY - 14} width={138} height={20} rx="3" fill="#020617" stroke="#f59e0b" strokeWidth="0.9" />
+                                <text x={pX + 69} y={pY} fill="#f59e0b" fontSize="12" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
+                                  {pOrderLabel}
+                                </text>
+                              </g>
+                            );
+                          })()}
 
-                {/* Angle theta arc */}
-                <path
-                  d={`M ${xSlit + 35},${yOpt} A 35 35 0 0 0 ${xSlit + 34},${yOpt - 6}`}
-                  fill="none"
-                  stroke="#f59e0b"
-                  strokeWidth={1.2}
-                />
-                <text x={xSlit + 42} y={yOpt - 2} fill="#f59e0b" fontSize="12" fontFamily="serif" fontStyle="italic">
-                  θ
-                </text>
+                          {/* Path difference perpendicular leg */}
+                          <line
+                            x1={xSlit + 4}
+                            y1={yOpt - 4}
+                            x2={xSlit + 4}
+                            y2={yOpt + 4}
+                            stroke="#38bdf8"
+                            strokeWidth={1.6}
+                          />
+
+                          {/* Callout box: d, theta, delta = d·sin(theta), delta/lambda */}
+                          <g transform={`translate(${xSlit + 16}, ${yOpt - 40})`}>
+                            <rect x="0" y="0" width={210} height={42} rx="5" fill="#020617" fillOpacity="0.95" stroke="#f59e0b" strokeWidth="1" />
+                            <text x="10" y="16" fill="#f59e0b" fontSize="12" fontFamily="monospace" fontWeight="bold">
+                              d = {activeDMm.toFixed(2)} mm · θ = {thetaDeg.toFixed(2)}°
+                            </text>
+                            <text x="10" y="32" fill="#38bdf8" fontSize="12" fontFamily="monospace" fontWeight="bold">
+                              Δr = d·sin(θ) = λ · Δ/λ = {Math.abs(deltaOverLambda).toFixed(2)}
+                            </text>
+                          </g>
+
+                          {/* Angle theta arc */}
+                          <path
+                            d={`M ${xSlit + 32},${yOpt} A 32 32 0 0 0 ${xSlit + 31},${yOpt - 6}`}
+                            fill="none"
+                            stroke="#f59e0b"
+                            strokeWidth={1.2}
+                          />
+                          <text x={xSlit + 38} y={yOpt - 2} fill="#f59e0b" fontSize="12" fontFamily="serif" fontStyle="italic">
+                            θ
+                          </text>
+
+                          {/* Small note: skema, tidak berskala */}
+                          <text
+                            x={xSlit + 65}
+                            y={yOpt + 22}
+                            fill="#94a3b8"
+                            fontSize="12"
+                            fontFamily="sans-serif"
+                            fontStyle="italic"
+                            opacity="0.8"
+                          >
+                            skema, tidak berskala
+                          </text>
+                        </>
+                      );
+                    })()}
+                  </>
+                )}
               </g>
             )}
           </svg>
@@ -1229,12 +1316,13 @@ export function OpticalBenchApparatus({
               )}
             </div>
 
-            {/* Geometri Sinar Toggle (Explore Mode Only) */}
+            {/* Geometri Sinar & Titik P Toggle (Explore Mode Only) */}
             {mode === "explore" && onToggleGeometry && (
               <button
                 type="button"
                 onClick={onToggleGeometry}
-                aria-label="Tampilkan atau sembunyikan diagram geometri berkas sinar"
+                aria-label="Geometri Sinar (Titik P)"
+                aria-pressed={showGeometry}
                 className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-2 active:scale-95 ${
                   showGeometry
                     ? "bg-amber-500/20 text-amber-300 border-amber-400/60 shadow-sm shadow-amber-500/20"
@@ -1242,8 +1330,90 @@ export function OpticalBenchApparatus({
                 }`}
               >
                 <Eye className="w-4 h-4 text-amber-400" />
-                <span>Geometri Sinar</span>
+                <span>Geometri Sinar (Titik P)</span>
               </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Compact Mono Panel for Point P (Explore Mode & showGeometry Active) ── */}
+        {mode === "explore" && showGeometry && (
+          <div
+            data-testid="point-p-mono-panel"
+            className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-950 border-t border-slate-800/90 text-xs font-mono"
+          >
+            {activeN <= 1 ? (
+              <div className="text-amber-400 font-sans text-xs flex items-center gap-2">
+                <span>Celah tunggal (N = 1): Fitur Titik P interferensi celah majemuk dinonaktifkan.</span>
+              </div>
+            ) : (
+              <>
+                {/* Value Readouts Grid */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500">y:</span>
+                    <span className="text-cyan-300 font-bold">
+                      {currentYMm >= 0 ? `+${currentYMm.toFixed(2)}` : currentYMm.toFixed(2)} mm
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500">θ:</span>
+                    <span className="text-amber-300 font-bold">{thetaDeg.toFixed(3)}°</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500">Δ = d·sin(θ):</span>
+                    <span className="text-purple-300 font-bold">{deltaNm.toFixed(1)} nm</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500">Δ/λ:</span>
+                    <span className="text-pink-300 font-bold">{deltaOverLambda.toFixed(3)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500">I/I₀:</span>
+                    <span className="text-emerald-300 font-bold">{pIntensity.toFixed(3)}</span>
+                  </div>
+
+                  {/* Status Badge */}
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs font-sans font-semibold border ${
+                      pClassification.type === "terang_primer"
+                        ? "bg-amber-500/20 text-amber-200 border-amber-400/50"
+                        : pClassification.type === "gelap"
+                        ? "bg-slate-800 text-slate-300 border-slate-700"
+                        : "bg-cyan-950/60 text-cyan-300 border-cyan-800/60"
+                    }`}
+                  >
+                    {pClassification.label}
+                  </span>
+                </div>
+
+                {/* Jumping Buttons (Target Sentuh >= 44 px) */}
+                <div className="flex items-center gap-2 font-sans">
+                  <button
+                    type="button"
+                    onClick={handleJumpPrev}
+                    aria-label="Lompat ke terang primer sebelumnya"
+                    className="min-h-[44px] px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-medium"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-amber-400" />
+                    <span>Terang Sebelumnya</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleJumpNext}
+                    aria-label="Lompat ke terang primer berikutnya"
+                    className="min-h-[44px] px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-slate-600 transition-colors flex items-center gap-1.5 active:scale-95 cursor-pointer text-xs font-medium"
+                  >
+                    <span>Terang Berikutnya</span>
+                    <ChevronRight className="w-4 h-4 text-amber-400" />
+                  </button>
+                </div>
+              </>
             )}
           </div>
         )}
