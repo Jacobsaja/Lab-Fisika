@@ -95,9 +95,9 @@ export function OpticalBenchApparatus({
   const xScreen = xSlit + drawnL * RAIL_PX_PER_M;
   const benchSpan = xScreen - xSlit;
   const xBenchMid = (xSlit + xScreen) / 2;
-  // Pil "L = ..." diletakkan di tengah garis ukur bila muat; jika L pendek, di kanan layar.
-  const isLPillCentered = benchSpan >= 160;
-  const lPillX = isLPillCentered ? xBenchMid - 60 : xScreen + 44;
+  // Pil "L = ..." di tengah garis ukur bila muat (span >= 145); bila L pendek, di kanan layar.
+  const isLPillCentered = benchSpan >= 145;
+  const lPillX = isLPillCentered ? xBenchMid - 58 : xScreen + 32;
 
   // Slit disk rotation angle
   const diskRotationDeg = useMemo(() => {
@@ -123,10 +123,10 @@ export function OpticalBenchApparatus({
   return (
     <div className={`p-4 rounded-2xl glass-panel border border-slate-800 flex flex-col gap-3 text-xs ${className}`}>
       {/* ── Single Unified Header Bar ── */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
         <div className="flex items-center gap-2.5">
           <div
-            className="p-2 rounded-xl border transition-colors shadow-sm"
+            className="p-1.5 rounded-xl border transition-colors shadow-sm"
             style={{
               backgroundColor: `rgba(${laserRgb}, 0.15)`,
               borderColor: `rgba(${laserRgb}, 0.35)`,
@@ -157,9 +157,9 @@ export function OpticalBenchApparatus({
       {/* ── Main 2.5D Isometric SVG Canvas & Docked Laser Toolbar ── */}
       <div className="relative w-full overflow-hidden bg-gradient-to-b from-[#020617] via-[#050b18] to-[#02050e] rounded-xl border border-slate-800/90 shadow-2xl flex flex-col">
         {/* SVG Drawing Wrapper */}
-        <div className="w-full flex items-center justify-center p-2 sm:p-3 overflow-x-auto">
+        <div className="w-full flex items-center justify-center p-1.5 sm:p-2 overflow-x-auto">
           <svg
-            viewBox="0 0 920 270"
+            viewBox="0 0 920 252"
             className="w-full h-auto min-w-[640px] sm:min-w-0 block select-none"
             style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.65))" }}
           >
@@ -283,7 +283,7 @@ export function OpticalBenchApparatus({
             {/* Ambient Drop Shadows under Component Posts */}
             <ellipse cx="120" cy="246" rx="42" ry="6" fill="#000000" opacity="0.65" />
             <ellipse cx="285" cy="246" rx="38" ry="6" fill="#000000" opacity="0.65" />
-            <ellipse cx="815" cy="246" rx="46" ry="6" fill="#000000" opacity="0.65" />
+            <ellipse cx={xScreen} cy="246" rx="46" ry="6" fill="#000000" opacity="0.65" />
 
             {/* Deep Ambient Drop Shadow under Entire Rail */}
             <polygon
@@ -938,8 +938,8 @@ export function OpticalBenchApparatus({
                   <text
                     x="0"
                     y="184"
-                    fill="#64748b"
-                    fontSize="10"
+                    fill="#94a3b8"
+                    fontSize="12"
                     fontFamily="sans-serif"
                     fontStyle="italic"
                     textAnchor="middle"
@@ -959,14 +959,14 @@ export function OpticalBenchApparatus({
             </g>
 
             {/* ═════════════════════════════════════════════════════════════════ */}
-            {/* 7. INSET "PERBESAR CELAH" (B. Di atas panah L, zero collision)     */}
+            {/* 7. INSET "PERBESAR CELAH" (B. Terletak aman di kiri atas, zero collision) */}
             {/* ═════════════════════════════════════════════════════════════════ */}
-            <g transform="translate(340, 8)">
-              {/* Box Container (Lebar 240, Tinggi 64) */}
+            <g transform="translate(28, 8)">
+              {/* Box Container (Lebar 236, Tinggi 64) */}
               <rect
                 x="0"
                 y="0"
-                width="240"
+                width="236"
                 height="64"
                 rx="8"
                 fill="#020617"
@@ -976,17 +976,17 @@ export function OpticalBenchApparatus({
                 filter="drop-shadow(0 4px 10px rgba(0,0,0,0.5))"
               />
               {/* Inset Header (>= 12px) */}
-              <text x="120" y="17" fill="#38bdf8" fontSize="12" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
+              <text x="118" y="17" fill="#38bdf8" fontSize="12" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
                 Perbesar Celah (N = {activeN})
               </text>
 
               {/* Slit Plate Representation */}
-              <rect x="18" y="24" width="204" height="22" rx="3" fill="#090d16" stroke="#334155" strokeWidth="1" />
+              <rect x="18" y="24" width="200" height="22" rx="3" fill="#090d16" stroke="#334155" strokeWidth="1" />
 
               {/* Slit Apertures inside Inset Plate */}
               {Array.from({ length: activeN }).map((_, i) => {
-                const spacing = activeN > 1 ? Math.min(22, 110 / (activeN - 1)) : 0;
-                const xPos = activeN === 1 ? 120 : 120 - ((activeN - 1) / 2) * spacing + i * spacing;
+                const spacing = activeN > 1 ? Math.min(20, 100 / (activeN - 1)) : 0;
+                const xPos = activeN === 1 ? 118 : 118 - ((activeN - 1) / 2) * spacing + i * spacing;
                 return (
                   <g key={i}>
                     <rect
@@ -1013,44 +1013,49 @@ export function OpticalBenchApparatus({
               })}
 
               {/* Bottom Labels with Generous Horizontal Separation (>= 12px, zero overlap) */}
-              <text x="20" y="58" fill="#e2e8f0" fontSize="12" fontFamily="monospace" fontWeight="600" textAnchor="start">
+              <text x="18" y="57" fill="#e2e8f0" fontSize="12" fontFamily="monospace" fontWeight="600" textAnchor="start">
                 a = {activeAMm.toFixed(2)} mm
               </text>
 
               {activeN >= 2 ? (
-                <text x="220" y="58" fill="#e2e8f0" fontSize="12" fontFamily="monospace" fontWeight="600" textAnchor="end">
+                <text x="218" y="57" fill="#e2e8f0" fontSize="12" fontFamily="monospace" fontWeight="600" textAnchor="end">
                   d = {activeDMm.toFixed(2)} mm
                 </text>
               ) : (
-                <text x="220" y="58" fill="#38bdf8" fontSize="12" fontFamily="sans-serif" fontWeight="600" textAnchor="end">
+                <text x="218" y="57" fill="#38bdf8" fontSize="12" fontFamily="sans-serif" fontWeight="600" textAnchor="end">
                   celah tunggal
                 </text>
               )}
 
               {/* Subtle Callout Leader Line to Slit Wheel */}
-              <path d="M 0,32 Q -35,55 -55,80" fill="none" stroke="#0891b2" strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
+              <path d="M 236,46 Q 265,58 285,98" fill="none" stroke="#0891b2" strokeWidth="1" strokeDasharray="3 3" opacity="0.7" />
             </g>
 
             {/* ═════════════════════════════════════════════════════════════════ */}
-            {/* 8. PROMINENT DIMENSION RAY L (A & B: Terletak bersih di y = 80)    */}
+            {/* 8. PROMINENT DIMENSION RAY L (A & B: Terletak bersih di y = 72)     */}
             {/* ═════════════════════════════════════════════════════════════════ */}
             <g>
-              {/* Slit Leader Line: dari puncak roda celah (y=100) naik ke y=76 */}
-              <line x1={xSlit} y1="76" x2={xSlit} y2="100" stroke="#38bdf8" strokeWidth="0.9" strokeDasharray="3 3" opacity="0.6" />
-              {/* Screen Leader Line: dari puncak layar (y=66) turun ke y=84 */}
-              <line x1={xScreen} y1="66" x2={xScreen} y2="84" stroke="#38bdf8" strokeWidth="0.9" strokeDasharray="3 3" opacity="0.6" />
+              {/* Slit Leader Line: dari puncak roda celah (y=98) naik ke y=68 */}
+              <line x1={xSlit} y1="68" x2={xSlit} y2="98" stroke="#38bdf8" strokeWidth="0.9" strokeDasharray="3 3" opacity="0.6" />
+              {/* Screen Leader Line: dari puncak layar (y=56) turun ke y=76 */}
+              <line x1={xScreen} y1="56" x2={xScreen} y2="76" stroke="#38bdf8" strokeWidth="0.9" strokeDasharray="3 3" opacity="0.6" />
 
-              {/* Horizontal Dimension Arrow Line at y = 80 */}
-              <line x1={xSlit + 8} y1="80" x2={xScreen - 8} y2="80" stroke="#38bdf8" strokeWidth="1.6" />
-              <polygon points={`${xSlit},80 ${xSlit + 8},76 ${xSlit + 8},84`} fill="#38bdf8" />
-              <polygon points={`${xScreen},80 ${xScreen - 8},76 ${xScreen - 8},84`} fill="#38bdf8" />
+              {/* Horizontal Dimension Arrow Line at y = 72 */}
+              <line x1={xSlit + 8} y1="72" x2={xScreen - 8} y2="72" stroke="#38bdf8" strokeWidth="1.6" />
+              <polygon points={`${xSlit},72 ${xSlit + 8},68 ${xSlit + 8},76`} fill="#38bdf8" />
+              <polygon points={`${xScreen},72 ${xScreen - 8},68 ${xScreen - 8},76`} fill="#38bdf8" />
+
+              {/* Connecting line to L pill when placed to the right of screen */}
+              {!isLPillCentered && (
+                <line x1={xScreen + 4} y1="72" x2={lPillX} y2="72" stroke="#06b6d4" strokeWidth="1" strokeDasharray="2 2" opacity="0.8" />
+              )}
 
               {/* Readout Pill L: di tengah garis ukur bila muat, selain itu di kanan layar */}
               <rect
                 data-testid="l-pill"
                 x={lPillX}
-                y="70"
-                width="120"
+                y="61"
+                width="116"
                 height="22"
                 rx="6"
                 fill="#020617"
@@ -1058,10 +1063,10 @@ export function OpticalBenchApparatus({
                 strokeWidth="1.3"
               />
               <text
-                x={lPillX + 60}
-                y="85"
+                x={lPillX + 58}
+                y="76"
                 fill="#38bdf8"
-                fontSize="13"
+                fontSize="12"
                 fontFamily="monospace"
                 fontWeight="bold"
                 textAnchor="middle"
@@ -1273,7 +1278,7 @@ export function OpticalBenchApparatus({
             })}
           </div>
 
-          <div className="text-[11px] font-mono text-slate-400 bg-slate-950/70 px-3 py-1.5 rounded-lg border border-slate-800/80">
+          <div className="text-xs font-mono text-slate-400 bg-slate-950/70 px-3 py-1.5 rounded-lg border border-slate-800/80">
             N = <span className="text-cyan-300 font-bold">{currentSlit.N}</span> celah | a ={" "}
             <span className="text-slate-200">{(currentSlit.a * 1e3).toFixed(2)} mm</span> | d ={" "}
             <span className="text-slate-200">{(currentSlit.d * 1e3).toFixed(2)} mm</span>
