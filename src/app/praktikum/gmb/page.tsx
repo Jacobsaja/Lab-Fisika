@@ -200,6 +200,15 @@ export default function GMBPage() {
     <PracticumShell
       config={CONFIG}
       isNextDisabled={(state) => state.currentStep === "SIMULATION" && !getDataProgress(state).ready}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const progress = getDataProgress(state);
+          if (!progress.ready) {
+            return `Catat min. ${MIN_ROWS} data (${progress.validRows}/${MIN_ROWS}, N: ${progress.distinctN}/${MIN_DISTINCT_N}, r: ${progress.distinctR}/${MIN_DISTINCT_R})`;
+          }
+        }
+        return null;
+      }}
       simulationComponent={(ctx) => {
         const progress = getDataProgress(ctx.state);
         const showProgress = ctx.state.currentStep === "SIMULATION" && !progress.ready;

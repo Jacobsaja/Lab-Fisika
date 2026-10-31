@@ -543,6 +543,24 @@ export default function SSGPracticumPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state: PracticumState) => {
+        if (state.currentStep === "SETUP" && !allSetupDone) {
+          const done = Object.values(setupChecklist).filter(Boolean).length;
+          return `Selesaikan 5 prosedur perakitan alat (${done}/5)`;
+        }
+        if (state.currentStep === "SIMULATION" && !allSlitsRecorded) {
+          const done = [recordedSlitData.slit2, recordedSlitData.slit3, recordedSlitData.slit5].filter(Boolean).length;
+          return `Ukur dan catat 3 set celah majemuk (${done}/3 celah)`;
+        }
+        if (state.currentStep === "QUESTIONS") {
+          const ansCount = Object.keys(state.answers).length;
+          const totalQ = SSG_CONFIG.questions.length;
+          if (ansCount < totalQ) {
+            return `Jawab seluruh pertanyaan evaluasi (${ansCount}/${totalQ})`;
+          }
+        }
+        return null;
+      }}
       simulationComponent={(ctx: PracticumShellContext) => {
         // ──────────────────────────────────────────────────────────────────
         // TAHAP 1: INTRO (Tujuan & Teori)

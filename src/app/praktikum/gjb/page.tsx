@@ -111,6 +111,12 @@ export default function GJBPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION" && state.recordedData.length < 25) {
+          return `Catat minimal 25 data pengamatan (${state.recordedData.length}/25)`;
+        }
+        return null;
+      }}
     />
   );
 }

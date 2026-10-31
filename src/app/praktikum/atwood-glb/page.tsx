@@ -216,6 +216,19 @@ export default function AtwoodGLBPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const validRowCount = state.recordedData.filter(r => {
+            const s = parseFloat(String(r.jarak_bc).replace(',', '.'));
+            const t = parseFloat(String(r.t_glb).replace(',', '.'));
+            return !isNaN(s) && !isNaN(t);
+          }).length;
+          if (validRowCount < 5) {
+            return `Catat minimal 5 data variasi jarak BC (${validRowCount}/5)`;
+          }
+        }
+        return null;
+      }}
     />
   );
 }

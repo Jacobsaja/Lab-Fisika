@@ -515,6 +515,12 @@ export default function H2NPracticumPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION" && !hasCompletedAllTrials) {
+          return `Selesaikan 10 percobaan praktikum (${totalCollectedTrials}/10)`;
+        }
+        return null;
+      }}
       simulationComponent={(ctx: PracticumShellContext) => {
         // ── 1. REVIEW STEP ──
         if (ctx.state.currentStep === "REVIEW") {

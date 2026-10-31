@@ -277,6 +277,15 @@ export default function MenggelindingPracticumPage() {
       config={CONFIG}
       // Only the 4 measurements are required. Wrong or empty calculations never block progress.
       isNextDisabled={(state) => state.currentStep === "SIMULATION" && countMeasuredRows(state) < REQUIRED_ROWS}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const count = countMeasuredRows(state);
+          if (count < REQUIRED_ROWS) {
+            return `Lakukan 4 variasi pengukuran silinder (${count}/${REQUIRED_ROWS})`;
+          }
+        }
+        return null;
+      }}
       simulationComponent={(ctx) => <RollingPracticumSimulation key={ctx.resetCount} {...ctx} />}
     />
   );

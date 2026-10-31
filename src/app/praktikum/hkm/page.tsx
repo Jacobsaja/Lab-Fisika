@@ -212,6 +212,12 @@ export default function HKMPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION" && !hasCompletedAllTrials) {
+          return `Selesaikan 12 percobaan praktikum (${totalCollectedTrials}/12)`;
+        }
+        return null;
+      }}
       simulationComponent={(ctx: PracticumShellContext) => {
         if (ctx.state.currentStep === "REVIEW") {
           // Render Final Comprehensive Review Section

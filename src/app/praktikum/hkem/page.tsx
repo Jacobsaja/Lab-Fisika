@@ -344,6 +344,12 @@ export default function HKEMPracticumPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION" && !hasCompletedAllTrials) {
+          return `Selesaikan semua percobaan (${totalCollectedTrials}/${REQUIRED_TRIALS})`;
+        }
+        return null;
+      }}
       simulationComponent={(ctx: PracticumShellContext) => {
         // ── 1. REVIEW STEP ──
         if (ctx.state.currentStep === "REVIEW") {

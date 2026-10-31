@@ -361,6 +361,20 @@ export default function AtwoodGLBBPage() {
         }
         return false;
       }}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const validRowCount = state.recordedData.filter(r => {
+            const s = parseFloat(String(r.jarak_ab).replace(',', '.'));
+            const t1 = parseFloat(String(r.t_m3).replace(',', '.'));
+            const t2 = parseFloat(String(r.t_m3_m4).replace(',', '.'));
+            return !isNaN(s) && !isNaN(t1) && !isNaN(t2);
+          }).length;
+          if (validRowCount < 5) {
+            return `Catat minimal 5 data GLBB lengkap (${validRowCount}/5)`;
+          }
+        }
+        return null;
+      }}
     />
   );
 }

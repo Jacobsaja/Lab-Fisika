@@ -224,6 +224,15 @@ export default function MomenInersia2Page() {
     <PracticumShell
       config={practicumConfig}
       isNextDisabled={(state) => state.currentStep === "SIMULATION" && countMeasuredRows(state) < REQUIRED_ROWS}
+      nextBlockedReason={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const count = countMeasuredRows(state);
+          if (count < REQUIRED_ROWS) {
+            return `Lakukan pengukuran untuk kedua benda (bola & silinder) (${count}/${REQUIRED_ROWS})`;
+          }
+        }
+        return null;
+      }}
       simulationComponent={(ctx) => <MI2PracticumSimulation key={ctx.resetCount} {...ctx} />}
     />
   );
