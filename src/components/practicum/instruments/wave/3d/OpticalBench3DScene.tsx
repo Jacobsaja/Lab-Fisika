@@ -567,7 +567,7 @@ function SceneContent({
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.95 * effectiveDimmer}
+              opacity={0.72 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -577,7 +577,7 @@ function SceneContent({
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.45 * effectiveDimmer}
+              opacity={0.22 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -589,7 +589,7 @@ function SceneContent({
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.95 * effectiveDimmer}
+              opacity={0.72 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -599,7 +599,7 @@ function SceneContent({
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.5 * effectiveDimmer}
+              opacity={0.24 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -611,7 +611,7 @@ function SceneContent({
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.32 * effectiveDimmer}
+              opacity={0.14 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               side={THREE.DoubleSide}
               depthWrite={false}
