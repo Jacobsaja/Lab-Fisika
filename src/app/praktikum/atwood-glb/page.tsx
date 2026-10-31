@@ -56,7 +56,8 @@ const CONFIG: PracticumConfig = {
 };
 
 function GLBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
-  const { state } = usePracticumSession(CONFIG.id);
+  const { state: fallbackState } = usePracticumSession(CONFIG.id);
+  const state = ctx?.state ?? fallbackState;
 
   // Vektor kualitatif terkunci sampai mahasiswa mengisi tabel data atau membuka petunjuk level 3
   const rowCount = ctx?.state.recordedData.length ?? state.recordedData.length;
@@ -200,25 +201,21 @@ function GLBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
 }
 
 export default function AtwoodGLBPage() {
-  const { state } = usePracticumSession(CONFIG.id);
-  const isDataStep = state.currentStep === "SIMULATION";
-  
-  // Validasi: hanya hitung baris yang semua datanya sudah terisi angka valid
-  const validRowCount = state.recordedData.filter(r => {
-    const s = parseFloat(String(r.jarak_bc).replace(',', '.'));
-    const t = parseFloat(String(r.t_glb).replace(',', '.'));
-    return !isNaN(s) && !isNaN(t);
-  }).length;
-  
-  // Minimal 5 baris variasi jarak
-  const hasEnoughData = validRowCount >= 5;
-  const isNextDisabled = isDataStep && !hasEnoughData;
-
   return (
     <PracticumShell 
       config={CONFIG} 
       simulationComponent={(ctx) => <GLBOrchestrator ctx={ctx} />}
-      isNextDisabled={isNextDisabled}
+      isNextDisabled={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const validRowCount = state.recordedData.filter(r => {
+            const s = parseFloat(String(r.jarak_bc).replace(',', '.'));
+            const t = parseFloat(String(r.t_glb).replace(',', '.'));
+            return !isNaN(s) && !isNaN(t);
+          }).length;
+          return validRowCount < 5;
+        }
+        return false;
+      }}
     />
   );
 }

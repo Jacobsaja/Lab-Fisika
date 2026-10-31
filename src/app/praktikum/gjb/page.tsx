@@ -4,7 +4,6 @@ import React, { useMemo } from "react";
 import { PracticumShell } from "@/components/practicum/PracticumShell";
 import { PracticumConfig } from "@/types/practicum";
 import { FreeFallApparatus } from "@/components/practicum/instruments/FreeFallApparatus";
-import { usePracticumSession } from "@/hooks/usePracticumSession";
 
 const CONFIG: PracticumConfig = {
   id: "gjb-01",
@@ -74,23 +73,11 @@ const CONFIG: PracticumConfig = {
 };
 
 export default function GJBPage() {
-  const { state } = usePracticumSession(CONFIG.id);
-  
   // We use useMemo to generate gLocal once per component mount (simulating 1 session value)
   // Generating a value between 9.75 and 9.85
   const gLocal = useMemo(() => {
     return 9.75 + Math.random() * 0.1;
   }, []);
-
-  // Validation: To proceed from SIMULATION to QUESTIONS, user needs at least 25 rows
-  const isDataStep = state.currentStep === "SIMULATION";
-  const rowCount = state.recordedData.length;
-  // Let's require exactly 25 rows, or at least 25 rows. The requirement said "5 ketinggian berbeda x 5 trial (25 titik data mentah)".
-  // For simplicity, we just check rowCount >= 25. 
-  // We can also check if all h, t, and t_sq fields are filled but just row count is a good start.
-  const hasEnoughData = rowCount >= 25;
-  
-  const isNextDisabled = isDataStep && !hasEnoughData;
 
   return (
     <PracticumShell 
@@ -118,7 +105,12 @@ export default function GJBPage() {
           </div>
         );
       }}
-      isNextDisabled={isNextDisabled}
+      isNextDisabled={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          return state.recordedData.length < 25;
+        }
+        return false;
+      }}
     />
   );
 }

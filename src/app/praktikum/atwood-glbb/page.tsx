@@ -52,7 +52,8 @@ const CONFIG: PracticumConfig = {
 };
 
 function GLBBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
-  const { state } = usePracticumSession(CONFIG.id);
+  const { state: fallbackState } = usePracticumSession(CONFIG.id);
+  const state = ctx?.state ?? fallbackState;
   const [activeTab, setActiveTab] = useState<"PERSIAPAN" | "MODUL_2_1_M3" | "MODUL_2_1_M3_M4">("PERSIAPAN");
   const [selectedMass, setSelectedMass] = useState<"m1" | "m2" | "m3" | "m4">("m1");
 
@@ -344,26 +345,22 @@ function GLBBOrchestrator({ ctx }: { ctx?: PracticumShellContext }) {
 }
 
 export default function AtwoodGLBBPage() {
-  const { state } = usePracticumSession(CONFIG.id);
-  const isDataStep = state.currentStep === "SIMULATION";
-  
-  // Validasi: hanya hitung baris yang semua datanya sudah terisi angka valid
-  const validRowCount = state.recordedData.filter(r => {
-    const s = parseFloat(String(r.jarak_ab).replace(',', '.'));
-    const t1 = parseFloat(String(r.t_m3).replace(',', '.'));
-    const t2 = parseFloat(String(r.t_m3_m4).replace(',', '.'));
-    return !isNaN(s) && !isNaN(t1) && !isNaN(t2);
-  }).length;
-  
-  // Minimal 5 baris variasi jarak
-  const hasEnoughData = validRowCount >= 5;
-  const isNextDisabled = isDataStep && !hasEnoughData;
-
   return (
     <PracticumShell 
       config={CONFIG} 
       simulationComponent={(ctx) => <GLBBOrchestrator ctx={ctx} />}
-      isNextDisabled={isNextDisabled}
+      isNextDisabled={(state) => {
+        if (state.currentStep === "SIMULATION") {
+          const validRowCount = state.recordedData.filter(r => {
+            const s = parseFloat(String(r.jarak_ab).replace(',', '.'));
+            const t1 = parseFloat(String(r.t_m3).replace(',', '.'));
+            const t2 = parseFloat(String(r.t_m3_m4).replace(',', '.'));
+            return !isNaN(s) && !isNaN(t1) && !isNaN(t2);
+          }).length;
+          return validRowCount < 5;
+        }
+        return false;
+      }}
     />
   );
 }

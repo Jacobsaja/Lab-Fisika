@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { PracticumShell } from "@/components/practicum/PracticumShell";
+import { PracticumShell, PracticumShellContext } from "@/components/practicum/PracticumShell";
 import { PracticumConfig } from "@/types/practicum";
 import { Caliper } from "@/components/practicum/instruments/Caliper";
 import { OhausBalance } from "@/components/practicum/instruments/OhausBalance";
@@ -92,8 +92,9 @@ const CONFIG: PracticumConfig = {
   simulationType: "measurement"
 };
 
-function PAPSimulation() {
-  const { state } = usePracticumSession("pap-01");
+function PAPSimulation({ ctx }: { ctx?: PracticumShellContext }) {
+  const { state: fallbackState } = usePracticumSession("pap-01");
+  const state = ctx?.state ?? fallbackState;
   const [instrument, setInstrument] = useState<"caliper" | "ohaus">("caliper");
   const [activeObjectId, setActiveObjectId] = useState("c1");
 
@@ -234,7 +235,7 @@ export default function PAPPracticumPage() {
   return (
     <PracticumShell 
       config={CONFIG}
-      simulationComponent={<PAPSimulation />}
+      simulationComponent={(ctx) => <PAPSimulation ctx={ctx} />}
     />
   );
 }
