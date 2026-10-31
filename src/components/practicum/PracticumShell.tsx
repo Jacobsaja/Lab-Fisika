@@ -166,7 +166,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
   };
 
   return (
-    <div className="h-screen h-dvh bg-[#06080D] text-white flex flex-col font-sans overflow-hidden">
+    <div className="min-h-screen md:h-screen md:h-dvh bg-[#06080D] text-white flex flex-col font-sans overflow-x-hidden md:overflow-hidden">
       
       {/* HEADER */}
       <header className="h-16 border-b border-white/10 flex items-center px-6 justify-between shrink-0 bg-white/[0.02] backdrop-blur-md z-50">
@@ -208,10 +208,10 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
       </header>
 
       {/* MAIN LAYOUT */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
         
         {/* LEFT PANEL: Instructions & Questions */}
-        <div className="w-[340px] min-[1500px]:w-[400px] border-r border-white/10 bg-white/[0.01] flex flex-col shrink-0 min-h-0 overflow-hidden">
+        <div className="w-full md:w-[340px] min-[1500px]:w-[400px] border-b md:border-b-0 md:border-r border-white/10 bg-white/[0.01] flex flex-col shrink-0 min-h-0 md:overflow-hidden">
           
           <div className="p-6 flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-8">
             {state.currentStep === "INTRO" && (
@@ -436,7 +436,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
         </div>
 
         {/* RIGHT PANEL: Simulation & Data */}
-        <div className="flex-1 min-h-0 flex flex-col relative bg-[#0B1020] overflow-hidden">
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col relative bg-[#0B1020] md:overflow-hidden">
           {/* SIMULATION AREA */}
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative">
             {/* The simulation component is rendered in normal flow so vertical scroll works */}

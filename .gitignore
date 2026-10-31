@@ -16,6 +16,7 @@
 /playwright-report/
 screenshots/
 e2e/reproduce_*.spec.ts
+e2e/verification_*.spec.ts
 
 # next.js
 /.next/
