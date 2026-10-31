@@ -1,17 +1,26 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
-  DEFAULT_LASER_WAVELENGTH,
   DEFAULT_SCREEN_DISTANCE_L,
+  calculateAdaptiveScreenSpanMm,
   fraunhoferIntensity,
+  screenDistanceToRailCm,
   wavelengthToHex,
   wavelengthToRgb,
 } from "@/physics/waveOptics";
 
 export type CameraPreset = "oblique" | "side" | "top";
+
+export interface OpticalBench3DTelemetry {
+  unmaskedRenderer: string;
+  unmaskedVendor: string;
+  intensityCalcMs: number;
+  textureUpdateMs: number;
+  renderMs: number;
+}
 
 export interface OpticalBench3DSceneProps {
   lambdaNm?: number;
@@ -21,10 +30,22 @@ export interface OpticalBench3DSceneProps {
   distanceL?: number;
   isLaserOn?: boolean;
   dimmer?: number;
+  exposure?: number;
+  spanMm?: number;
   cameraPreset?: CameraPreset;
   onCameraPresetChange?: (preset: CameraPreset) => void;
   onFrameRendered?: () => void;
+  onTelemetryUpdate?: (telemetry: OpticalBench3DTelemetry) => void;
+  onContextLost?: () => void;
   className?: string;
+}
+
+const SCREEN_TEXTURE_WIDTH = 1024;
+const BENCH_CENTER_X = 1.3;
+
+function parseRgbTuple(rgbStr: string): [number, number, number] {
+  const parts = rgbStr.split(",").map((s) => parseInt(s.trim(), 10));
+  return [parts[0] || 239, parts[1] || 68, parts[2] || 68];
 }
 
 /**
@@ -32,33 +53,30 @@ export interface OpticalBench3DSceneProps {
  */
 function CameraController({
   preset,
-  distanceL,
   onFrameRendered,
 }: {
   preset: CameraPreset;
-  distanceL: number;
   onFrameRendered?: () => void;
 }) {
   const { camera, invalidate } = useThree();
-  const midX = distanceL / 2;
 
   const onFrameRenderedRef = useRef(onFrameRendered);
   onFrameRenderedRef.current = onFrameRendered;
 
-  // Target camera positions for each preset
+  // Target camera positions for each preset (centered on the optical bench)
   const targetPos = useMemo(() => {
     switch (preset) {
       case "side":
-        return new THREE.Vector3(midX, 0.22, 1.85);
+        return new THREE.Vector3(BENCH_CENTER_X, 0.24, 2.35);
       case "top":
-        return new THREE.Vector3(midX, 2.4, 0.01);
+        return new THREE.Vector3(BENCH_CENTER_X, 2.65, 0.01);
       case "oblique":
       default:
-        return new THREE.Vector3(midX - 0.75, 0.72, 1.35);
+        return new THREE.Vector3(BENCH_CENTER_X - 0.95, 0.78, 1.65);
     }
-  }, [preset, midX]);
+  }, [preset]);
 
-  const lookAtPos = useMemo(() => new THREE.Vector3(midX, 0.2, 0), [midX]);
+  const lookAtPos = useMemo(() => new THREE.Vector3(BENCH_CENTER_X, 0.18, 0), []);
   const isFirstMountRef = useRef(true);
 
   useEffect(() => {
@@ -68,13 +86,12 @@ function CameraController({
       camera.lookAt(lookAtPos);
       camera.updateProjectionMatrix();
       invalidate();
-      onFrameRenderedRef.current?.();
       return;
     }
 
     let animId: number;
     const startTime = performance.now();
-    const duration = 500; // 500 ms smooth transition
+    const duration = 350; // 350 ms smooth transition
     const startPos = camera.position.clone();
 
     const animate = (now: number) => {
@@ -86,7 +103,7 @@ function CameraController({
       camera.lookAt(lookAtPos);
       camera.updateProjectionMatrix();
 
-      invalidate(); // request on-demand render
+      invalidate();
       onFrameRenderedRef.current?.();
 
       if (progress < 1) {
@@ -112,205 +129,240 @@ function SceneContent({
   distanceL = DEFAULT_SCREEN_DISTANCE_L,
   isLaserOn = true,
   dimmer = 1.0,
+  exposure = 1.8,
+  spanMm,
   cameraPreset = "oblique",
   onFrameRendered,
+  onTelemetryUpdate,
+  onContextLost,
 }: OpticalBench3DSceneProps) {
-  const { invalidate } = useThree();
+  const { gl, scene, camera, invalidate } = useThree();
   const onFrameRenderedRef = useRef(onFrameRendered);
   onFrameRenderedRef.current = onFrameRendered;
+  const onTelemetryUpdateRef = useRef(onTelemetryUpdate);
+  onTelemetryUpdateRef.current = onTelemetryUpdate;
+  const onContextLostRef = useRef(onContextLost);
+  onContextLostRef.current = onContextLost;
+
+  const rendererInfoRef = useRef<{ renderer: string; vendor: string }>({
+    renderer: "Unknown",
+    vendor: "Unknown",
+  });
+
+  // Extract UNMASKED_RENDERER_WEBGL and attach context loss listener once
+  useEffect(() => {
+    try {
+      const ctx = gl.getContext?.();
+      if (ctx) {
+        const dbg = ctx.getExtension("WEBGL_debug_renderer_info");
+        const unmaskedRenderer = dbg
+          ? String(ctx.getParameter(dbg.UNMASKED_RENDERER_WEBGL))
+          : String(ctx.getParameter(ctx.RENDERER));
+        const unmaskedVendor = dbg
+          ? String(ctx.getParameter(dbg.UNMASKED_VENDOR_WEBGL))
+          : String(ctx.getParameter(ctx.VENDOR));
+        rendererInfoRef.current = { renderer: unmaskedRenderer, vendor: unmaskedVendor };
+      }
+    } catch {
+      // Ignore in mocked test environments
+    }
+
+    const domElement = gl.domElement;
+    if (!domElement || typeof domElement.addEventListener !== "function") return;
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      onContextLostRef.current?.();
+    };
+    domElement.addEventListener("webglcontextlost", handleContextLost, false);
+    return () => {
+      domElement.removeEventListener("webglcontextlost", handleContextLost, false);
+    };
+  }, [gl]);
 
   const laserHex = useMemo(() => wavelengthToHex(lambdaNm), [lambdaNm]);
   const laserRgb = useMemo(() => wavelengthToRgb(lambdaNm), [lambdaNm]);
   const isBeamActive = isLaserOn && dimmer > 0.01;
   const effectiveDimmer = isBeamActive ? Math.min(1, Math.max(0.1, dimmer)) : 0;
 
-  // ─── 1. Offscreen Dynamic Texture for Projection Screen ───────────────────
-  const screenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const screenTextureRef = useRef<THREE.CanvasTexture | null>(null);
+  const activeSpanMm = useMemo(() => {
+    if (spanMm !== undefined && spanMm > 0) return spanMm;
+    return calculateAdaptiveScreenSpanMm(lambdaNm * 1e-9, distanceL, aMm * 1e-3, dMm * 1e-3, N);
+  }, [spanMm, lambdaNm, distanceL, aMm, dMm, N]);
 
-  useEffect(() => {
-    let canvas = screenCanvasRef.current;
-    if (!canvas) {
-      canvas = document.createElement("canvas");
-      canvas.width = 512;
-      canvas.height = 512;
-      screenCanvasRef.current = canvas;
-      screenTextureRef.current = new THREE.CanvasTexture(canvas);
-      screenTextureRef.current.minFilter = THREE.LinearFilter;
-      screenTextureRef.current.magFilter = THREE.LinearFilter;
-    }
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Draw clean millimeter block paper background
-    ctx.fillStyle = "#f8fafc";
-    ctx.fillRect(0, 0, 512, 512);
-
-    // Millimeter block grid (teal/cyan)
-    ctx.strokeStyle = "rgba(6, 182, 212, 0.25)";
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= 512; x += 16) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, 512);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= 512; y += 16) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(512, y);
-      ctx.stroke();
-    }
-
-    // Major 10-mm grid lines
-    ctx.strokeStyle = "rgba(6, 182, 212, 0.55)";
-    ctx.lineWidth = 1.5;
-    for (let y = 0; y <= 512; y += 80) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(512, y);
-      ctx.stroke();
-    }
-
-    // Center crosshair axis
-    ctx.strokeStyle = "rgba(6, 182, 212, 0.9)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(256, 0);
-    ctx.lineTo(256, 512);
-    ctx.moveTo(0, 256);
-    ctx.lineTo(512, 256);
-    ctx.stroke();
-
-    // ── Live Fraunhofer Interference Fringes ──
-    if (isBeamActive) {
-      const lambdaM = lambdaNm * 1e-9;
-      const aM = aMm * 1e-3;
-      const dM = dMm * 1e-3;
-      const maxSpanMm = 12.0; // +/- 12 mm across screen height
-
-      // Render physical interference fringes along vertical axis
-      for (let py = 0; py < 512; py += 2) {
-        const yMm = ((py - 256) / 256) * maxSpanMm;
-        const yM = yMm * 1e-3;
-        const I = fraunhoferIntensity(yM, lambdaM, distanceL, aM, dM, N);
-        const intensity = Math.min(1.0, I * effectiveDimmer);
-
-        if (intensity > 0.005) {
-          ctx.fillStyle = `rgba(${laserRgb}, ${intensity * 0.9})`;
-          ctx.fillRect(256 - 45, py, 90, 2);
-
-          // Intense core filament
-          if (intensity > 0.4) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${(intensity - 0.4) * 1.5})`;
-            ctx.fillRect(256 - 15, py, 30, 2);
-          }
-        }
-      }
-    }
-
-    if (screenTextureRef.current) {
-      screenTextureRef.current.needsUpdate = true;
-    }
-
-    invalidate();
-    onFrameRenderedRef.current?.();
-  }, [lambdaNm, N, aMm, dMm, distanceL, isBeamActive, effectiveDimmer, laserRgb, invalidate]);
-
-  // ─── 2. Offscreen Rail Scale Texture (0 to 300 cm) ─────────────────────────
-  const railTexture = useMemo(() => {
-    if (typeof document === "undefined") return null;
-    const canvas = document.createElement("canvas");
-    canvas.width = 2048;
-    canvas.height = 128;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    // Dark metallic rail face
-    ctx.fillStyle = "#334155";
-    ctx.fillRect(0, 0, 2048, 128);
-
-    // Centimeter graduation ticks along 3.0 m rail
-    ctx.fillStyle = "#f8fafc";
-    ctx.font = "bold 28px monospace";
-    ctx.textAlign = "center";
-
-    for (let cm = 0; cm <= 300; cm += 5) {
-      const px = (cm / 300) * 1900 + 74;
-      const isMajor = cm % 20 === 0;
-      const isMed = cm % 10 === 0;
-
-      ctx.fillStyle = isMajor ? "#ffffff" : "#cbd5e1";
-      ctx.fillRect(px - 1, 0, isMajor ? 3 : 1.5, isMajor ? 48 : isMed ? 32 : 18);
-
-      if (isMajor) {
-        ctx.fillText(`${cm}`, px, 90);
-      }
-    }
-
-    const tex = new THREE.CanvasTexture(canvas);
+  // ─── 1. 1D DataTexture (1024x1, RGBA8) for Projection Screen ──────────────
+  const { screenDataBuffer, screenIntensities, screenTexture } = useMemo(() => {
+    const data = new Uint8Array(SCREEN_TEXTURE_WIDTH * 4);
+    const intensities = new Float32Array(SCREEN_TEXTURE_WIDTH);
+    const tex = new THREE.DataTexture(
+      data,
+      SCREEN_TEXTURE_WIDTH,
+      1,
+      THREE.RGBAFormat,
+      THREE.UnsignedByteType
+    );
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
     tex.wrapS = THREE.ClampToEdgeWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
-    return tex;
+    tex.needsUpdate = true;
+    return { screenDataBuffer: data, screenIntensities: intensities, screenTexture: tex };
   }, []);
 
-  // Whenever props change in demand mode, trigger one frame render
   useEffect(() => {
+    const lambdaM = lambdaNm * 1e-9;
+    const aM = aMm * 1e-3;
+    const dM = dMm * 1e-3;
+    const [rLaser, gLaser, bLaser] = parseRgbTuple(laserRgb);
+
+    // Stage 1: Calculate Fraunhofer intensity across 1024 points (shared formula with ScreenPatternView)
+    const t0 = performance.now();
+    if (isBeamActive) {
+      for (let i = 0; i < SCREEN_TEXTURE_WIDTH; i++) {
+        const norm = (i / (SCREEN_TEXTURE_WIDTH - 1)) * 2 - 1;
+        const yMeters = norm * activeSpanMm * 1e-3;
+        const physicalI = fraunhoferIntensity(yMeters, lambdaM, distanceL, aM, dM, N);
+        const gammaI = Math.pow(Math.max(0, physicalI), 0.55);
+        screenIntensities[i] = Math.min(1.0, gammaI * effectiveDimmer * exposure);
+      }
+    } else {
+      screenIntensities.fill(0);
+    }
+    const t1 = performance.now();
+
+    // Stage 2: Populate 1024x1 RGBA8 buffer and mark needsUpdate
+    const rBg = 9;
+    const gBg = 13;
+    const bBg = 22;
+    for (let i = 0; i < SCREEN_TEXTURE_WIDTH; i++) {
+      const visibleI = screenIntensities[i];
+      const idx = i * 4;
+      if (visibleI > 0.002) {
+        const alpha = visibleI * 0.95;
+        let r = rBg + (rLaser - rBg) * alpha;
+        let g = gBg + (gLaser - gBg) * alpha;
+        let b = bBg + (bLaser - bBg) * alpha;
+
+        if (visibleI > 0.35) {
+          const coreAlpha = Math.pow((visibleI - 0.35) / 0.65, 1.2) * 0.85;
+          r = r + (255 - r) * coreAlpha;
+          g = g + (255 - g) * coreAlpha;
+          b = b + (255 - b) * coreAlpha;
+        }
+
+        screenDataBuffer[idx] = Math.min(255, Math.round(r));
+        screenDataBuffer[idx + 1] = Math.min(255, Math.round(g));
+        screenDataBuffer[idx + 2] = Math.min(255, Math.round(b));
+        screenDataBuffer[idx + 3] = 255;
+      } else {
+        screenDataBuffer[idx] = rBg;
+        screenDataBuffer[idx + 1] = gBg;
+        screenDataBuffer[idx + 2] = bBg;
+        screenDataBuffer[idx + 3] = 255;
+      }
+    }
+    screenTexture.needsUpdate = true;
+    const t2 = performance.now();
+
+    // Stage 3: Render frame & measure GPU draw call time
     invalidate();
+    let t3 = t2;
+    try {
+      if (typeof gl.render === "function") {
+        gl.render(scene, camera);
+        t3 = performance.now();
+      }
+    } catch {
+      t3 = performance.now();
+    }
+
+    const telemetry: OpticalBench3DTelemetry = {
+      unmaskedRenderer: rendererInfoRef.current.renderer,
+      unmaskedVendor: rendererInfoRef.current.vendor,
+      intensityCalcMs: +(t1 - t0).toFixed(4),
+      textureUpdateMs: +(t2 - t1).toFixed(4),
+      renderMs: +(t3 - t2).toFixed(4),
+    };
+    if (typeof window !== "undefined") {
+      (window as unknown as Record<string, unknown>).__OPTICAL_BENCH_3D_METRICS__ = telemetry;
+    }
+    onTelemetryUpdateRef.current?.(telemetry);
     onFrameRenderedRef.current?.();
-  }, [lambdaNm, N, aMm, dMm, distanceL, isLaserOn, dimmer, cameraPreset, invalidate]);
+  }, [
+    lambdaNm,
+    N,
+    aMm,
+    dMm,
+    distanceL,
+    isBeamActive,
+    effectiveDimmer,
+    exposure,
+    activeSpanMm,
+    laserRgb,
+    screenDataBuffer,
+    screenIntensities,
+    screenTexture,
+    gl,
+    scene,
+    camera,
+    invalidate,
+  ]);
 
   // Optical axis height is at Y = 0.20 m
   const yOpt = 0.2;
-  const xLaserNozzle = -0.12;
+  const xLaserNozzle = -0.18;
   const xSlit = 0.0;
-  const xScreen = distanceL;
+  // Screen position consistent with rail cm reading via screenDistanceToRailCm
+  const railCm = screenDistanceToRailCm(distanceL);
+  const xScreen = railCm / 100;
 
   return (
     <>
       <CameraController
         preset={cameraPreset}
-        distanceL={distanceL}
         onFrameRendered={onFrameRendered}
       />
 
       {/* ── Lighting (Standard Simple Setup without Shadows) ── */}
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[2, 4, 3]} intensity={1.1} />
+      <ambientLight intensity={0.75} />
+      <directionalLight position={[2, 4, 3]} intensity={1.15} />
 
       {/* ── 1. Lab Table Surface ── */}
-      <mesh position={[1.4, -0.02, 0]}>
-        <boxGeometry args={[4.2, 0.04, 1.4]} />
-        <meshStandardMaterial color="#090d16" roughness={0.7} metalness={0.2} />
+      <mesh position={[1.35, -0.02, 0]}>
+        <boxGeometry args={[4.0, 0.04, 1.3]} />
+        <meshStandardMaterial color="#090d16" roughness={0.75} metalness={0.2} />
       </mesh>
 
-      {/* ── 2. Extruded Aluminum Optical Rail (3.4 m length) ── */}
-      {/* Main Extrusion Bar */}
-      <mesh position={[1.4, 0.02, 0]}>
-        <boxGeometry args={[3.4, 0.04, 0.09]} />
+      {/* ── 2. Extruded Aluminum Optical Rail (0 cm at Slit X=0.0 to 300 cm at X=3.0) ── */}
+      <mesh position={[1.35, 0.02, 0]}>
+        <boxGeometry args={[3.5, 0.04, 0.09]} />
         <meshStandardMaterial color="#64748b" metalness={0.7} roughness={0.3} />
       </mesh>
-      {/* Front Scale Face with printed cm markings */}
-      {railTexture && (
-        <mesh position={[1.4, 0.02, 0.046]}>
-          <planeGeometry args={[3.4, 0.04]} />
-          <meshBasicMaterial map={railTexture} />
-        </mesh>
-      )}
+
+      {/* Graduation tick marks along the rail every 10 cm (0 to 300 cm) */}
+      {Array.from({ length: 31 }).map((_, idx) => {
+        const cm = idx * 10;
+        const xPos = cm / 100;
+        const isMajor50 = cm % 50 === 0;
+        return (
+          <mesh key={cm} position={[xPos, isMajor50 ? 0.026 : 0.029, 0.046]}>
+            <boxGeometry args={[isMajor50 ? 0.008 : 0.004, isMajor50 ? 0.026 : 0.016, 0.002]} />
+            <meshBasicMaterial color={isMajor50 ? "#38bdf8" : "#cbd5e1"} />
+          </mesh>
+        );
+      })}
 
       {/* Rail Endcaps & Leveling Feet */}
-      <mesh position={[-0.2, -0.005, 0]}>
+      <mesh position={[-0.35, -0.005, 0]}>
         <boxGeometry args={[0.08, 0.03, 0.14]} />
         <meshStandardMaterial color="#0f172a" />
       </mesh>
-      <mesh position={[3.0, -0.005, 0]}>
+      <mesh position={[3.05, -0.005, 0]}>
         <boxGeometry args={[0.08, 0.03, 0.14]} />
         <meshStandardMaterial color="#0f172a" />
       </mesh>
 
-      {/* ── 3. Component 1: Laser Source Module (at X = -0.20) ── */}
-      <group position={[-0.2, 0, 0]}>
+      {/* ── 3. Component 1: Laser Source Module (at X = -0.25) ── */}
+      <group position={[-0.25, 0, 0]}>
         {/* Carrier Base on Rail */}
         <mesh position={[0, 0.05, 0]}>
           <boxGeometry args={[0.1, 0.025, 0.11]} />
@@ -338,7 +390,7 @@ function SceneContent({
         </mesh>
       </group>
 
-      {/* ── 4. Component 2: Slit Wheel Assembly (at X = 0.0) ── */}
+      {/* ── 4. Component 2: Slit Wheel Assembly (at X = 0.0 = 0 cm mark) ── */}
       <group position={[xSlit, 0, 0]}>
         {/* Carrier Base on Rail */}
         <mesh position={[0, 0.05, 0]}>
@@ -365,7 +417,7 @@ function SceneContent({
           <boxGeometry args={[0.022, 0.032, 0.006]} />
           <meshBasicMaterial color="#000000" />
         </mesh>
-        {/* Microscopic Slit Lines inside Aperture */}
+        {/* Microscopic Slit Lines inside Aperture (N = 1..6) */}
         {Array.from({ length: N }).map((_, idx) => {
           const sep = N > 1 ? Math.min(0.003, 0.014 / (N - 1)) : 0;
           const zOffset = N === 1 ? 0 : -((N - 1) / 2) * sep + idx * sep;
@@ -392,40 +444,36 @@ function SceneContent({
         </mesh>
         {/* Screen Frame Plate (Facing -X toward Slit & Laser) */}
         <mesh position={[0, yOpt, 0]}>
-          <boxGeometry args={[0.008, 0.26, 0.18]} />
+          <boxGeometry args={[0.008, 0.18, 0.28]} />
           <meshStandardMaterial color="#0f172a" metalness={0.5} roughness={0.5} />
         </mesh>
-        {/* Front Millimeter Block Paper with Dynamic Fraunhofer Pattern */}
-        {screenTextureRef.current && (
-          <mesh position={[-0.005, yOpt, 0]} rotation={[0, -Math.PI / 2, 0]}>
-            <planeGeometry args={[0.16, 0.24]} />
-            <meshBasicMaterial map={screenTextureRef.current} />
-          </mesh>
-        )}
+        {/* Front Screen Plane with 1D (1024x1) DataTexture -> Vertical Fringes */}
+        <mesh position={[-0.005, yOpt, 0]} rotation={[0, -Math.PI / 2, 0]}>
+          <planeGeometry args={[0.26, 0.16]} />
+          <meshBasicMaterial map={screenTexture} />
+        </mesh>
       </group>
 
       {/* ── 6. Additive Volumetric Laser Beam ── */}
       {isBeamActive && (
         <group>
           {/* Segment 1: Collimated Ray (Laser Nozzle to Slit) */}
-          {/* Core Beam */}
           <mesh position={[(xLaserNozzle + xSlit) / 2, yOpt, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.0016, 0.0016, Math.abs(xSlit - xLaserNozzle), 16]} />
+            <cylinderGeometry args={[0.0032, 0.0032, Math.abs(xSlit - xLaserNozzle), 16]} />
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.88 * effectiveDimmer}
+              opacity={0.92 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
           </mesh>
-          {/* White Center Filament */}
           <mesh position={[(xLaserNozzle + xSlit) / 2, yOpt, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.0006, 0.0006, Math.abs(xSlit - xLaserNozzle), 12]} />
+            <cylinderGeometry args={[0.0008, 0.0008, Math.abs(xSlit - xLaserNozzle), 12]} />
             <meshBasicMaterial
               color="#ffffff"
               transparent
-              opacity={0.92 * effectiveDimmer}
+              opacity={0.85 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -433,21 +481,21 @@ function SceneContent({
 
           {/* Segment 2: Central Direct Ray (Slit to Screen) */}
           <mesh position={[(xSlit + xScreen) / 2, yOpt, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.0016, 0.0016, Math.abs(xScreen - xSlit), 16]} />
+            <cylinderGeometry args={[0.0032, 0.0032, Math.abs(xScreen - xSlit), 16]} />
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.82 * effectiveDimmer}
+              opacity={0.9 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
           </mesh>
           <mesh position={[(xSlit + xScreen) / 2, yOpt, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.0006, 0.0006, Math.abs(xScreen - xSlit), 12]} />
+            <cylinderGeometry args={[0.0008, 0.0008, Math.abs(xScreen - xSlit), 12]} />
             <meshBasicMaterial
               color="#ffffff"
               transparent
-              opacity={0.9 * effectiveDimmer}
+              opacity={0.8 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
@@ -455,11 +503,11 @@ function SceneContent({
 
           {/* Diffraction Fan Cone (Volumetric Spread toward Screen) */}
           <mesh position={[(xSlit + xScreen) / 2, yOpt, 0]} rotation={[0, 0, -Math.PI / 2]}>
-            <coneGeometry args={[0.045, Math.abs(xScreen - xSlit), 24, 1, true]} />
+            <coneGeometry args={[0.055, Math.abs(xScreen - xSlit), 24, 1, true]} />
             <meshBasicMaterial
               color={laserHex}
               transparent
-              opacity={0.22 * effectiveDimmer}
+              opacity={0.28 * effectiveDimmer}
               blending={THREE.AdditiveBlending}
               side={THREE.DoubleSide}
               depthWrite={false}
@@ -468,7 +516,7 @@ function SceneContent({
 
           {/* Nozzle Aperture Glow & Screen Impact Point Halo */}
           <mesh position={[xLaserNozzle, yOpt, 0]}>
-            <sphereGeometry args={[0.006, 12, 12]} />
+            <sphereGeometry args={[0.008, 12, 12]} />
             <meshBasicMaterial
               color={laserHex}
               transparent
@@ -477,7 +525,7 @@ function SceneContent({
             />
           </mesh>
           <mesh position={[xScreen - 0.004, yOpt, 0]}>
-            <sphereGeometry args={[0.007, 12, 12]} />
+            <sphereGeometry args={[0.009, 12, 12]} />
             <meshBasicMaterial
               color={laserHex}
               transparent
@@ -495,16 +543,26 @@ function SceneContent({
  * Exported 3D Canvas with frameloop="demand".
  */
 export default function OpticalBench3DScene(props: OpticalBench3DSceneProps) {
-  const { className = "", distanceL = DEFAULT_SCREEN_DISTANCE_L } = props;
+  const {
+    className = "",
+    lambdaNm = 632.8,
+    N = 2,
+    distanceL = DEFAULT_SCREEN_DISTANCE_L,
+    isLaserOn = true,
+  } = props;
+
+  const ariaLabel = `Kanvas 3D Bangku Optik: panjang gelombang ${Math.round(lambdaNm)} nm, jumlah celah N = ${N}, jarak layar L = ${distanceL.toFixed(2)} m, laser ${isLaserOn ? "Aktif" : "Mati"}`;
 
   return (
     <div
-      className={`relative w-full h-[420px] bg-gradient-to-b from-[#030712] via-[#050b18] to-[#02050e] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl ${className}`}
+      role="img"
+      aria-label={ariaLabel}
+      className={`relative w-full h-[380px] bg-gradient-to-b from-[#030712] via-[#050b18] to-[#02050e] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl ${className}`}
       data-testid="optical-bench-3d-canvas"
     >
       <Canvas
         frameloop="demand"
-        camera={{ position: [distanceL / 2 - 0.75, 0.72, 1.35], fov: 42 }}
+        camera={{ position: [BENCH_CENTER_X - 0.95, 0.78, 1.65], fov: 42 }}
         gl={{
           antialias: true,
           powerPreference: "high-performance",
