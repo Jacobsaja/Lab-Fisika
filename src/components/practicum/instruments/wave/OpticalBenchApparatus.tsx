@@ -97,7 +97,9 @@ export function OpticalBenchApparatus({
   const xBenchMid = (xSlit + xScreen) / 2;
   // Pil "L = ..." di tengah garis ukur bila muat (span >= 145); bila L pendek, di kanan layar.
   const isLPillCentered = benchSpan >= 145;
-  const lPillX = isLPillCentered ? xBenchMid - 58 : xScreen + 32;
+  const lPillX = isLPillCentered ? xBenchMid - 58 : xScreen + 36;
+  const slitBadgeDx = benchSpan < 130 ? -18 : 0;
+  const screenBadgeDx = benchSpan < 130 ? 16 : 0;
 
   // Slit disk rotation angle
   const diskRotationDeg = useMemo(() => {
@@ -713,8 +715,8 @@ export function OpticalBenchApparatus({
               })}
 
               {/* Equipment Name Label (>= 12px) */}
-              <g transform="translate(0, 178)">
-                <rect x="-70" y="0" width="140" height="22" rx="4" fill="#020617" stroke="#38bdf8" strokeWidth="1" />
+              <g transform={`translate(${slitBadgeDx}, 178)`}>
+                <rect x="-65" y="0" width="130" height="22" rx="4" fill="#020617" stroke="#38bdf8" strokeWidth="1" />
                 <text x="0" y="15" fill="#e2e8f0" fontSize="12" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
                   {activeN === 1 ? "Celah Tunggal (N=1)" : `Piringan Celah (N=${activeN})`}
                 </text>
@@ -950,7 +952,7 @@ export function OpticalBenchApparatus({
               )}
 
               {/* Equipment Name Label (>= 12px) */}
-              <g transform="translate(0, 178)">
+              <g transform={`translate(${screenBadgeDx}, 178)`}>
                 <rect x="-42" y="0" width="84" height="22" rx="4" fill="#020617" stroke="#38bdf8" strokeWidth="1" />
                 <text x="0" y="15" fill="#e2e8f0" fontSize="12" fontFamily="sans-serif" textAnchor="middle" fontWeight="bold">
                   Layar
