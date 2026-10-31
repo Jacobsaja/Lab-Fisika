@@ -19,6 +19,7 @@ import {
   VectorControls,
   VectorCategoryConfig,
 } from "@/components/simulation/visual";
+import { Stepper } from "@/components/common/Stepper";
 
 // ── Physical Scale & Simulation Coordinates ──────────────────────────
 const TIANG_TOP_Y = 50;   // Top of the vertical mast in SVG
@@ -655,6 +656,32 @@ export function FreeFallApparatus({
                 </div>
               </div>
             )}
+
+            {/* Stepper for Height Adjustment */}
+            <Stepper
+              label="Atur Ketinggian (h)"
+              value={Number((currentHeightMeters * 100).toFixed(1))}
+              onChange={(newCm) => {
+                if (isMorsePressed || isFalling) return;
+                const newMeters = newCm / 100;
+                let newY = GROUND_Y - (newMeters * PX_PER_METER);
+                if (newY < TIANG_TOP_Y + 40) newY = TIANG_TOP_Y + 40;
+                if (newY > GROUND_Y - 80) newY = GROUND_Y - 80;
+                setMagnetY(newY);
+                onHeightChangeRef.current?.(pixelsToMeters(newY));
+                if (!isFalling && !isMorsePressed) {
+                  setBallY(newY + BALL_VISUAL_OFFSET);
+                }
+              }}
+              min={10}
+              max={115}
+              fineStep={1}
+              coarseStep={5}
+              unit="cm"
+              precision={1}
+              disabled={isFalling || isMorsePressed}
+              className="my-1"
+            />
 
             {/* ── Vector Controls (Tahap J) ── */}
             <VectorControls

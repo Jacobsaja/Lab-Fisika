@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeH
 import { calculateFallTime, calculateGLBTime, getAtwoodVectors, getAtwoodVelocityAt } from "@/physics/atwood";
 import { usePersistedPlaybackSpeed } from "@/physics/hooks/usePersistedPlaybackSpeed";
 import { PlaybackSpeedControl } from "@/components/simulation/PlaybackSpeedControl";
+import { Stepper } from "@/components/common/Stepper";
 import {
   useMetalGradientIds,
   SvgMetalGradients,
@@ -1500,6 +1501,52 @@ export const AtwoodApparatus = forwardRef<AtwoodApparatusRef, AtwoodApparatusPro
                 : "Jarak A-B tetap (20.0 cm). Atur posisi landasan C. Stopwatch akan secara otomatis di-trigger oleh sensor gerbang cahaya B (START) dan C (STOP)."}
             </p>
             
+            {/* Steppers for Distance Configuration */}
+            <div className="flex flex-col gap-2.5 mb-4">
+              {(mode === "GLBB" || mode === "explore") && (
+                <Stepper
+                  label="Jarak A-B (sAB)"
+                  value={Number(((posB - Y_A) / 10).toFixed(1))}
+                  onChange={(valCm) => {
+                    if (isAnimating || clampRetracted) return;
+                    const newY = Y_A + valCm * 10;
+                    const maxY = mode === "explore" ? posC - 50 : Y_M1_INITIAL - 50;
+                    const clamped = Math.max(Y_A + 50, Math.min(maxY, newY));
+                    setPosB(clamped);
+                  }}
+                  min={5}
+                  max={Number(((posC - 50 - Y_A) / 10).toFixed(1))}
+                  fineStep={1}
+                  coarseStep={5}
+                  unit="cm"
+                  precision={1}
+                  disabled={isAnimating || clampRetracted}
+                />
+              )}
+
+              {(mode === "GLB" || mode === "explore") && (
+                <Stepper
+                  label="Jarak B-C (sBC)"
+                  value={Number(((posC - posB) / 10).toFixed(1))}
+                  onChange={(valCm) => {
+                    if (isAnimating || clampRetracted) return;
+                    const newY = posB + valCm * 10;
+                    const minY = mode === "explore" ? posB + 50 : posB + 100;
+                    const maxY = Y_M1_INITIAL - 20;
+                    const clamped = Math.max(minY, Math.min(maxY, newY));
+                    setPosC(clamped);
+                  }}
+                  min={mode === "explore" ? 5 : 10}
+                  max={Number(((Y_M1_INITIAL - 20 - posB) / 10).toFixed(1))}
+                  fineStep={1}
+                  coarseStep={5}
+                  unit="cm"
+                  precision={1}
+                  disabled={isAnimating || clampRetracted}
+                />
+              )}
+            </div>
+
             {/* Playback Speed Control */}
             <div className="mb-4">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
