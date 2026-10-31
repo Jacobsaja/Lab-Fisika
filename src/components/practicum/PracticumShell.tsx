@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { PracticumConfig, PracticumState, PracticumStep } from "@/types/practicum";
 import { usePracticumSession } from "@/hooks/usePracticumSession";
-import { ArrowLeft, ChevronRight, CheckCircle2, RotateCcw, Play, Pause, ListTodo } from "lucide-react";
+import { ArrowLeft, ChevronRight, CheckCircle2, RotateCcw, Play, Pause, ListTodo, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { ExperimentTimer } from "./ExperimentTimer";
 import { DataTable } from "./DataTable";
@@ -34,6 +34,8 @@ interface PracticumShellProps {
   simulationComponent: React.ReactNode | ((ctx: PracticumShellContext) => React.ReactNode);
   /** A static flag, or a predicate evaluated against the live session state. */
   isNextDisabled?: boolean | ((state: PracticumState) => boolean);
+  /** Optional explanation message when the Next button is disabled/gated */
+  nextBlockedReason?: string | ((state: PracticumState) => string | null | undefined);
   /** Optional callback fired when a progressive hint is revealed */
   onHintRevealed?: (count: number) => void;
 }
@@ -46,12 +48,36 @@ const BASE_STEPS: { id: PracticumStep; label: string }[] = [
   { id: "REVIEW", label: "Tinjau Hasil" },
 ];
 
-export function PracticumShell({ config, simulationComponent, isNextDisabled = false, onHintRevealed }: PracticumShellProps) {
+export function PracticumShell({ config, simulationComponent, isNextDisabled = false, nextBlockedReason, onHintRevealed }: PracticumShellProps) {
   const { state, setStep, updateElapsedMs, addDataRow, setRecordedData, setAnswer, completePracticum, resetSession } = usePracticumSession(config.id);
   const [mounted, setMounted] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [resetCount, setResetCount] = useState(0);
   const [revealedHintsCount, setRevealedHintsCount] = useState(0);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+
+  useEffect(() => {
+    try {
+      const stored = window.sessionStorage.getItem(`vlab_drawer_open_${config.id}`);
+      if (stored !== null) {
+        setIsDrawerOpen(stored === "true");
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [config.id]);
+
+  const toggleDrawer = () => {
+    setIsDrawerOpen((prev) => {
+      const next = !prev;
+      try {
+        window.sessionStorage.setItem(`vlab_drawer_open_${config.id}`, String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Determine active steps based on config
   const STEPS = React.useMemo(() => {
@@ -109,6 +135,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
 
   const stepIndex = STEPS.findIndex(s => s.id === state.currentStep);
   const nextDisabled = typeof isNextDisabled === "function" ? isNextDisabled(state) : isNextDisabled;
+  const blockedReason = typeof nextBlockedReason === "function" ? nextBlockedReason(state) : nextBlockedReason;
   const showHints =
     !!config.hints && config.hints.length > 0 &&
     (state.currentStep === "SIMULATION" || state.currentStep === "ANALYSIS" || state.currentStep === "QUESTIONS");
@@ -139,7 +166,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
   };
 
   return (
-    <div className="min-h-screen bg-[#06080D] text-white flex flex-col font-sans overflow-hidden">
+    <div className="h-screen h-dvh bg-[#06080D] text-white flex flex-col font-sans overflow-hidden">
       
       {/* HEADER */}
       <header className="h-16 border-b border-white/10 flex items-center px-6 justify-between shrink-0 bg-white/[0.02] backdrop-blur-md z-50">
@@ -181,12 +208,12 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
       </header>
 
       {/* MAIN LAYOUT */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         
         {/* LEFT PANEL: Instructions & Questions */}
-        <div className="w-[400px] border-r border-white/10 bg-white/[0.01] flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+        <div className="w-[340px] min-[1500px]:w-[400px] border-r border-white/10 bg-white/[0.01] flex flex-col shrink-0 min-h-0 overflow-hidden">
           
-          <div className="p-6 flex-1 flex flex-col gap-8">
+          <div className="p-6 flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col gap-8">
             {state.currentStep === "INTRO" && (
               <div className="animate-fade-in">
                 <h2 className="text-2xl font-bold mb-4">Pengantar</h2>
@@ -376,30 +403,42 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
             )}
           </div>
 
-          {/* Nav Buttons */}
-          <div className="p-6 border-t border-white/10 bg-white/[0.02] flex justify-between shrink-0">
-            <button 
-              onClick={handlePrevStep}
-              disabled={stepIndex === 0}
-              className="px-4 py-2 text-sm font-semibold text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              Sebelumnya
-            </button>
-            <button 
-              data-testid="practicum-next-step"
-              onClick={handleNextStep}
-              disabled={stepIndex === STEPS.length - 1 || nextDisabled}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(37,99,235,0.3)]"
-            >
-              Selanjutnya <ChevronRight className="w-4 h-4" />
-            </button>
+          {/* Nav Buttons & Gating Indicator */}
+          <div className="p-4 border-t border-white/10 bg-white/[0.02] flex flex-col shrink-0 gap-2">
+            {nextDisabled && blockedReason && (
+              <div 
+                data-testid="next-blocked-reason"
+                className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-300 flex items-center gap-2 animate-fade-in"
+              >
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="leading-tight">{blockedReason}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <button 
+                onClick={handlePrevStep}
+                disabled={stepIndex === 0}
+                className="px-4 py-2 text-sm font-semibold text-white/50 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                Sebelumnya
+              </button>
+              <button 
+                data-testid="practicum-next-step"
+                onClick={handleNextStep}
+                disabled={stepIndex === STEPS.length - 1 || nextDisabled}
+                title={nextDisabled && blockedReason ? blockedReason : undefined}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+              >
+                Selanjutnya <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* RIGHT PANEL: Simulation & Data */}
-        <div className="flex-1 flex flex-col relative bg-[#0B1020]">
+        <div className="flex-1 min-h-0 flex flex-col relative bg-[#0B1020] overflow-hidden">
           {/* SIMULATION AREA */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar relative">
             {/* The simulation component is rendered in normal flow so vertical scroll works */}
             <div className="min-h-full w-full pointer-events-auto">
               {typeof simulationComponent === "function"
@@ -412,48 +451,95 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
                   })
                 : simulationComponent}
             </div>
-            
           </div>
 
-          {/* DATA TABLE AREA (Only visible in SIMULATION step or REVIEW step) */}
+          {/* DATA TABLE DRAWER (Only visible in SIMULATION step or REVIEW step) */}
           {(state.currentStep === "SIMULATION" || state.currentStep === "REVIEW") && (
-             <div className="h-[300px] border-t border-white/10 bg-[#11182A] p-4 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-20 animate-slide-up">
-               <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold text-white/90">Tabel Pengamatan</h3>
-                 {state.currentStep === "SIMULATION" && (
-                   <button 
-                     onClick={() => {
-                        const emptyRow: Record<string, string> = {};
-                        config.columns.forEach(c => emptyRow[c.key] = "");
-                        handleAddData(emptyRow);
-                     }}
-                     className="px-4 py-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/50 rounded-md text-sm font-semibold hover:bg-blue-500/30 transition-colors"
-                   >
-                     + Tambah Baris
-                   </button>
-                 )}
-               </div>
-               <div className="flex-1 overflow-auto rounded-lg border border-white/10">
-                 <DataTable 
-                   columns={config.columns.map(c => ({
-                     key: c.key,
-                     header: c.label,
-                     unit: c.unit,
-                   }))}
-                   rows={state.recordedData}
-                   onRowsChange={(newRows) => {
-                     // Since DataTable allows adding, editing, and deleting, we sync the whole array back
-                     setRecordedData(newRows as Record<string, string | number>[]);
-                   }}
-                   newRowFactory={() => {
-                     // For manual "Tambah Baris" button
-                     const emptyRow: any = {};
-                     config.columns.forEach(c => emptyRow[c.key] = "");
-                     return emptyRow;
-                   }}
-                 />
-               </div>
-             </div>
+            isDrawerOpen ? (
+              <div 
+                data-testid="data-drawer-open"
+                className="border-t border-white/10 bg-[#11182A] p-3 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-20 shrink-0 transition-[height] duration-200"
+                style={{ height: "clamp(160px, 32vh, 40%)" }}
+              >
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      data-testid="btn-toggle-drawer"
+                      onClick={toggleDrawer}
+                      className="p-1 rounded hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+                      title="Lipat Tabel Pengamatan"
+                      aria-label="Lipat Tabel Pengamatan"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <h3 className="font-bold text-white/90 text-sm">Tabel Pengamatan</h3>
+                    <span className="text-xs bg-blue-500/15 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 font-mono font-medium">
+                      {state.recordedData.length} baris
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {state.currentStep === "SIMULATION" && (
+                      <button 
+                        onClick={() => {
+                          const emptyRow: Record<string, string> = {};
+                          config.columns.forEach(c => emptyRow[c.key] = "");
+                          handleAddData(emptyRow);
+                        }}
+                        className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/50 rounded-md text-xs font-semibold hover:bg-blue-500/30 transition-colors"
+                      >
+                        + Tambah Baris
+                      </button>
+                    )}
+                    <button 
+                      onClick={toggleDrawer}
+                      className="text-xs text-white/40 hover:text-white/80 p-1 transition-colors"
+                      title="Lipat Tabel"
+                    >
+                      Lipat
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-white/10">
+                  <DataTable 
+                    columns={config.columns.map(c => ({
+                      key: c.key,
+                      header: c.label,
+                      unit: c.unit,
+                    }))}
+                    rows={state.recordedData}
+                    onRowsChange={(newRows) => {
+                      setRecordedData(newRows as Record<string, string | number>[]);
+                    }}
+                    newRowFactory={() => {
+                      const emptyRow: any = {};
+                      config.columns.forEach(c => emptyRow[c.key] = "");
+                      return emptyRow;
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div 
+                data-testid="data-drawer-collapsed"
+                onClick={toggleDrawer}
+                className="h-10 shrink-0 border-t border-white/10 bg-[#11182A]/90 hover:bg-[#11182A] px-4 flex items-center justify-between cursor-pointer transition-colors z-20 select-none shadow-[0_-4px_15px_rgba(0,0,0,0.3)]"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleDrawer(); }}
+                aria-label="Buka Tabel Pengamatan"
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronUp className="w-4 h-4 text-blue-400" />
+                  <span className="font-semibold text-xs text-white/90">Tabel Pengamatan</span>
+                  <span className="text-xs bg-blue-500/15 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/30 font-mono font-medium">
+                    {state.recordedData.length} baris
+                  </span>
+                </div>
+                <span className="text-xs text-white/50 hover:text-white flex items-center gap-1">
+                  Buka Tabel <ChevronUp className="w-3.5 h-3.5" />
+                </span>
+              </div>
+            )
           )}
         </div>
 
