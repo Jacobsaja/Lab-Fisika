@@ -57,6 +57,11 @@ export function DataTable<TRow extends Record<string, unknown>>({
   const [editValue, setEditValue] = useState("");
   const captionId = useId();
 
+  const editableCols = React.useMemo(
+    () => columns.filter((c) => c.editable !== false),
+    [columns]
+  );
+
   const addRow = () => {
     if (rows.length >= maxRows) return;
     onRowsChange([...rows, newRowFactory()]);
@@ -74,28 +79,127 @@ export function DataTable<TRow extends Record<string, unknown>>({
 
   const startEdit = (rowIdx: number, key: keyof TRow) => {
     setEditingCell({ rowIdx, key });
-    setEditValue(String(rows[rowIdx][key] ?? ""));
+    setEditValue(String(rows[rowIdx]?.[key] ?? ""));
   };
 
-  const commitEdit = () => {
-    if (!editingCell) return;
-    const { rowIdx, key } = editingCell;
-    const updated = rows.map((row, i) => {
+  const getUpdatedRows = (rowIdx: number, key: keyof TRow, rawValue: string) => {
+    return rows.map((row, i) => {
       if (i !== rowIdx) return row;
       const col = columns.find((c) => c.key === key);
-      const rawValue = editValue;
       const numeric = parseFloat(rawValue);
       const value = (col?.precision !== undefined && !isNaN(numeric)
         ? numeric
         : rawValue) as TRow[keyof TRow];
       return { ...row, [key]: value };
     });
+  };
+
+  const commitEdit = () => {
+    if (!editingCell) return;
+    const updated = getUpdatedRows(editingCell.rowIdx, editingCell.key, editValue);
     onRowsChange(updated);
     setEditingCell(null);
   };
 
   const handleCellKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === "Escape") commitEdit();
+    if (!editingCell) return;
+    const { rowIdx, key } = editingCell;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setEditingCell(null);
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const updated = getUpdatedRows(rowIdx, key, editValue);
+      if (rowIdx + 1 < rows.length) {
+        onRowsChange(updated);
+        setEditingCell({ rowIdx: rowIdx + 1, key });
+        setEditValue(String(updated[rowIdx + 1]?.[key] ?? ""));
+      } else if (rows.length < maxRows) {
+        const newRow = newRowFactory();
+        const nextRows = [...updated, newRow];
+        onRowsChange(nextRows);
+        setEditingCell({ rowIdx: rowIdx + 1, key });
+        setEditValue(String(newRow[key] ?? ""));
+      } else {
+        onRowsChange(updated);
+        setEditingCell(null);
+      }
+      return;
+    }
+
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const updated = getUpdatedRows(rowIdx, key, editValue);
+      const currentColIdx = editableCols.findIndex((c) => c.key === key);
+
+      if (!e.shiftKey) {
+        // Tab forward
+        if (currentColIdx < editableCols.length - 1) {
+          const nextKey = editableCols[currentColIdx + 1].key;
+          onRowsChange(updated);
+          setEditingCell({ rowIdx, key: nextKey });
+          setEditValue(String(updated[rowIdx]?.[nextKey] ?? ""));
+        } else if (rowIdx + 1 < rows.length) {
+          const firstKey = editableCols[0]?.key ?? key;
+          onRowsChange(updated);
+          setEditingCell({ rowIdx: rowIdx + 1, key: firstKey });
+          setEditValue(String(updated[rowIdx + 1]?.[firstKey] ?? ""));
+        } else if (rows.length < maxRows) {
+          const newRow = newRowFactory();
+          const firstKey = editableCols[0]?.key ?? key;
+          const nextRows = [...updated, newRow];
+          onRowsChange(nextRows);
+          setEditingCell({ rowIdx: rowIdx + 1, key: firstKey });
+          setEditValue(String(newRow[firstKey] ?? ""));
+        } else {
+          onRowsChange(updated);
+          setEditingCell(null);
+        }
+      } else {
+        // Shift + Tab backward
+        if (currentColIdx > 0) {
+          const prevKey = editableCols[currentColIdx - 1].key;
+          onRowsChange(updated);
+          setEditingCell({ rowIdx, key: prevKey });
+          setEditValue(String(updated[rowIdx]?.[prevKey] ?? ""));
+        } else if (rowIdx > 0) {
+          const lastKey = editableCols[editableCols.length - 1]?.key ?? key;
+          onRowsChange(updated);
+          setEditingCell({ rowIdx: rowIdx - 1, key: lastKey });
+          setEditValue(String(updated[rowIdx - 1]?.[lastKey] ?? ""));
+        } else {
+          onRowsChange(updated);
+          setEditingCell(null);
+        }
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const updated = getUpdatedRows(rowIdx, key, editValue);
+      if (rowIdx + 1 < rows.length) {
+        onRowsChange(updated);
+        setEditingCell({ rowIdx: rowIdx + 1, key });
+        setEditValue(String(updated[rowIdx + 1]?.[key] ?? ""));
+      }
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const updated = getUpdatedRows(rowIdx, key, editValue);
+      if (rowIdx > 0) {
+        onRowsChange(updated);
+        setEditingCell({ rowIdx: rowIdx - 1, key });
+        setEditValue(String(updated[rowIdx - 1]?.[key] ?? ""));
+      }
+      return;
+    }
   };
 
   return (
@@ -135,6 +239,8 @@ export function DataTable<TRow extends Record<string, unknown>>({
       {/* Table */}
       <div style={{ overflowX: "auto", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
         <table
+          role="grid"
+          aria-label={caption || "Tabel Data Pengamatan"}
           style={{ width: "100%", borderCollapse: "collapse" }}
           aria-labelledby={caption ? captionId : undefined}
         >
@@ -154,8 +260,9 @@ export function DataTable<TRow extends Record<string, unknown>>({
             </caption>
           )}
           <thead>
-            <tr style={{ background: "var(--color-surface-2)" }}>
+            <tr role="row" style={{ background: "var(--color-surface-2)" }}>
               <th
+                role="columnheader"
                 scope="col"
                 style={{
                   padding: "10px 12px",
@@ -172,6 +279,7 @@ export function DataTable<TRow extends Record<string, unknown>>({
               {columns.map((col) => (
                 <th
                   key={String(col.key)}
+                  role="columnheader"
                   scope="col"
                   style={{
                     padding: "10px 12px",
@@ -203,6 +311,7 @@ export function DataTable<TRow extends Record<string, unknown>>({
                 </th>
               ))}
               <th
+                role="columnheader"
                 scope="col"
                 style={{
                   padding: "10px 12px",
@@ -215,8 +324,9 @@ export function DataTable<TRow extends Record<string, unknown>>({
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr>
+              <tr role="row">
                 <td
+                  role="gridcell"
                   colSpan={columns.length + 2}
                   style={{
                     padding: "32px 16px",
@@ -233,6 +343,7 @@ export function DataTable<TRow extends Record<string, unknown>>({
               rows.map((row, rowIdx) => (
                 <tr
                   key={rowIdx}
+                  role="row"
                   style={{
                     borderBottom: rowIdx < rows.length - 1 ? "1px solid var(--color-border)" : "none",
                     background: rowIdx % 2 === 0 ? "var(--color-surface)" : "var(--color-surface-2)",
@@ -241,6 +352,7 @@ export function DataTable<TRow extends Record<string, unknown>>({
                 >
                   {/* Row number */}
                   <td
+                    role="gridcell"
                     style={{
                       padding: "10px 12px",
                       textAlign: "center",
@@ -260,22 +372,26 @@ export function DataTable<TRow extends Record<string, unknown>>({
                     return (
                       <td
                         key={String(col.key)}
+                        role="gridcell"
                         style={{ padding: 0, textAlign: "right", position: "relative" }}
                       >
                         {isEditing && col.editable !== false ? (
                           <input
-                            type={typeof cellValue === "number" ? "number" : "text"}
+                            type="text"
+                            inputMode={typeof cellValue === "number" ? "decimal" : "text"}
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={commitEdit}
                             onKeyDown={handleCellKeyDown}
                             autoFocus
+                            onFocus={(e) => e.target.select()}
                             style={{
                               width: "100%",
                               height: "100%",
                               padding: "10px 12px",
                               background: "var(--color-bg)",
-                              border: "1px solid var(--color-primary)",
+                              border: "2px solid #3b82f6",
+                              boxShadow: "0 0 0 3px rgba(59, 130, 246, 0.3)",
                               borderRadius: "var(--radius-sm)",
                               color: "var(--color-text)",
                               fontFamily: "'JetBrains Mono', monospace",
@@ -288,9 +404,15 @@ export function DataTable<TRow extends Record<string, unknown>>({
                           />
                         ) : (
                           <button
+                            type="button"
                             onClick={() =>
                               col.editable !== false && startEdit(rowIdx, col.key)
                             }
+                            onFocus={() => {
+                              if (col.editable !== false) {
+                                startEdit(rowIdx, col.key);
+                              }
+                            }}
                             style={{
                               background: "transparent",
                               border: "none",
@@ -307,6 +429,9 @@ export function DataTable<TRow extends Record<string, unknown>>({
                               height: "100%",
                               textAlign: "right",
                               display: "block",
+                              outline: "none",
+                              borderRadius: "var(--radius-sm)",
+                              transition: "box-shadow 0.15s ease",
                             }}
                             aria-label={
                               col.editable !== false
@@ -321,7 +446,7 @@ export function DataTable<TRow extends Record<string, unknown>>({
                     );
                   })}
                   {/* Delete button */}
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
+                  <td role="gridcell" style={{ padding: "6px 12px", textAlign: "center" }}>
                     <button
                       onClick={() => deleteRow(rowIdx)}
                       style={{
