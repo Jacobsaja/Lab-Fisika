@@ -210,8 +210,6 @@ export default function GMBPage() {
         return null;
       }}
       simulationComponent={(ctx) => {
-        const progress = getDataProgress(ctx.state);
-        const showProgress = ctx.state.currentStep === "SIMULATION" && !progress.ready;
         return (
           <div className="relative w-full">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 pt-4">
@@ -222,14 +220,6 @@ export default function GMBPage() {
               >
                 <Compass className="w-4 h-4" /> Buka Mode Eksplorasi
               </Link>
-              {showProgress && (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 rounded-lg shadow-lg" role="status">
-                  <p className="text-yellow-400 text-xs font-bold">DATA BELUM LENGKAP</p>
-                  <p className="text-white/70 text-xs font-mono">
-                    Baris {progress.validRows}/{MIN_ROWS} · N berbeda {progress.distinctN}/{MIN_DISTINCT_N} · r berbeda {progress.distinctR}/{MIN_DISTINCT_R}
-                  </p>
-                </div>
-              )}
             </div>
             <CircularMotionApparatus 
               key={ctx.resetCount} 

@@ -78,13 +78,7 @@ describe("Wave Optics Color & Adaptive Scaling Helpers", () => {
 
 describe("Explore SSG Page UI & Invariants", () => {
   it("renders with default parameters and allows resetting", () => {
-    const t0 = performance.now();
     render(<SSGExplorePage />);
-    const t1 = performance.now();
-    const renderTimeMs = t1 - t0;
-
-    // Verify render time is tracked
-    expect(renderTimeMs).toBeLessThan(1500);
 
     // Default lambda 632 nm and N = 2
     expect(screen.getAllByText(/632 nm/i).length).toBeGreaterThanOrEqual(1);

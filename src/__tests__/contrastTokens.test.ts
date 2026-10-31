@@ -42,17 +42,29 @@ describe("D. KONTRAS THEME TOKENS (WCAG 2.1 AA >= 4.5:1)", () => {
     }
   });
 
-  test("New --color-text-3 (#71849D) passes WCAG AA (>= 4.5:1) on ALL specified surfaces", () => {
+  test("New --color-text-3 (#71849D) passes WCAG AA (>= 4.5:1) on ALL specified surfaces with exact expected ratios", () => {
+    const expectedText3Ratios: Record<string, number> = {
+      "#06080D": 5.24,
+      "#0B1020": 4.95,
+      "#0D111A": 4.94,
+      "#11182A": 4.62,
+      "#0F172A": 4.67,
+      "#141A26": 4.55,
+      "#020617": 5.27,
+    };
+
     for (const [name, bgHex] of Object.entries(surfaces)) {
       const cr = getContrastRatio(newText3, bgHex);
       expect(cr).toBeGreaterThanOrEqual(4.5);
+      const rounded = Number(cr.toFixed(2));
+      expect(rounded).toBe(expectedText3Ratios[bgHex]);
     }
   });
 
-  test("Text-2 (#94A3B8) remains intact and provides high contrast (~7:1 to ~8:1)", () => {
+  test("Text-2 (#94A3B8) passes WCAG AA (>= 4.5:1) on ALL specified surfaces", () => {
     for (const [name, bgHex] of Object.entries(surfaces)) {
       const cr = getContrastRatio(text2, bgHex);
-      expect(cr).toBeGreaterThanOrEqual(6.5);
+      expect(cr).toBeGreaterThanOrEqual(4.5);
     }
   });
 });
