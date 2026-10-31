@@ -529,3 +529,101 @@ export function calculateAdaptiveScreenSpanMm(
   return Math.max(6.0, Math.min(30.0, Math.round(target)));
 }
 
+/**
+ * Maps screen distance L (meters) to rail measurement reading in cm.
+ * Slit disk carrier is fixed at 0 cm mark.
+ */
+export function screenDistanceToRailCm(L: number): number {
+  return Math.round(L * 100 * 100) / 100;
+}
+
+/**
+ * Exact geometric optical path difference between adjacent slits:
+ * Δ = d * sin(θ) where θ = atan(y / L)
+ * (Tidak menggunakan aproksimasi sudut kecil d*y/L).
+ */
+export function pathDifference(y: number, d: number, L: number): number {
+  if (L <= 0) return 0;
+  const theta = Math.atan(y / L);
+  return d * Math.sin(theta);
+}
+
+/**
+ * Path difference expressed in units of optical wavelength λ:
+ * Δ / λ = (d * sin(atan(y / L))) / λ
+ */
+export function pathDifferenceInWavelengths(
+  y: number,
+  d: number,
+  L: number,
+  lambda: number
+): number {
+  if (lambda <= 0) return 0;
+  return pathDifference(y, d, L) / lambda;
+}
+
+export interface InterferenceClassification {
+  type: "terang_primer" | "gelap" | "antara" | "disabled";
+  label: string;
+  order: number | null;
+  description: string;
+}
+
+/**
+ * Classifies optical interference state at a given path difference ratio Δ / λ for N slits.
+ * - Near integer (|Δ/λ - round| <= tolerance): Terang Primer (m = 0, ±1, ±2...)
+ * - Near half-integer (|Δ/λ - (m+0.5)| <= tolerance): Gelap (hanya untuk N = 2)
+ * - Otherwise: Antara (untuk N >= 3, terdapat N-2 terang sekunder dan N-1 minimum di antaranya)
+ * - For N = 1: Disabled (celah tunggal)
+ */
+export function classifyInterference(
+  deltaOverLambda: number,
+  N: number,
+  tolerance = 0.05
+): InterferenceClassification {
+  if (N <= 1) {
+    return {
+      type: "disabled",
+      label: "Tidak Aktif",
+      order: null,
+      description: "Fitur Titik P interferensi celah majemuk dinonaktifkan untuk celah tunggal (N = 1).",
+    };
+  }
+
+  const absVal = Math.abs(deltaOverLambda);
+  const nearestInt = Math.round(absVal);
+  const distToInt = Math.abs(absVal - nearestInt);
+
+  if (distToInt <= tolerance) {
+    const orderSign = deltaOverLambda >= 0 ? nearestInt : -nearestInt;
+    return {
+      type: "terang_primer",
+      label: `Terang Primer (m = ${orderSign})`,
+      order: orderSign,
+      description: `Beda lintasan Δ = ${nearestInt}λ memenuhi syarat interferensi konstruktif maksimum primer.`,
+    };
+  }
+
+  const nearestHalf = Math.round(absVal - 0.5) + 0.5;
+  const distToHalf = Math.abs(absVal - nearestHalf);
+
+  if (N === 2 && distToHalf <= tolerance) {
+    return {
+      type: "gelap",
+      label: "Gelap (Destruktif)",
+      order: null,
+      description: "Beda lintasan Δ = (m + ½)λ menghasilkan destruktif total sempurna untuk N = 2.",
+    };
+  }
+
+  return {
+    type: "antara",
+    label: "Antara",
+    order: null,
+    description:
+      N >= 3
+        ? `Di antara terang primer. Untuk N = ${N}, terdapat ${N - 2} terang sekunder dan ${N - 1} minimum.`
+        : "Di antara terang primer dan gelap.",
+  };
+}
+

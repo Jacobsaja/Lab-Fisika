@@ -42,6 +42,10 @@ import {
   findFraunhoferPeakContinuous,
   findFraunhoferPeakNumerical,
   quantizeToResolution,
+  screenDistanceToRailCm,
+  pathDifference,
+  pathDifferenceInWavelengths,
+  classifyInterference,
 } from "@/physics/waveOptics";
 
 describe("Wave Optics Physics Engine (SSG)", () => {
@@ -364,6 +368,88 @@ describe("Wave Optics Physics Engine (SSG)", () => {
       expect(findFraunhoferPeakNumerical(2, 5, lambda, L, a, d, ZOOM_READING_RESOLUTION_MM)).toBe(1.0);
       expect(findFraunhoferPeakNumerical(3, 5, lambda, L, a, d, ZOOM_READING_RESOLUTION_MM)).toBe(1.4);
       expect(findFraunhoferPeakNumerical(4, 5, lambda, L, a, d, ZOOM_READING_RESOLUTION_MM)).toBe(2.0);
+    });
+  });
+
+  describe("Step 0b & 1: Rail Scale Mapping & Point P Geometric Interference", () => {
+    test("screenDistanceToRailCm maps L to cm accurately for L = 0.5, 1.6, and 3.0 m", () => {
+      expect(screenDistanceToRailCm(0.5)).toBe(50);
+      expect(screenDistanceToRailCm(1.6)).toBe(160);
+      expect(screenDistanceToRailCm(3.0)).toBe(300);
+      expect(screenDistanceToRailCm(1.7)).toBe(170);
+    });
+
+    test("pathDifference and pathDifferenceInWavelengths: default parameters and reference calculations", () => {
+      const lambda = 632e-9; // 632 nm
+      const L = 1.6;        // 1.6 m
+      const d = 0.5e-3;     // 0.5 mm
+      const y = 2.0224e-3;  // 2.0224 mm (m = 1 primary peak approximation)
+
+      const exactDelta = pathDifference(y, d, L);
+      const deltaOverLambda = pathDifferenceInWavelengths(y, d, L, lambda);
+
+      // Verify delta / lambda is approximately 1.0 (difference < 1e-4)
+      expect(deltaOverLambda).toBeCloseTo(1.0, 3);
+
+      // Verify exact vs small-angle approximation difference:
+      // approx = d * y / L = 6.32e-7 m
+      const approxDelta = (d * y) / L;
+      const difference = approxDelta - exactDelta;
+      // Exact difference is positive and on the order of ~5e-13 m (~0.5 pm)
+      expect(difference).toBeGreaterThan(0);
+      expect(difference).toBeLessThan(1e-11);
+
+      // Symmetry for negative y
+      const negDelta = pathDifference(-y, d, L);
+      expect(negDelta).toBeCloseTo(-exactDelta, 10);
+      expect(pathDifferenceInWavelengths(-y, d, L, lambda)).toBeCloseTo(-deltaOverLambda, 10);
+
+      // y = 0 gives delta = 0
+      expect(pathDifference(0, d, L)).toBe(0);
+      expect(pathDifferenceInWavelengths(0, d, L, lambda)).toBe(0);
+
+      // Extreme L values (0.5 m and 3.0 m)
+      const deltaMinL = pathDifference(y, d, 0.5);
+      const deltaMaxL = pathDifference(y, d, 3.0);
+      expect(deltaMinL).toBeGreaterThan(deltaMaxL); // At smaller L, angle theta is larger -> sin(theta) is larger
+      expect(pathDifferenceInWavelengths(y, d, 0.5, lambda)).toBeGreaterThan(pathDifferenceInWavelengths(y, d, 3.0, lambda));
+    });
+
+    test("classifyInterference classifies optical interference state correctly across N and delta/lambda", () => {
+      // N = 1 (single slit) -> disabled
+      const c1 = classifyInterference(1.0, 1);
+      expect(c1.type).toBe("disabled");
+      expect(c1.order).toBeNull();
+
+      // Integer delta/lambda -> terang_primer
+      const cCenter = classifyInterference(0.005, 2);
+      expect(cCenter.type).toBe("terang_primer");
+      expect(cCenter.order).toBe(0);
+
+      const cOrder1 = classifyInterference(1.01, 2);
+      expect(cOrder1.type).toBe("terang_primer");
+      expect(cOrder1.order).toBe(1);
+
+      const cNegOrder2 = classifyInterference(-2.02, 3);
+      expect(cNegOrder2.type).toBe("terang_primer");
+      expect(cNegOrder2.order).toBe(-2);
+
+      // Half-integer -> gelap strictly for N = 2
+      const cDark2 = classifyInterference(0.51, 2);
+      expect(cDark2.type).toBe("gelap");
+
+      // For N >= 3, half-integer is "antara" with explanatory description
+      const cBetween3 = classifyInterference(0.50, 3);
+      expect(cBetween3.type).toBe("antara");
+      expect(cBetween3.description).toContain("1 terang sekunder");
+
+      const cBetween5 = classifyInterference(0.50, 5);
+      expect(cBetween5.type).toBe("antara");
+      expect(cBetween5.description).toContain("3 terang sekunder");
+
+      // General arbitrary position -> antara
+      const cAntara = classifyInterference(0.28, 2);
+      expect(cAntara.type).toBe("antara");
     });
   });
 });
