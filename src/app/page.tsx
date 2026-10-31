@@ -19,7 +19,7 @@ import { ModuleVisualizer } from "@/components/ui/ModuleVisualizer";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-function LandingView({ onEnter }: { onEnter: () => void }) {
+function LandingView({ onEnter, onSkip }: { onEnter: () => void; onSkip: () => void }) {
   const MATH_FORMULAS = [
     "F = m a", "v = v₀ + a t", "E = m c²", "λ = v / f",
     "V = I R", "τ = I α", "p = m v", "F = G (m₁ m₂) / r²",
@@ -119,6 +119,28 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
           <polygon points="400,100 660,600 140,600" fill="none" stroke="white" strokeWidth="1" strokeDasharray="4 8" />
           <polygon points="400,700 140,200 660,200" fill="none" stroke="white" strokeWidth="1" strokeDasharray="4 8" />
         </svg>
+      </div>
+
+      {/* Top Bar with Skip Button */}
+      <div style={{ position: "absolute", top: "20px", right: "24px", zIndex: 50 }}>
+        <button
+          onClick={onSkip}
+          style={{
+            background: "rgba(255, 255, 255, 0.08)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            color: "rgba(255, 255, 255, 0.8)",
+            padding: "8px 18px",
+            borderRadius: "100px",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            backdropFilter: "blur(8px)",
+            transition: "all 0.2s ease",
+          }}
+          aria-label="Lewati animasi splash dan langsung ke modul"
+        >
+          Lewati →
+        </button>
       </div>
 
       {/* Floating Math Formulas */}
@@ -228,6 +250,25 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
             <ChevronRight className="w-6 h-6 text-white" strokeWidth={3} />
           </div>
         </button>
+
+        <button
+          onClick={onSkip}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "rgba(255, 255, 255, 0.5)",
+            fontSize: "0.85rem",
+            cursor: "pointer",
+            marginTop: "4px",
+            textDecoration: "underline",
+            textUnderlineOffset: "4px",
+            transition: "color 0.2s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.5)")}
+        >
+          Lewati pengantar dan langsung ke modul
+        </button>
       </div>
 
       {/* Footer Disclaimer */}
@@ -248,8 +289,30 @@ function LandingView({ onEnter }: { onEnter: () => void }) {
 
 export default function HomePage() {
   const [showApp, setShowApp] = useState(false);
+  const [hasCheckedSession, setHasCheckedSession] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    try {
+      const seen = window.sessionStorage.getItem("vlab_splash_seen");
+      if (seen === "true") {
+        setShowApp(true);
+      }
+    } catch {
+      // ignore storage errors
+    }
+    setHasCheckedSession(true);
+  }, []);
+
+  const handleEnter = () => {
+    try {
+      window.sessionStorage.setItem("vlab_splash_seen", "true");
+    } catch {
+      // ignore
+    }
+    setShowApp(true);
+  };
 
   const activeData = PRACTICUMS[activeIndex];
 
@@ -282,8 +345,12 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeIndex, isTransitioning, showApp]);
 
+  if (!hasCheckedSession) {
+    return <div className="h-screen w-screen bg-[#020617]" />;
+  }
+
   if (!showApp) {
-    return <LandingView onEnter={() => setShowApp(true)} />;
+    return <LandingView onEnter={handleEnter} onSkip={handleEnter} />;
   }
 
   return (
