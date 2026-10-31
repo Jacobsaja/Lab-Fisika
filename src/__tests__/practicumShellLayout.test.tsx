@@ -7,6 +7,7 @@ const MOCK_CONFIG: PracticumConfig = {
   id: "test-shell",
   title: "Test Practicum Shell",
   category: "Mekanika",
+  simulationType: "measurement",
   recommendedDurationSec: 600,
   introduction: "Intro test",
   objectives: ["Objective 1"],
