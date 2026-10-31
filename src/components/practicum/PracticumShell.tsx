@@ -239,7 +239,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
                   <ol className="space-y-4">
                     {config.instructions.map((inst, i) => (
                       <li key={i} className="flex gap-3 text-sm text-white/80">
-                        <span className="font-bold text-white/40">{i+1}.</span>
+                        <span className="font-bold text-white/60">{i+1}.</span>
                         <span>{inst}</span>
                       </li>
                     ))}
@@ -492,7 +492,7 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
                     )}
                     <button 
                       onClick={toggleDrawer}
-                      className="text-xs text-white/40 hover:text-white/80 p-1 transition-colors"
+                      className="text-xs text-white/60 hover:text-white p-1 transition-colors"
                       title="Lipat Tabel"
                     >
                       Lipat

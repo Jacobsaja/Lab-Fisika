@@ -458,7 +458,7 @@ export function RollingReview({ rows }: { rows: Row[] }) {
                           <div className="text-[11px] text-rose-200/70 mt-1 max-w-[180px]">{DIAGNOSIS_TEXT[fb[f].diagnosis!]}</div>
                         )}
                         {ref && fb[f].status !== "correct" && (
-                          <div className="text-[11px] text-white/40 mt-1 font-mono">acuan: {formatReference(f, ref[f])}</div>
+                          <div className="text-[11px] text-white/60 mt-1 font-mono">acuan: {formatReference(f, ref[f])}</div>
                         )}
                       </td>
                     ))}
