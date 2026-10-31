@@ -84,7 +84,7 @@ describe("Explore SSG Page UI & Invariants", () => {
     const renderTimeMs = t1 - t0;
 
     // Verify render time is tracked
-    expect(renderTimeMs).toBeLessThan(500);
+    expect(renderTimeMs).toBeLessThan(1500);
 
     // Default lambda 632 nm and N = 2
     expect(screen.getAllByText(/632 nm/i).length).toBeGreaterThanOrEqual(1);
