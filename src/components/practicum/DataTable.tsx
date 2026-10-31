@@ -5,7 +5,7 @@ import { Plus, Trash2, Eraser } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface ColumnDef<TRow extends Record<string, unknown>> {
+export interface ColumnDef<TRow extends Record<string, any>> {
   key: keyof TRow;
   header: string;
   unit?: string;
@@ -16,7 +16,7 @@ export interface ColumnDef<TRow extends Record<string, unknown>> {
   width?: string;
 }
 
-interface DataTableProps<TRow extends Record<string, unknown>> {
+interface DataTableProps<TRow extends Record<string, any>> {
   columns: ColumnDef<TRow>[];
   rows: TRow[];
   onRowsChange: (rows: TRow[]) => void;
@@ -29,7 +29,7 @@ interface DataTableProps<TRow extends Record<string, unknown>> {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-function formatCell<TRow extends Record<string, unknown>>(
+function formatCell<TRow extends Record<string, any>>(
   value: TRow[keyof TRow],
   col: ColumnDef<TRow>
 ): string {
@@ -41,7 +41,7 @@ function formatCell<TRow extends Record<string, unknown>>(
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function DataTable<TRow extends Record<string, unknown>>({
+export function DataTable<TRow extends Record<string, any>>({
   columns,
   rows,
   onRowsChange,

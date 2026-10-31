@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { DataTable, ColumnDef } from "@/components/practicum/DataTable";
 
-interface MockRow {
+interface MockRow extends Record<string, any> {
   id: number;
   x: number;
   y: string;
