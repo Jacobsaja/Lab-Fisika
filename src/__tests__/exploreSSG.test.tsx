@@ -291,7 +291,7 @@ describe("Explore SSG Page UI & Invariants", () => {
       render(<SSGExplorePage />);
 
       // Switch to N = 1
-      fireEvent.click(screen.getByRole("button", { name: "1", exact: true }));
+      fireEvent.click(screen.getByRole("button", { name: /^1$/ }));
 
       // Turn on geometry
       fireEvent.click(screen.getByRole("button", { name: /Geometri Sinar \(Titik P\)/i }));
