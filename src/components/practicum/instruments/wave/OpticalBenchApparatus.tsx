@@ -1321,7 +1321,7 @@ export function OpticalBenchApparatus({
               <button
                 type="button"
                 onClick={onToggleGeometry}
-                aria-label="Geometri Sinar (Titik P)"
+                aria-label="Diagram Geometri Sinar (Titik P)"
                 aria-pressed={showGeometry}
                 className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-2 active:scale-95 ${
                   showGeometry
