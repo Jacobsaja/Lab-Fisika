@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { PracticumConfig, PracticumState, PracticumStep } from "@/types/practicum";
 import { usePracticumSession } from "@/hooks/usePracticumSession";
-import { ArrowLeft, ChevronRight, CheckCircle2, RotateCcw, Play, Pause, ListTodo, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { ArrowLeft, ChevronRight, CheckCircle2, RotateCcw, Play, Pause, ListTodo, ChevronDown, ChevronUp, AlertCircle, Maximize2, Minimize2 } from "lucide-react";
 import Link from "next/link";
 import { ExperimentTimer } from "./ExperimentTimer";
 import { DataTable } from "./DataTable";
@@ -55,12 +55,17 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
   const [resetCount, setResetCount] = useState(0);
   const [revealedHintsCount, setRevealedHintsCount] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
 
   useEffect(() => {
     try {
       const stored = window.sessionStorage.getItem(`vlab_drawer_open_${config.id}`);
       if (stored !== null) {
         setIsDrawerOpen(stored === "true");
+      }
+      const storedExp = window.sessionStorage.getItem(`vlab_drawer_expanded_${config.id}`);
+      if (storedExp !== null) {
+        setIsDrawerExpanded(storedExp === "true");
       }
     } catch {
       // ignore storage errors
@@ -72,6 +77,18 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
       const next = !prev;
       try {
         window.sessionStorage.setItem(`vlab_drawer_open_${config.id}`, String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const toggleExpandDrawer = () => {
+    setIsDrawerExpanded((prev) => {
+      const next = !prev;
+      try {
+        window.sessionStorage.setItem(`vlab_drawer_expanded_${config.id}`, String(next));
       } catch {
         // ignore
       }
@@ -459,7 +476,11 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
               <div 
                 data-testid="data-drawer-open"
                 className="border-t border-white/10 bg-[#11182A] p-3 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-20 shrink-0 transition-[height] duration-200"
-                style={{ height: "clamp(160px, 32vh, 40%)" }}
+                style={{
+                  height: isDrawerExpanded 
+                    ? "clamp(380px, 60vh, 60%)" 
+                    : "clamp(160px, 32vh, 40%)"
+                }}
               >
                 <div className="flex justify-between items-center mb-2 px-1">
                   <div className="flex items-center gap-2">
@@ -490,6 +511,23 @@ export function PracticumShell({ config, simulationComponent, isNextDisabled = f
                         + Tambah Baris
                       </button>
                     )}
+                    <button 
+                      data-testid="btn-expand-drawer"
+                      onClick={toggleExpandDrawer}
+                      className="flex items-center gap-1 text-xs text-white/70 hover:text-white px-2 py-1 rounded hover:bg-white/10 transition-colors border border-white/10"
+                      title={isDrawerExpanded ? "Ciutkan Tabel ke Ukuran Normal" : "Perluas Tabel (Tampilkan >= 10 Baris)"}
+                      aria-label={isDrawerExpanded ? "Ciutkan Tabel" : "Perluas Tabel"}
+                    >
+                      {isDrawerExpanded ? (
+                        <>
+                          <Minimize2 className="w-3.5 h-3.5 text-blue-400" /> Ciutkan
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="w-3.5 h-3.5 text-blue-400" /> Perluas
+                        </>
+                      )}
+                    </button>
                     <button 
                       onClick={toggleDrawer}
                       className="text-xs text-white/60 hover:text-white p-1 transition-colors"

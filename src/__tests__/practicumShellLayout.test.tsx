@@ -74,6 +74,22 @@ describe("C. TATA RUANG SHELL & DATA DRAWER", () => {
     fireEvent.click(screen.getByTestId("data-drawer-collapsed"));
     expect(screen.getByTestId("data-drawer-open")).toBeInTheDocument();
 
+    // Toggle expand (Perluas)
+    const expandBtn = screen.getByTestId("btn-expand-drawer");
+    expect(screen.getByText(/Perluas/i)).toBeInTheDocument();
+    fireEvent.click(expandBtn);
+
+    // Height becomes 60%
+    const openDrawer = screen.getByTestId("data-drawer-open");
+    expect(openDrawer.style.height).toBe("clamp(380px, 60vh, 60%)");
+    expect(window.sessionStorage.getItem("vlab_drawer_expanded_test-shell")).toBe("true");
+
+    // Click Ciutkan
+    expect(screen.getByText(/Ciutkan/i)).toBeInTheDocument();
+    fireEvent.click(expandBtn);
+    expect(openDrawer.style.height).toBe("clamp(160px, 32vh, 40%)");
+    expect(window.sessionStorage.getItem("vlab_drawer_expanded_test-shell")).toBe("false");
+
     unmount();
   });
 
