@@ -84,7 +84,20 @@ export function OpticalBenchApparatus({
   // Key horizontal coordinates along the bench
   const xLaserNozzle = 185;
   const xSlit = 285;
-  const xScreen = 815;
+
+  // ── Skala rel: 1 m = RAIL_PX_PER_M px, angka skala diukur dari piringan celah (0 cm).
+  // Posisi layar = xSlit + L·RAIL_PX_PER_M, sehingga selisih angka skala celah→layar = L (cm).
+  // Berlaku untuk L 0,5–3,0 m (di luar rentang di-clamp hanya untuk penggambaran).
+  const RAIL_PX_PER_M = 180;
+  const L_DRAW_MIN = 0.5;
+  const L_DRAW_MAX = 3.0;
+  const drawnL = Math.min(L_DRAW_MAX, Math.max(L_DRAW_MIN, distanceL));
+  const xScreen = xSlit + drawnL * RAIL_PX_PER_M;
+  const benchSpan = xScreen - xSlit;
+  const xBenchMid = (xSlit + xScreen) / 2;
+  // Pil "L = ..." diletakkan di tengah garis ukur bila muat; jika L pendek, di kanan layar.
+  const isLPillCentered = benchSpan >= 160;
+  const lPillX = isLPillCentered ? xBenchMid - 60 : xScreen + 44;
 
   // Slit disk rotation angle
   const diskRotationDeg = useMemo(() => {
@@ -339,22 +352,63 @@ export function OpticalBenchApparatus({
             />
             <line x1="56" y1="205" x2="896" y2="205" stroke="#ffffff" strokeWidth="0.6" opacity="0.5" />
 
-            {/* Regular Extruded Aluminum Incremental Division Marks on Front Face (Tanpa angka cm statis yang berkonflik dengan L) */}
-            {Array.from({ length: 29 }).map((_, idx) => {
-              const xPos = 50 + idx * 29.5;
-              const isMajor = idx % 4 === 0;
-              return (
-                <line
-                  key={idx}
-                  x1={xPos}
-                  y1={211}
-                  x2={xPos}
-                  y2={isMajor ? 222 : 217}
-                  stroke={isMajor ? "#0f172a" : "#334155"}
-                  strokeWidth={isMajor ? 1.4 : 0.8}
-                />
-              );
-            })}
+            {/* Skala rel berskala nyata: 0 cm di piringan celah, tiap 10 cm garis kecil, tiap 50 cm angka.
+                Selisih angka celah→layar sama dengan L (mis. L = 1,70 m → layar di 170 cm). */}
+            <g data-testid="rail-scale">
+              {Array.from({ length: Math.round(L_DRAW_MAX * 10) + 1 }).map((_, idx) => {
+                const cm = idx * 10;
+                const xPos = xSlit + (cm / 100) * RAIL_PX_PER_M;
+                const isMajor = cm % 50 === 0;
+                return (
+                  <g key={cm}>
+                    <line
+                      x1={xPos}
+                      y1={211}
+                      x2={xPos}
+                      y2={isMajor ? 222 : 216}
+                      stroke={isMajor ? "#0f172a" : "#334155"}
+                      strokeWidth={isMajor ? 1.4 : 0.8}
+                    />
+                    {isMajor && (
+                      <text
+                        x={xPos}
+                        y={235}
+                        fill="#f1f5f9"
+                        fontSize="12"
+                        fontFamily="monospace"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        stroke="#0f172a"
+                        strokeWidth="2.5"
+                        paintOrder="stroke"
+                      >
+                        {cm}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+              {/* Satuan skala, di sisi kiri rel (di bawah laser) */}
+              <text
+                x={xSlit - 22}
+                y={235}
+                fill="#cbd5e1"
+                fontSize="12"
+                fontFamily="monospace"
+                textAnchor="end"
+                stroke="#0f172a"
+                strokeWidth="2.5"
+                paintOrder="stroke"
+              >
+                cm
+              </text>
+              {/* Penunjuk posisi layar pada skala (segitiga di tepi atas muka rel) */}
+              <polygon
+                data-testid="rail-screen-index"
+                points={`${xScreen - 5},211 ${xScreen + 5},211 ${xScreen},218`}
+                fill="#06b6d4"
+              />
+            </g>
 
             {/* ═════════════════════════════════════════════════════════════════ */}
             {/* 3. VOLUMETRIC LASER BEAM                                          */}
@@ -432,12 +486,13 @@ export function OpticalBenchApparatus({
                 />
 
                 {/* Optical Diffraction Wavefront Arcs */}
-                {[130, 260, 390].map((dist) => {
+                {[0.25, 0.5, 0.75].map((frac) => {
+                  const dist = frac * benchSpan;
                   const xPos = xSlit + dist;
-                  const fanHalfH = (dist / (xScreen - xSlit)) * 34;
+                  const fanHalfH = frac * 34;
                   return (
                     <path
-                      key={dist}
+                      key={frac}
                       d={`M ${xPos - 6},${yOpt - fanHalfH} Q ${xPos + 10},${yOpt} ${xPos - 6},${yOpt + fanHalfH}`}
                       fill="none"
                       stroke={laserHex}
@@ -448,19 +503,21 @@ export function OpticalBenchApparatus({
                   );
                 })}
 
-                {/* Notice text on diffraction fan */}
-                <text
-                  x="530"
-                  y={yOpt + 28}
-                  fill="#94a3b8"
-                  fontSize="12"
-                  fontFamily="sans-serif"
-                  fontStyle="italic"
-                  opacity="0.8"
-                  textAnchor="middle"
-                >
-                  skema, tidak berskala
-                </text>
+                {/* Notice text on diffraction fan (hanya bila ruang di antara celah-layar cukup) */}
+                {benchSpan >= 260 && (
+                  <text
+                    x={xBenchMid + 20}
+                    y={yOpt + 28}
+                    fill="#94a3b8"
+                    fontSize="12"
+                    fontFamily="sans-serif"
+                    fontStyle="italic"
+                    opacity="0.8"
+                    textAnchor="middle"
+                  >
+                    skema, tidak berskala
+                  </text>
+                )}
               </g>
             )}
 
@@ -988,19 +1045,20 @@ export function OpticalBenchApparatus({
               <polygon points={`${xSlit},80 ${xSlit + 8},76 ${xSlit + 8},84`} fill="#38bdf8" />
               <polygon points={`${xScreen},80 ${xScreen - 8},76 ${xScreen - 8},84`} fill="#38bdf8" />
 
-              {/* Large Floating Readout Pill L (Terletak di samping Inset, zero collision) */}
+              {/* Readout Pill L: di tengah garis ukur bila muat, selain itu di kanan layar */}
               <rect
-                x="615"
-                y="68"
+                data-testid="l-pill"
+                x={lPillX}
+                y="70"
                 width="120"
-                height="24"
+                height="22"
                 rx="6"
                 fill="#020617"
                 stroke="#06b6d4"
                 strokeWidth="1.3"
               />
               <text
-                x="675"
+                x={lPillX + 60}
                 y="85"
                 fill="#38bdf8"
                 fontSize="13"
@@ -1041,10 +1099,18 @@ export function OpticalBenchApparatus({
 
                 {/* Point P marker on screen */}
                 <circle cx={xScreen} cy={yOpt - 18} r={3.5} fill="#f59e0b" stroke="#ffffff" strokeWidth="1" />
-                <rect x={xScreen - 76} y={yOpt - 32} width={72} height={20} rx="3" fill="#020617" stroke="#f59e0b" strokeWidth="0.8" />
-                <text x={xScreen - 40} y={yOpt - 18} fill="#f59e0b" fontSize="12" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
-                  Titik P (Orde 1)
-                </text>
+                {(() => {
+                  // Label Titik P: kiri layar bila ruang cukup, kanan layar bila L pendek (hindari kotak Δr)
+                  const pX = benchSpan >= 280 ? xScreen - 132 : xScreen + 44;
+                  return (
+                    <>
+                      <rect x={pX} y={yOpt - 32} width={116} height={20} rx="3" fill="#020617" stroke="#f59e0b" strokeWidth="0.8" />
+                      <text x={pX + 58} y={yOpt - 18} fill="#f59e0b" fontSize="12" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">
+                        Titik P (Orde 1)
+                      </text>
+                    </>
+                  );
+                })()}
 
                 {/* Path difference perpendicular leg */}
                 <line
